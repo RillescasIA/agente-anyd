@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 
 import drive_manager
 
-DB_PATH = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\anyd_booking.db"
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "anyd_booking.db"))
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)

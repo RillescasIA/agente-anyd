@@ -17,11 +17,95 @@ import ai_copilot
 import holidays_manager
 import sync_excel
 
-DB_PATH = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\anyd_booking.db"
-TEMPLATES_DIR = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\templates"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = FastAPI(title="ANyD Booking & Bono Manager")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS clients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        firstname TEXT,
+        lastname TEXT,
+        fullname TEXT,
+        email TEXT UNIQUE COLLATE NOCASE,
+        phone TEXT,
+        address TEXT,
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS bonos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id TEXT UNIQUE,
+        client_id INTEGER,
+        client_name TEXT,
+        client_email TEXT,
+        tipo_bono TEXT,
+        total_sessions INTEGER,
+        used_sessions INTEGER DEFAULT 0,
+        purchase_date TEXT,
+        price REAL,
+        status TEXT DEFAULT 'Activo',
+        centro TEXT DEFAULT 'ANYD',
+        forma_pago TEXT,
+        nutri TEXT DEFAULT 'Román',
+        FOREIGN KEY (client_id) REFERENCES clients (id)
+    )""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS appointments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bono_id INTEGER,
+        client_id INTEGER,
+        client_name TEXT,
+        client_email TEXT,
+        client_phone TEXT,
+        appointment_date TEXT,
+        appointment_time TEXT,
+        duration_minutes INTEGER DEFAULT 30,
+        service TEXT DEFAULT 'Anyd Nutrición Deportiva',
+        modality TEXT DEFAULT 'Presencial',
+        status TEXT DEFAULT 'Agendada',
+        reminder_sent INTEGER DEFAULT 0,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (bono_id) REFERENCES bonos (id),
+        FOREIGN KEY (client_id) REFERENCES clients (id)
+    )""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tanita_measurements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        client_name TEXT,
+        appointment_id INTEGER,
+        measurement_date TEXT,
+        weight REAL,
+        bmi REAL,
+        fat_percent REAL,
+        fat_mass REAL,
+        muscle_mass REAL,
+        ffm REAL,
+        water_percent REAL,
+        bone_mass REAL,
+        visceral_fat REAL,
+        bmr_tanita REAL,
+        bmr_cunningham REAL,
+        metabolic_age INTEGER,
+        physical_rating INTEGER,
+        segmental_data TEXT,
+        raw_data TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients (id)
+    )""")
+    conn.commit()
+    conn.close()
+
+init_db()
 
 # Inicializar tabla oficial de festivos Nacionales, Madrid y Alcorcón
 holidays_manager.init_holidays_table()

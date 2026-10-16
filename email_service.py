@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 import os
 import json
 
-CONFIG_FILE = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\config.json"
+CONFIG_FILE = os.environ.get("CONFIG_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json"))
 
 DEFAULT_CONFIG = {
     "smtp_server": "smtp.gmail.com",

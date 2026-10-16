@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import os
 from email_service import send_reminder_48h
 
-DB_PATH = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\anyd_booking.db"
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "anyd_booking.db"))
 
 def run_reminder_check():
     """

@@ -8,7 +8,7 @@ import sqlite3
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
-DB_PATH = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\anyd_booking.db"
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "anyd_booking.db"))
 
 class TanitaReceiver:
     def __init__(self):

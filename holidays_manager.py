@@ -2,7 +2,7 @@ import sqlite3
 import os
 from typing import Dict, Any, List, Optional, Tuple
 
-DB_PATH = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\anyd_booking.db"
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "anyd_booking.db"))
 
 # Listado oficial de festivos Nacionales, Comunidad de Madrid y Locales de Alcorcón
 OFFICIAL_HOLIDAYS = [
