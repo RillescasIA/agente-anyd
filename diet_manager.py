@@ -17,7 +17,7 @@ def get_recipes(query: str = "", group: str = "", limit: int = 50, offset: int =
     conn = get_db()
     cursor = conn.cursor()
 
-    sql = "SELECT id, nombre, grupo_canonico, tiempo_minutos, ingredientes, elaboracion, kcal, proteina_g, carbohidratos_g, grasa_g FROM diet_recipes WHERE 1=1"
+    sql = "SELECT id, nombre, grupo_canonico, tiempo_minutos, ingredientes, elaboracion, kcal, proteina_g, carbohidratos_g, grasa_g, fibra_g FROM diet_recipes WHERE 1=1"
     params = []
 
     if query:
@@ -57,6 +57,117 @@ def get_canonical_groups() -> List[str]:
     groups = [r[0] for r in cursor.fetchall() if r[0]]
     conn.close()
     return groups
+
+def get_recipe_by_id(recipe_id: int) -> Optional[Dict[str, Any]]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, nombre, grupo_canonico, tiempo_minutos, ingredientes, elaboracion, kcal, proteina_g, carbohidratos_g, grasa_g, fibra_g FROM diet_recipes WHERE id = ?", (recipe_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def create_recipe(data: Dict[str, Any]) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    nombre = data.get("nombre", "").strip()
+    if not nombre:
+        conn.close()
+        return {"success": False, "error": "El nombre del plato es obligatorio"}
+    
+    grupo = data.get("grupo_canonico", "Platos Principales").strip() or "Platos Principales"
+    tiempo = int(data.get("tiempo_minutos") or 15)
+    ingredientes = data.get("ingredientes", "").strip()
+    elaboracion = data.get("elaboracion", "").strip()
+    kcal = float(data.get("kcal") or 0.0)
+    proteina_g = float(data.get("proteina_g") or 0.0)
+    carbohidratos_g = float(data.get("carbohidratos_g") or 0.0)
+    grasa_g = float(data.get("grasa_g") or 0.0)
+    fibra_g = float(data.get("fibra_g") or 0.0)
+
+    if kcal <= 0 and (proteina_g > 0 or carbohidratos_g > 0 or grasa_g > 0):
+        kcal = round((proteina_g * 4.0) + (carbohidratos_g * 4.0) + (grasa_g * 9.0), 1)
+
+    cursor.execute("""
+        INSERT INTO diet_recipes (
+            nombre, grupo_canonico, tiempo_minutos, ingredientes, elaboracion,
+            kcal, proteina_g, carbohidratos_g, grasa_g, fibra_g
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (nombre, grupo, tiempo, ingredientes, elaboracion, kcal, proteina_g, carbohidratos_g, grasa_g, fibra_g))
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": new_id, "nombre": nombre}
+
+def update_recipe(recipe_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    nombre = data.get("nombre", "").strip()
+    if not nombre:
+        conn.close()
+        return {"success": False, "error": "El nombre del plato es obligatorio"}
+    
+    grupo = data.get("grupo_canonico", "Platos Principales").strip() or "Platos Principales"
+    tiempo = int(data.get("tiempo_minutos") or 15)
+    ingredientes = data.get("ingredientes", "").strip()
+    elaboracion = data.get("elaboracion", "").strip()
+    kcal = float(data.get("kcal") or 0.0)
+    proteina_g = float(data.get("proteina_g") or 0.0)
+    carbohidratos_g = float(data.get("carbohidratos_g") or 0.0)
+    grasa_g = float(data.get("grasa_g") or 0.0)
+    fibra_g = float(data.get("fibra_g") or 0.0)
+
+    if kcal <= 0 and (proteina_g > 0 or carbohidratos_g > 0 or grasa_g > 0):
+        kcal = round((proteina_g * 4.0) + (carbohidratos_g * 4.0) + (grasa_g * 9.0), 1)
+
+    cursor.execute("""
+        UPDATE diet_recipes SET
+            nombre = ?, grupo_canonico = ?, tiempo_minutos = ?, ingredientes = ?, elaboracion = ?,
+            kcal = ?, proteina_g = ?, carbohidratos_g = ?, grasa_g = ?, fibra_g = ?
+        WHERE id = ?
+    """, (nombre, grupo, tiempo, ingredientes, elaboracion, kcal, proteina_g, carbohidratos_g, grasa_g, fibra_g, recipe_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": recipe_id, "nombre": nombre}
+
+def delete_recipe(recipe_id: int) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT nombre FROM diet_recipes WHERE id = ?", (recipe_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return {"success": False, "error": "Receta no encontrada"}
+    
+    nombre = row[0]
+    cursor.execute("DELETE FROM diet_recipes WHERE id = ?", (recipe_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": recipe_id, "nombre": nombre}
+
+def copy_recipe(recipe_id: int, new_name: Optional[str] = None) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM diet_recipes WHERE id = ?", (recipe_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return {"success": False, "error": "Receta no encontrada"}
+    
+    recipe_dict = dict(row)
+    del recipe_dict["id"]
+    if new_name and new_name.strip():
+        recipe_dict["nombre"] = new_name.strip()
+    else:
+        recipe_dict["nombre"] = f"{recipe_dict['nombre']} (Copia)"
+
+    cols = list(recipe_dict.keys())
+    placeholders = ", ".join(["?"] * len(cols))
+    sql = f"INSERT INTO diet_recipes ({', '.join(cols)}) VALUES ({placeholders})"
+    cursor.execute(sql, [recipe_dict[c] for c in cols])
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": new_id, "nombre": recipe_dict["nombre"]}
 
 def get_foods(query: str = "", familia: str = "", fuente: str = "", limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     conn = get_db()
@@ -118,6 +229,138 @@ def get_food_by_id(food_id: int) -> Optional[Dict[str, Any]]:
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
+
+def create_food(data: Dict[str, Any]) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    nombre = data.get("nombre", "").strip()
+    if not nombre:
+        conn.close()
+        return {"success": False, "error": "El nombre del alimento es obligatorio"}
+    
+    familia = data.get("familia", "General").strip() or "General"
+    marca = data.get("marca", "Genérico").strip() or "Genérico"
+    codigo_barras = data.get("codigo_barras", "").strip()
+    medida_casera = data.get("medida_casera", "100g estándar").strip()
+    nova_group = int(data.get("nova_group") or 1)
+    fuente_datos = data.get("fuente_datos", "Clínica ANyD").strip() or "Clínica ANyD"
+    
+    kcal = float(data.get("kcal") or 0.0)
+    proteina_g = float(data.get("proteina_g") or 0.0)
+    carbohidratos_g = float(data.get("carbohidratos_g") or 0.0)
+    grasa_g = float(data.get("grasa_g") or 0.0)
+    fibra_g = float(data.get("fibra_g") or 0.0)
+    energia_kj = float(data.get("energia_kj") or (kcal * 4.184))
+
+    calcio_mg = float(data.get("calcio_mg") or 0.0)
+    hierro_mg = float(data.get("hierro_mg") or 0.0)
+    magnesio_mg = float(data.get("magnesio_mg") or 0.0)
+    potasio_mg = float(data.get("potasio_mg") or 0.0)
+    vitamina_d_ug = float(data.get("vitamina_d_ug") or 0.0)
+    vitamina_c_mg = float(data.get("vitamina_c_mg") or 0.0)
+    vitamina_b12_ug = float(data.get("vitamina_b12_ug") or 0.0)
+
+    cursor.execute("""
+        INSERT INTO diet_foods (
+            nombre, familia, marca, codigo_barras, medida_casera, nova_group, fuente_datos,
+            kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g,
+            calcio_mg, hierro_mg, magnesio_mg, potasio_mg, vitamina_d_ug, vitamina_c_mg, vitamina_b12_ug
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        nombre, familia, marca, codigo_barras, medida_casera, nova_group, fuente_datos,
+        kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g,
+        calcio_mg, hierro_mg, magnesio_mg, potasio_mg, vitamina_d_ug, vitamina_c_mg, vitamina_b12_ug
+    ))
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": new_id, "nombre": nombre}
+
+def update_food(food_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    nombre = data.get("nombre", "").strip()
+    if not nombre:
+        conn.close()
+        return {"success": False, "error": "El nombre del alimento es obligatorio"}
+    
+    familia = data.get("familia", "General").strip() or "General"
+    marca = data.get("marca", "Genérico").strip() or "Genérico"
+    codigo_barras = data.get("codigo_barras", "").strip()
+    medida_casera = data.get("medida_casera", "100g estándar").strip()
+    nova_group = int(data.get("nova_group") or 1)
+    fuente_datos = data.get("fuente_datos", "Clínica ANyD").strip() or "Clínica ANyD"
+    
+    kcal = float(data.get("kcal") or 0.0)
+    proteina_g = float(data.get("proteina_g") or 0.0)
+    carbohidratos_g = float(data.get("carbohidratos_g") or 0.0)
+    grasa_g = float(data.get("grasa_g") or 0.0)
+    fibra_g = float(data.get("fibra_g") or 0.0)
+    energia_kj = float(data.get("energia_kj") or (kcal * 4.184))
+
+    calcio_mg = float(data.get("calcio_mg") or 0.0)
+    hierro_mg = float(data.get("hierro_mg") or 0.0)
+    magnesio_mg = float(data.get("magnesio_mg") or 0.0)
+    potasio_mg = float(data.get("potasio_mg") or 0.0)
+    vitamina_d_ug = float(data.get("vitamina_d_ug") or 0.0)
+    vitamina_c_mg = float(data.get("vitamina_c_mg") or 0.0)
+    vitamina_b12_ug = float(data.get("vitamina_b12_ug") or 0.0)
+
+    cursor.execute("""
+        UPDATE diet_foods SET
+            nombre = ?, familia = ?, marca = ?, codigo_barras = ?, medida_casera = ?, nova_group = ?, fuente_datos = ?,
+            kcal = ?, energia_kj = ?, proteina_g = ?, carbohidratos_g = ?, grasa_g = ?, fibra_g = ?,
+            calcio_mg = ?, hierro_mg = ?, magnesio_mg = ?, potasio_mg = ?, vitamina_d_ug = ?, vitamina_c_mg = ?, vitamina_b12_ug = ?
+        WHERE id = ?
+    """, (
+        nombre, familia, marca, codigo_barras, medida_casera, nova_group, fuente_datos,
+        kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g,
+        calcio_mg, hierro_mg, magnesio_mg, potasio_mg, vitamina_d_ug, vitamina_c_mg, vitamina_b12_ug,
+        food_id
+    ))
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": food_id, "nombre": nombre}
+
+def delete_food(food_id: int) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT nombre FROM diet_foods WHERE id = ?", (food_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return {"success": False, "error": "Alimento no encontrado"}
+    
+    nombre = row[0]
+    cursor.execute("DELETE FROM diet_foods WHERE id = ?", (food_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": food_id, "nombre": nombre}
+
+def copy_food(food_id: int, new_name: Optional[str] = None) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM diet_foods WHERE id = ?", (food_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return {"success": False, "error": "Alimento no encontrado"}
+    
+    food_dict = dict(row)
+    del food_dict["id"]
+    if new_name and new_name.strip():
+        food_dict["nombre"] = new_name.strip()
+    else:
+        food_dict["nombre"] = f"{food_dict['nombre']} (Copia)"
+
+    cols = list(food_dict.keys())
+    placeholders = ", ".join(["?"] * len(cols))
+    sql = f"INSERT INTO diet_foods ({', '.join(cols)}) VALUES ({placeholders})"
+    cursor.execute(sql, [food_dict[c] for c in cols])
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": new_id, "nombre": food_dict["nombre"]}
 
 def search_open_food_facts(query: str, page_size: int = 15) -> List[Dict[str, Any]]:
     import requests

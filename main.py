@@ -1362,10 +1362,52 @@ def api_search_off(q: str = "", limit: int = 15):
         return {"products": []}
     return {"products": diet_manager.search_open_food_facts(q, page_size=limit)}
 
+@app.get("/api/diet/off/import")
 @app.post("/api/diet/off/import")
 def api_import_off(item: Dict[str, Any] = Body(...)):
     res = diet_manager.import_off_product_to_db(item)
     return res
+
+# --- ENDPOINTS CRUD Y MANTENIMIENTO DE RECETAS ---
+@app.get("/api/diet/recipe/{recipe_id}")
+def api_get_recipe_detail(recipe_id: int):
+    recipe = diet_manager.get_recipe_by_id(recipe_id)
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Receta no encontrada")
+    return recipe
+
+@app.post("/api/diet/recipe")
+def api_create_recipe(data: Dict[str, Any] = Body(...)):
+    return diet_manager.create_recipe(data)
+
+@app.put("/api/diet/recipe/{recipe_id}")
+def api_update_recipe(recipe_id: int, data: Dict[str, Any] = Body(...)):
+    return diet_manager.update_recipe(recipe_id, data)
+
+@app.delete("/api/diet/recipe/{recipe_id}")
+def api_delete_recipe(recipe_id: int):
+    return diet_manager.delete_recipe(recipe_id)
+
+@app.post("/api/diet/recipe/{recipe_id}/copy")
+def api_copy_recipe(recipe_id: int):
+    return diet_manager.copy_recipe(recipe_id)
+
+# --- ENDPOINTS CRUD Y MANTENIMIENTO DE ALIMENTOS ---
+@app.post("/api/diet/food")
+def api_create_food(data: Dict[str, Any] = Body(...)):
+    return diet_manager.create_food(data)
+
+@app.put("/api/diet/food/{food_id}")
+def api_update_food(food_id: int, data: Dict[str, Any] = Body(...)):
+    return diet_manager.update_food(food_id, data)
+
+@app.delete("/api/diet/food/{food_id}")
+def api_delete_food(food_id: int):
+    return diet_manager.delete_food(food_id)
+
+@app.post("/api/diet/food/{food_id}/copy")
+def api_copy_food(food_id: int):
+    return diet_manager.copy_food(food_id)
 
 @app.get("/api/diet/groups")
 def api_get_diet_groups():
