@@ -1,0 +1,16 @@
+{
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "tu_correo@gmail.com",
+    "smtp_password": "tu_contraseña_de_aplicacion",
+    "sender_email": "info@anyd.es",
+    "sender_name": "Román Illescas - ANyD Nutricionistas",
+    "clinic_name": "ANyD Nutricionistas",
+    "website_url": "https://anyd.es",
+    "booking_url": "http://localhost:8080/reservar",
+    "enable_live_email": false,
+    "excel_path": "G:\\Mi unidad\\1.- ANyD\\Bonos activos_claude.xlsx",
+    "backup_dir": "G:\\Mi unidad\\1.- IA\\IA Gemini\\Agente anyd\\backups",
+    "tanita_default_baudrate": 9600,
+    "default_appointment_duration": 30
+}

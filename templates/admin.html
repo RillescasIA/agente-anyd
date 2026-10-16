@@ -1,0 +1,2216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario y Gestión de Citas | ANyD Nutricionistas</title>
+    <!-- Fuentes oficiales y FullCalendar 6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;500;600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/es.global.min.js"></script>
+
+    <style>
+        :root {
+            --anyd-blue: #0086cd;
+            --anyd-blue-hover: #30acee;
+            --reservio-blue-btn: #3B82F6;
+            --reservio-blue-hover: #2563EB;
+            --top-bg: #FFFFFF;
+            --sidebar-bg: #F8FAFC;
+            --main-bg: #FFFFFF;
+            --border: #E2E8F0;
+            --text-dark: #1E293B;
+            --text-muted: #64748B;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Lato', sans-serif; background: #F1F5F9; color: var(--text-dark); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* --- BARRA SUPERIOR (NAVBAR ESTILO RESERVIO) --- */
+        .topbar {
+            background: var(--top-bg);
+            border-bottom: 1px solid var(--border);
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            flex-shrink: 0;
+            z-index: 50;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 30px; }
+        .logo-img { height: 42px; width: auto; max-width: 170px; object-fit: contain; display: block; }
+        
+        .nav-links { display: flex; align-items: center; gap: 8px; list-style: none; }
+        .nav-item a {
+            display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+            color: var(--text-muted); text-decoration: none; font-family: 'Montserrat', sans-serif;
+            font-size: 13px; font-weight: 600; border-radius: 6px; transition: all 0.2s;
+        }
+        .nav-item a:hover { color: var(--anyd-blue); background: #F1F5F9; }
+        .nav-item.active a { color: var(--anyd-blue); background: rgba(0, 134, 205, 0.08); }
+
+        .topbar-right { display: flex; align-items: center; gap: 15px; }
+        .badge-unlimited {
+            background: #DEF7EC; color: #03543F; font-size: 12px; font-weight: 700;
+            padding: 6px 14px; border-radius: 20px; font-family: 'Montserrat', sans-serif;
+        }
+        .profile-chip {
+            display: flex; align-items: center; gap: 10px; font-size: 13px; font-family: 'Montserrat', sans-serif;
+        }
+        .avatar-circle {
+            width: 34px; height: 34px; border-radius: 50%; background: var(--anyd-blue);
+            color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;
+        }
+
+        /* --- CONTENEDOR PRINCIPAL: SIDEBAR + CALENDARIO --- */
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR IZQUIERDA */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+        .btn-create {
+            background: var(--reservio-blue-btn);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 13px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+            transition: background 0.2s;
+        }
+        .btn-create:hover { background: var(--reservio-blue-hover); }
+
+        .sidebar-section-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94A3B8;
+            margin-bottom: 8px;
+        }
+        .filter-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+        .filter-item {
+            display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dark);
+            padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background 0.15s;
+        }
+        .filter-item:hover { background: #E2E8F0; }
+        .filter-bullet { width: 10px; height: 10px; border-radius: 2px; }
+
+        .bullet-blue { background: #3B82F6; }
+        .bullet-yellow { background: #EAB308; }
+        .bullet-teal { background: #14B8A6; }
+        .bullet-purple { background: #A855F7; }
+
+        .reservas-limit-box {
+            margin-top: auto;
+            background: white;
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .reservas-limit-box strong { color: var(--anyd-blue); display: block; margin-bottom: 2px; }
+
+        /* ÁREA DEL CALENDARIO (CENTRAL) */
+        .calendar-container {
+            flex: 1;
+            background: var(--main-bg);
+            padding: 15px 20px 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ESTILOS PERSONALIZADOS FULLCALENDAR PARA IGUALAR A RESERVIO */
+        .fc {
+            font-family: 'Lato', sans-serif !important;
+            height: 100% !important;
+        }
+        .fc .fc-toolbar.fc-header-toolbar {
+            margin-bottom: 15px;
+        }
+        .fc-toolbar-title {
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            color: var(--text-dark) !important;
+        }
+        .fc-button-primary {
+            background-color: white !important;
+            border-color: var(--border) !important;
+            color: var(--text-dark) !important;
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            padding: 7px 14px !important;
+            border-radius: 6px !important;
+            text-transform: capitalize !important;
+            box-shadow: none !important;
+        }
+        .fc-button-primary:hover {
+            background-color: #F8FAFC !important;
+            border-color: #CBD5E1 !important;
+            color: var(--anyd-blue) !important;
+        }
+        .fc-button-active {
+            background-color: rgba(0, 134, 205, 0.1) !important;
+            border-color: var(--anyd-blue) !important;
+            color: var(--anyd-blue) !important;
+        }
+        .fc-col-header-cell-cushion {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            color: var(--text-dark) !important;
+            padding: 10px 0 !important;
+            text-decoration: none !important;
+        }
+        .fc-timegrid-slot-label-cushion {
+            font-size: 12px !important;
+            color: #94A3B8 !important;
+            font-family: 'Montserrat', sans-serif !important;
+        }
+        .fc-timegrid-slot {
+            height: 28px !important;
+        }
+        .fc-event {
+            border-radius: 4px !important;
+            padding: 2px 4px !important;
+            cursor: grab !important;
+            transition: transform 0.1s, box-shadow 0.1s !important;
+            user-select: none;
+            overflow: hidden !important;
+            line-height: 1.15 !important;
+        }
+        .fc-event:active {
+            cursor: grabbing !important;
+        }
+        .fc-event:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+        }
+        .fc-event-resizer {
+            opacity: 0.8 !important;
+        }
+        .fc-event-resizer:hover {
+            opacity: 1 !important;
+        }
+        .fc-event-main {
+            padding: 0 !important;
+            overflow: hidden !important;
+            height: 100% !important;
+        }
+        .event-duration-badge {
+            font-size: 8.5px;
+            font-weight: 800;
+            padding: 0px 3px;
+            border-radius: 3px;
+            background: rgba(0, 0, 0, 0.08);
+            flex-shrink: 0;
+            line-height: 1.1;
+            letter-spacing: -0.2px;
+        }
+        .event-client-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 10.5px;
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .event-service-name {
+            font-size: 9px;
+            opacity: 0.85;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* TOAST NOTIFICATIONS FLOTANTES */
+        .toast-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast-msg {
+            padding: 12px 18px;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideInToast 0.25s ease-out;
+            pointer-events: auto;
+        }
+        .toast-msg.success { background: #10B981; }
+        .toast-msg.error { background: #EF4444; }
+        .toast-msg.info { background: #2563EB; }
+
+        @keyframes slideInToast {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* MODAL DE DETALLE DE CITA */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(16, 18, 24, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: white; border-radius: 12px; width: 100%; max-width: 520px;
+            padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            position: relative;
+        }
+        .modal-title { font-family: 'Montserrat', sans-serif; font-size: 19px; color: var(--text-dark); margin-bottom: 15px; }
+        .modal-close { position: absolute; top: 20px; right: 20px; font-size: 22px; cursor: pointer; background: none; border: none; color: #94A3B8; }
+        .modal-close:hover { color: var(--text-dark); }
+
+        .modal-field { margin-bottom: 14px; }
+        .modal-field label { display: block; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px; }
+        .modal-input, .modal-select, .modal-textarea {
+            width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 14px;
+        }
+        .modal-input:focus, .modal-select:focus, .modal-textarea:focus { outline: none; border-color: var(--anyd-blue); }
+
+        .btn-anyd {
+            background-color: var(--anyd-blue); color: white; border: 1px solid var(--anyd-blue);
+            padding: 10px 18px; font-family: 'Rubik', sans-serif; font-weight: 500; font-size: 13px;
+            border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-flex;
+            align-items: center; justify-content: center; gap: 6px; transition: all 0.2s ease;
+        }
+        .btn-anyd:hover { background-color: var(--anyd-blue-hover); border-color: var(--anyd-blue-hover); }
+        .btn-success { background-color: #10B981; border-color: #10B981; }
+        .btn-success:hover { background-color: #059669; }
+        .btn-danger { background-color: #EF4444; border-color: #EF4444; color: white; }
+        .btn-danger:hover { background-color: #DC2626; }
+        .btn-outline { background-color: white; color: var(--text-dark); border-color: var(--border); }
+        .btn-outline:hover { background-color: #F8FAFC; }
+
+        .details-info-box {
+            background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 20px;
+        }
+        .details-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+        .details-row strong { font-family: 'Montserrat', sans-serif; color: var(--text-dark); }
+
+        .hidden { display: none !important; }
+
+        /* CHIPS DE DURACIÓN RÁPIDA (15, 30, 45, 60, 90 min) */
+        .btn-duration-chip {
+            background: white;
+            border: 1.5px solid #CBD5E1;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-duration-chip:hover {
+            border-color: #0086cd;
+            color: #0086cd;
+            background: #EFF6FF;
+            transform: translateY(-1px);
+        }
+        .btn-duration-chip.active {
+            background: #0086cd;
+            border-color: #0086cd;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0, 134, 205, 0.3);
+        }
+
+        /* --- COPILOTO IA FLOTANTE & DRAWER --- */
+        .copilot-fab {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: linear-gradient(135deg, #0086cd 0%, #4F46E5 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 20px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 134, 205, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        .copilot-fab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 134, 205, 0.5);
+        }
+        .copilot-pulse {
+            width: 10px;
+            height: 10px;
+            background: #10B981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .copilot-drawer {
+            position: fixed;
+            bottom: 85px;
+            right: 25px;
+            width: 440px;
+            max-width: calc(100vw - 40px);
+            height: 600px;
+            max-height: calc(100vh - 120px);
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 101;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .copilot-drawer.hidden {
+            display: none !important;
+        }
+        .copilot-header {
+            background: linear-gradient(135deg, #0086cd 0%, #4F46E5 100%);
+            color: white;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .copilot-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .copilot-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .copilot-close:hover { background: rgba(255, 255, 255, 0.35); }
+        
+        .copilot-chips {
+            padding: 10px 14px;
+            background: #F8FAFC;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .copilot-chip {
+            background: white;
+            border: 1px solid #CBD5E1;
+            padding: 5px 10px;
+            border-radius: 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .copilot-chip:hover {
+            background: #EFF6FF;
+            border-color: #3B82F6;
+            color: #1D4ED8;
+        }
+
+        .copilot-messages {
+            flex: 1;
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #F8FAFC;
+        }
+        .copilot-bubble {
+            max-width: 88%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.45;
+            word-wrap: break-word;
+        }
+        .copilot-bubble-bot {
+            align-self: flex-start;
+            background: white;
+            color: #1E293B;
+            border: 1px solid #E2E8F0;
+            border-top-left-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .copilot-bubble-user {
+            align-self: flex-end;
+            background: #0086cd;
+            color: white;
+            border-top-right-radius: 2px;
+        }
+        .copilot-footer {
+            padding: 10px 14px;
+            background: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+        .copilot-input {
+            flex: 1;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 13px;
+            outline: none;
+        }
+        .copilot-input:focus { border-color: var(--anyd-blue); }
+        .copilot-send-btn {
+            background: var(--anyd-blue);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .copilot-send-btn:hover { background: var(--anyd-blue-hover); }
+        .btn-action-pill {
+            background: #F1F5F9;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-action-pill:hover {
+            background: #0086cd;
+            border-color: #0086cd;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA SUPERIOR (ESTILO RESERVIO) -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="/admin">
+                <img src="/static/logo.png" alt="ANYD Nutricionistas" class="logo-img" onerror="this.src='/static/logo_sin_fondo.png'">
+            </a>
+            <ul class="nav-links">
+                <li class="nav-item {% if current_tab != 'past' %}active{% endif %}"><a href="/admin">📅 Calendario</a></li>
+                <li class="nav-item {% if current_tab == 'past' %}active{% endif %}"><a href="/admin?tab=past">🎟️ Histórico / Bonos (Excel)</a></li>
+                <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
+                <li class="nav-item"><a href="/reservar" target="_blank">🔗 Reservas en línea</a></li>
+                <li class="nav-item"><a href="javascript:void(0)" onclick="openGcalModal()" style="color:#0284c7; background:rgba(2, 132, 199, 0.08);">📲 Google Calendar (.ics)</a></li>
+                <li class="nav-item"><a href="javascript:void(0)" onclick="toggleCopilot()" style="color:#4F46E5; background:rgba(79, 70, 229, 0.08); font-weight:700;">🤖 Copiloto IA</a></li>
+            </ul>
+        </div>
+
+        <div class="topbar-right">
+            <span class="badge-unlimited">✓ PLAN PRO ILIMITADO (0€)</span>
+            <div class="profile-chip">
+                <div class="avatar-circle">R</div>
+                <div>
+                    <strong>Román Illescas</strong><br>
+                    <span style="color:#64748B; font-size:11px;">Col. MAD00274</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CUERPO DE LA APP -->
+    <div class="app-body">
+        
+        {% if current_tab == 'past' %}
+        <!-- VISTA DE HISTÓRICO Y BONOS (EXCEL) -->
+        <div style="flex:1; padding:25px 30px; overflow-y:auto; background:#F8FAFC; width:100%;">
+            <!-- CABECERA DE LA SECCIÓN -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px;">
+                <div>
+                    <h1 style="font-size:22px; font-weight:800; color:#1E293B; display:flex; align-items:center; gap:8px;">
+                        <span>🎟️</span> Bonos Activos & Histórico Clínico
+                    </h1>
+                    <p style="font-size:12.5px; color:#64748B; margin-top:3px;">
+                        Sincronizado bidireccionalmente con tu Excel en Google Drive: <code style="background:#E2E8F0; padding:2px 6px; border-radius:4px; font-size:11.5px; color:#334155;">G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx</code>
+                    </p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button onclick="triggerExcelSync()" id="btn-sync-excel" class="btn-anyd" style="background:#059669; border-color:#059669; font-size:12.5px; padding:8px 16px;">
+                        🔄 Sincronizar ahora con Excel
+                    </button>
+                    <button onclick="openNewBookingModal()" class="btn-anyd" style="background:#0086cd; font-size:12.5px; padding:8px 16px;">
+                        + Agendar Consulta
+                    </button>
+                    <a href="/tanita" class="btn-anyd btn-outline" style="font-size:12.5px; padding:8px 16px; text-decoration:none;">
+                        ⚖️ Tanita MC-580
+                    </a>
+                </div>
+            </div>
+
+            <!-- TARJETAS DE MÉTRICAS CLAVE -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:15px; margin-bottom:22px;">
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="font-size:12px; font-weight:700; color:#64748B; text-transform:uppercase;">Bonos Activos</div>
+                    <div style="font-size:26px; font-weight:800; color:#059669; margin:4px 0;">{{ stats.active_bonos }}</div>
+                    <div style="font-size:11.5px; color:#10B981;">● En seguimiento con sesiones</div>
+                </div>
+
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="font-size:12px; font-weight:700; color:#64748B; text-transform:uppercase;">Deportistas Registrados</div>
+                    <div style="font-size:26px; font-weight:800; color:#0284C7; margin:4px 0;">{{ stats.total_clients }}</div>
+                    <div style="font-size:11.5px; color:#64748B;">Base completa de ANyD</div>
+                </div>
+
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="font-size:12px; font-weight:700; color:#64748B; text-transform:uppercase;">Consultas Registradas</div>
+                    <div style="font-size:26px; font-weight:800; color:#4F46E5; margin:4px 0;">{{ stats.all_count }}</div>
+                    <div style="font-size:11.5px; color:#6366F1;">Histórico asistencias y citas</div>
+                </div>
+
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="font-size:12px; font-weight:700; color:#64748B; text-transform:uppercase;">Copias de Seguridad</div>
+                    <div style="font-size:18px; font-weight:800; color:#0F172A; margin:6px 0;">Automáticas</div>
+                    <div style="font-size:11.5px; color:#059669;">✓ Carpeta backups/ activa</div>
+                </div>
+            </div>
+
+            <!-- BUSCADOR EN VIVO -->
+            <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                <span style="font-size:16px; color:#64748B;">🔍</span>
+                <input type="text" id="bonos-search-input" oninput="filterBonosAndAppts()" placeholder="Buscar por nombre de deportista, número de pedido (#25783), email o servicio..." style="flex:1; border:none; outline:none; font-size:13.5px; color:#1E293B;">
+                <span id="search-counter" style="font-size:11.5px; color:#94A3B8; font-weight:600;"></span>
+            </div>
+
+            <!-- SECCIÓN 1: TABLA DE BONOS ACTIVOS -->
+            <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; overflow:hidden; margin-bottom:25px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                <div style="padding:14px 20px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC;">
+                    <div style="font-size:13.5px; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:8px;">
+                        <span>🎟️</span> Bonos Activos en Seguimiento ({{ bonos|length }})
+                    </div>
+                    <span style="font-size:11px; font-weight:700; background:#DEF7EC; color:#03543F; padding:2px 8px; border-radius:10px;">
+                        Hoja: Bonos activos
+                    </span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:12.5px; text-align:left;">
+                        <thead>
+                            <tr style="background:#F1F5F9; border-bottom:1px solid #CBD5E1; color:#475569; font-weight:700;">
+                                <th style="padding:10px 14px;">Nº Pedido</th>
+                                <th style="padding:10px 14px;">Deportista</th>
+                                <th style="padding:10px 14px;">Tipo de Bono</th>
+                                <th style="padding:10px 14px; min-width:180px;">Consumo de Sesiones</th>
+                                <th style="padding:10px 14px;">Fecha Compra</th>
+                                <th style="padding:10px 14px; text-align:center;">Acciones Rápidas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bonos-table-tbody">
+                            {% for b in bonos %}
+                            {% set rem = b.total_sessions - b.used_sessions %}
+                            {% set pct = (b.used_sessions / b.total_sessions * 100)|round|int if b.total_sessions else 0 %}
+                            <tr class="bono-row" data-search="{{ b.client_name|lower }} {{ b.order_id|lower }} {{ b.tipo_bono|lower }} {{ b.client_email|lower }}" style="border-bottom:1px solid #E2E8F0;">
+                                <td style="padding:10px 14px; font-weight:700; color:#0284C7; white-space:nowrap;">
+                                    #{{ b.order_id }}
+                                </td>
+                                <td style="padding:10px 14px;">
+                                    <strong style="color:#1E293B;">{{ b.client_name }}</strong>
+                                    {% if b.client_email %}<div style="font-size:11px; color:#64748B;">{{ b.client_email }}</div>{% endif %}
+                                    {% if b.client_phone %}<div style="font-size:11px; color:#64748B;">📞 {{ b.client_phone }}</div>{% endif %}
+                                </td>
+                                <td style="padding:10px 14px; font-weight:600; color:#334155;">
+                                    {{ b.tipo_bono }}
+                                </td>
+                                <td style="padding:10px 14px;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:3px; font-size:11.5px;">
+                                        <span><b>{{ b.used_sessions }}</b> de {{ b.total_sessions }}</span>
+                                        <strong style="color:{% if rem <= 1 %}#D97706{% else %}#059669{% endif %};">{{ rem }} restantes</strong>
+                                    </div>
+                                    <div style="width:100%; height:6px; background:#E2E8F0; border-radius:4px; overflow:hidden;">
+                                        <div style="width:{{ pct }}%; height:100%; background:{% if rem <= 1 %}#F59E0B{% else %}#10B981{% endif %}; border-radius:4px;"></div>
+                                    </div>
+                                </td>
+                                <td style="padding:10px 14px; color:#64748B; font-size:12px; white-space:nowrap;">
+                                    {{ b.purchase_date or '--' }}
+                                </td>
+                                <td style="padding:10px 14px; text-align:center;">
+                                    <div style="display:inline-flex; gap:6px;">
+                                        <button onclick="openDriveFolderByName('{{ b.client_name }}')" class="btn-action-pill" title="Abrir Carpeta en Google Drive">📁 Drive</button>
+                                        <button onclick="window.location.href='/tanita?client={{ b.client_name }}'" class="btn-action-pill" title="Pesar en Tanita MC-580">⚖️ Tanita</button>
+                                        <button onclick="openHistoryModal('{{ b.client_name }}')" class="btn-action-pill" title="Ver Historial Clínico">👤 Ficha</button>
+                                        {% if b.client_phone %}
+                                        <button onclick="directWhatsApp('{{ b.client_name }}', '{{ b.client_phone }}')" class="btn-action-pill" style="color:#059669;" title="WhatsApp">💬 WA</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 2: HISTÓRICO DE CITAS RECIENTES -->
+            <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                <div style="padding:14px 20px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC;">
+                    <div style="font-size:13.5px; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:8px;">
+                        <span>📅</span> Histórico de Citas Anteriores ({{ appointments|length }})
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto; max-height:480px; overflow-y:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                        <thead>
+                            <tr style="background:#F1F5F9; border-bottom:1px solid #CBD5E1; color:#475569; position:sticky; top:0; z-index:1;">
+                                <th style="padding:8px 12px;">Fecha / Hora</th>
+                                <th style="padding:8px 12px;">Deportista</th>
+                                <th style="padding:8px 12px;">Modalidad</th>
+                                <th style="padding:8px 12px;">Estado</th>
+                                <th style="padding:8px 12px;">Notas / Observaciones</th>
+                                <th style="padding:8px 12px; text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appts-table-tbody">
+                            {% for a in appointments %}
+                            <tr class="appt-row" data-search="{{ a.client_name|lower }} {{ a.appointment_date|lower }} {{ a.notes|lower }}" style="border-bottom:1px solid #F1F5F9;">
+                                <td style="padding:8px 12px; font-weight:700; white-space:nowrap; color:#1E293B;">
+                                    {{ a.appointment_date }} {{ a.appointment_time or '' }}
+                                </td>
+                                <td style="padding:8px 12px;">
+                                    <strong>{{ a.client_name }}</strong>
+                                </td>
+                                <td style="padding:8px 12px;">
+                                    <span style="font-size:11px; padding:2px 6px; border-radius:8px; font-weight:600; background:{% if 'online' in (a.modality or '')|lower %}#FEF08A; color:#854D0E;{% else %}#DBEAFE; color:#1E40AF;{% endif %}">
+                                        {{ a.modality or 'Presencial' }}
+                                    </span>
+                                </td>
+                                <td style="padding:8px 12px;">
+                                    <span style="font-weight:700; color:{% if a.status == 'Completada' %}#10B981{% elif a.status == 'Cancelada' %}#EF4444{% else %}#2563EB{% endif %}">
+                                        {{ a.status }}
+                                    </span>
+                                </td>
+                                <td style="padding:8px 12px; color:#64748B; font-size:11.5px;">
+                                    {{ a.notes or '--' }}
+                                </td>
+                                <td style="padding:8px 12px; text-align:center;">
+                                    <button onclick="openHistoryModal('{{ a.client_name }}')" class="btn-action-pill" style="font-size:11px; padding:3px 8px;">👤 Ficha</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- SIDEBAR IZQUIERDA (FILTROS Y CREAR) -->
+        <aside class="sidebar">
+            <button class="btn-create" onclick="openNewBookingModal()">
+                + CREAR NUEVO
+            </button>
+
+            <!-- FILTRO DE PERSONAL -->
+            <div>
+                <div class="sidebar-section-title">Personal</div>
+                <ul class="filter-list">
+                    <li class="filter-item" style="font-weight: 700; color: var(--anyd-blue);">
+                        <span>👤</span> Todo el personal
+                    </li>
+                    <li class="filter-item">
+                        <span>👤</span> Román Illescas ANYD
+                    </li>
+                    <li class="filter-item">
+                        <span>👤</span> Román CF Catedral
+                    </li>
+                    <li class="filter-item">
+                        <span>👤</span> Tracius
+                    </li>
+                </ul>
+            </div>
+
+            <!-- FILTRO DE SERVICIOS CON COLORES RESERVIO -->
+            <div>
+                <div class="sidebar-section-title">Servicios</div>
+                <ul class="filter-list">
+                    <li class="filter-item" style="font-weight: 600;">
+                        <span>🏷️</span> Todos los servicios
+                    </li>
+                    <li class="filter-item">
+                        <span class="filter-bullet bullet-blue"></span> Anyd Nutrición Deportiva
+                    </li>
+                    <li class="filter-item">
+                        <span class="filter-bullet bullet-yellow"></span> Anyd Consulta OnLine
+                    </li>
+                    <li class="filter-item">
+                        <span class="filter-bullet bullet-teal"></span> Anyd Nutrición Clínica
+                    </li>
+                    <li class="filter-item">
+                        <span class="filter-bullet bullet-purple"></span> CF Catedral Nutrición
+                    </li>
+                    <li class="filter-item">
+                        <span class="filter-bullet bullet-blue"></span> Tracius Nutrición
+                    </li>
+                </ul>
+            </div>
+
+            <!-- CONTROL DE DURACIÓN DE CONSULTAS -->
+            <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: #1E293B; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>⏱️ Duración Consultas</span>
+                    <span style="background: #DEF7EC; color: #03543F; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 10px;">30m Estándar</span>
+                </div>
+                <p style="color: #64748B; font-size: 11px; line-height: 1.4; margin-bottom: 8px;">
+                    Por norma general las sesiones duran <strong>30 min</strong>. Modificables arrastrando o al hacer clic.
+                </p>
+                <button onclick="bulkSetDuration30()" class="btn-anyd btn-outline" style="width: 100%; font-size: 11px; padding: 6px 10px; justify-content: center; font-weight: 600;">
+                    🔄 Ajustar todas las citas a 30 min
+                </button>
+            </div>
+
+            <!-- TARJETA FESTIVOS Y CIERRES (ALCORCÓN Y NACIONALES) -->
+            <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: #1E293B; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>🎉 Festivos y Cierres</span>
+                    <span style="background: #FEE2E2; color: #991B1B; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 10px;">Cerrados</span>
+                </div>
+                <p style="color: #64748B; font-size: 11px; line-height: 1.4; margin-bottom: 8px;">
+                    Festivos nacionales, de Madrid y locales de <strong>Alcorcón</strong> (San Dominguín y Ntra. Sra. de los Remedios) bloqueados.
+                </p>
+                <button onclick="showHolidaysModal()" class="btn-anyd btn-outline" style="width: 100%; font-size: 11px; padding: 5px 8px; justify-content: center;">
+                    📅 Ver Calendario Festivos
+                </button>
+            </div>
+
+            <!-- COMPARATIVA RESERVIO: SIN LÍMITES -->
+            <div class="reservas-limit-box">
+                <strong>Reservas este mes:</strong>
+                <span style="font-size: 14px; font-weight: 700; color: #10B981;">Ilimitadas</span>
+                <p style="color: #64748B; font-size: 11px; margin-top: 4px;">A diferencia de Reservio, tu sistema propio no te cobra ni limita por volumen de citas.</p>
+            </div>
+        </aside>
+
+        <!-- ÁREA CENTRAL: CALENDARIO SEMANAL / DÍA / AGENDA -->
+        <main class="calendar-container">
+            <div id="calendar"></div>
+        </main>
+        {% endif %}
+    </div>
+
+    <!-- MODAL DETALLE DE CITA AL HACER CLIC EN UN EVENTO -->
+    <div id="event-detail-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeEventModal()">&times;</button>
+            <h2 class="modal-title" id="d-client-name">Detalle de la Consulta</h2>
+
+            <div class="details-info-box">
+                <div class="details-row" style="align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 600; color: #475569;">Tipo de Consulta:</span>
+                    <select id="d-service-select" class="modal-select" style="max-width: 250px; padding: 4px 8px; font-size: 13px; font-weight: 700; border: 1.5px solid #CBD5E1; border-radius: 6px; color: #1E293B; background: #FFFFFF;" onchange="onModalServiceChange()">
+                        <option value="Anyd Nutrición Deportiva">Anyd Nutrición Deportiva (Presencial)</option>
+                        <option value="Anyd Consulta OnLine">Anyd Consulta OnLine (Videollamada)</option>
+                        <option value="Anyd Nutrición Clínica">Anyd Nutrición Clínica</option>
+                        <option value="CF Catedral Nutrición">CF Catedral Nutrición</option>
+                        <option value="Tracius Nutrición Deportiva">Tracius Nutrición Deportiva</option>
+                        <option value="Sesión informativa">Sesión informativa (15 min)</option>
+                    </select>
+                    <strong id="d-service" style="display:none;">Anyd Nutrición Deportiva</strong>
+                </div>
+                <div class="details-row" style="align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 600; color: #475569;">Modalidad:</span>
+                    <select id="d-modality-select" class="modal-select" style="max-width: 160px; padding: 4px 8px; font-size: 13px; font-weight: 600; border: 1px solid #CBD5E1; border-radius: 6px; color: #1E293B; background: #FFFFFF;">
+                        <option value="Presencial">Presencial</option>
+                        <option value="Online">Online</option>
+                    </select>
+                    <strong id="d-modality" style="display:none;">Presencial</strong>
+                </div>
+                <div class="details-row" style="align-items: center; margin-top: 6px;">
+                    <span style="font-weight: 600; color: #475569;">Fecha:</span>
+                    <input type="date" id="d-date-input" class="modal-input" style="width: 140px; padding: 4px 8px; font-size: 13px;">
+                </div>
+                <div class="details-row" style="align-items: center;">
+                    <span style="font-weight: 600; color: #475569;">Hora:</span>
+                    <input type="time" id="d-time-input" class="modal-input" style="width: 110px; padding: 4px 8px; font-size: 13px;">
+                </div>
+                <!-- CONTROL RÁPIDO DE DURACIÓN (1 CLIC O PERSONALIZADA) -->
+                <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 10px; margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 700; color: #1E293B;">⏱️ Duración de la Sesión:</span>
+                        <span id="d-duration-badge" style="background: #0284C7; color: white; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 10px;">30 min</span>
+                    </div>
+                    <!-- Botonera de 1 clic -->
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+                        <button type="button" onclick="quickSetDuration(15)" class="btn-duration-chip" id="chip-15">15 min</button>
+                        <button type="button" onclick="quickSetDuration(30)" class="btn-duration-chip active" id="chip-30">30 min (Estándar)</button>
+                        <button type="button" onclick="quickSetDuration(45)" class="btn-duration-chip" id="chip-45">45 min</button>
+                        <button type="button" onclick="quickSetDuration(60)" class="btn-duration-chip" id="chip-60">60 min</button>
+                        <button type="button" onclick="quickSetDuration(90)" class="btn-duration-chip" id="chip-90">90 min</button>
+                    </div>
+                    <!-- Duración personalizada libre -->
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 11px; color: #64748B;">O al tiempo que consideres:</span>
+                        <input type="number" id="d-custom-duration-input" min="5" max="240" step="5" placeholder="min" style="width: 70px; padding: 4px 6px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 12px;">
+                        <button type="button" onclick="applyCustomDuration()" class="btn-anyd" style="padding: 4px 10px; font-size: 11px; background: #0086cd;">Fijar</button>
+                    </div>
+                    <input type="hidden" id="d-duration-select" value="30">
+                </div>
+                <div class="details-row">
+                    <span style="font-weight: 600; color: #475569;">Contacto:</span>
+                    <span id="d-contact">--</span>
+                </div>
+                <div class="details-row" id="d-notes-row">
+                    <span style="font-weight: 600; color: #475569;">Observaciones:</span>
+                    <span id="d-notes" style="font-style: italic;">--</span>
+                </div>
+                <div style="margin-top: 10px; text-align: right;">
+                    <button onclick="saveModalScheduleChanges()" class="btn-anyd" style="padding: 7px 16px; font-size: 12.5px; font-weight: 700; background: #2563EB;">
+                        💾 Guardar cambios de consulta
+                    </button>
+                </div>
+            </div>
+
+            <input type="hidden" id="d-appt-id">
+
+            <!-- BOTONES DE ACCIÓN RÁPIDA -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                <button onclick="actionComplete()" class="btn-anyd btn-success" style="flex: 1.2;">
+                    ✓ Marcar Asistida (Excel)
+                </button>
+                <button onclick="actionTanita()" class="btn-anyd" style="background:#0284c7; border-color:#0284c7; flex: 1;">
+                    ⚖️ Pesar en Tanita MC-580
+                </button>
+                <button onclick="actionCancel()" class="btn-anyd btn-danger">
+                    ✕ Cancelar
+                </button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button onclick="actionWhatsApp()" class="btn-anyd" style="background:#25D366; border-color:#25D366; color:white; flex:1;">
+                    💬 Enviar WhatsApp
+                </button>
+                <button onclick="actionViewHistory()" class="btn-anyd" style="background:#4F46E5; border-color:#4F46E5; color:white; flex:1;">
+                    👤 Ver Historial
+                </button>
+                <button onclick="actionOpenDriveFromModal()" class="btn-anyd" style="background:#059669; border-color:#059669; color:white; flex:1;">
+                    📁 Carpeta Drive
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVA CITA (+ CREAR NUEVO) -->
+    <div id="booking-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+            <h2 class="modal-title">+ Agendar Nueva Consulta</h2>
+            
+            <div class="modal-field">
+                <label for="m-client-name">Deportista:</label>
+                <input type="text" id="m-client-name" list="clients-datalist" class="modal-input" placeholder="Escribe para buscar entre tus 380 deportistas..." required oninput="onBookingClientInput()" onchange="onBookingClientChange()">
+                <datalist id="clients-datalist">
+                    {% for c in clients_list %}
+                    <option value="{{ c.fullname }}">{{ c.email }} ({{ c.phone }})</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <!-- TARJETA AUTOCOMPLETADA DEL DEPORTISTA Y BONO -->
+            <div id="m-client-info-box" style="display:none; background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:8px; padding:12px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div>
+                        <strong id="m-info-name" style="color:#1E293B; font-size:13.5px;">--</strong>
+                        <span id="m-info-badge" style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px;">--</span>
+                    </div>
+                    <span id="m-info-bono-order" style="font-size:11.5px; font-weight:700; color:#0284C7;">--</span>
+                </div>
+
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:8px 10px; font-size:12px; margin-bottom:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            🎟️ <strong>Bono:</strong> <span id="m-info-bono-title">--</span>
+                        </div>
+                        <strong id="m-info-bono-sessions" style="color:#059669;">--</strong>
+                    </div>
+                </div>
+                
+                <div id="m-info-note-row" style="font-size:11.5px; color:#64748B; font-style:italic; display:none; margin-top:4px;">
+                    📝 <span id="m-info-note"></span>
+                </div>
+                <input type="hidden" id="m-selected-bono-id" value="">
+            </div>
+
+            <div class="modal-field">
+                <label for="m-service">Servicio:</label>
+                <select id="m-service" class="modal-select" onchange="onServiceChange()">
+                    <option value="Anyd Nutrición Deportiva">Anyd Nutrición Deportiva (Presencial)</option>
+                    <option value="Anyd Consulta OnLine">Anyd Consulta OnLine (Videollamada)</option>
+                    <option value="Anyd Nutrición Clínica">Anyd Nutrición Clínica</option>
+                    <option value="CF Catedral Nutrición">CF Catedral Nutrición</option>
+                    <option value="Tracius Nutrición Deportiva">Tracius Nutrición Deportiva</option>
+                    <option value="Sesión informativa">Sesión informativa (15 min)</option>
+                </select>
+            </div>
+
+            <div class="modal-field">
+                <label for="m-duration">Duración de la Consulta:</label>
+                <select id="m-duration" class="modal-select">
+                    <option value="15">15 minutos (Sesión informativa)</option>
+                    <option value="30" selected>30 minutos (Consulta estándar ANyD)</option>
+                    <option value="45">45 minutos (Consulta extendida)</option>
+                    <option value="60">60 minutos (Primera consulta / Plan inicial)</option>
+                    <option value="90">90 minutos (Planificación deportiva exhaustiva)</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="modal-field">
+                    <label for="m-date">Fecha:</label>
+                    <input type="date" id="m-date" class="modal-input" required>
+                </div>
+                <div class="modal-field">
+                    <label for="m-time">Hora:</label>
+                    <select id="m-time" class="modal-select">
+                        <option value="10:00">10:00</option>
+                        <option value="10:30">10:30</option>
+                        <option value="11:00">11:00</option>
+                        <option value="11:30">11:30</option>
+                        <option value="12:00">12:00</option>
+                        <option value="12:30">12:30</option>
+                        <option value="13:00">13:00</option>
+                        <option value="13:30">13:30</option>
+                        <option value="16:00">16:00</option>
+                        <option value="16:30">16:30</option>
+                        <option value="17:00">17:00</option>
+                        <option value="17:30">17:30</option>
+                        <option value="18:00">18:00</option>
+                        <option value="18:30">18:30</option>
+                        <option value="19:00">19:00</option>
+                        <option value="19:30">19:30</option>
+                        <option value="20:00">20:00</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="modal-field">
+                    <label for="m-client-email">Email (confirmación y aviso):</label>
+                    <input type="email" id="m-client-email" class="modal-input" placeholder="correo@deportista.com">
+                </div>
+                <div class="modal-field">
+                    <label for="m-client-phone">Móvil / WhatsApp:</label>
+                    <input type="tel" id="m-client-phone" class="modal-input" placeholder="612345678">
+                </div>
+            </div>
+
+            <div class="modal-field">
+                <label for="m-notes">Observaciones clínicas:</label>
+                <textarea id="m-notes" class="modal-textarea" placeholder="Ej: Control de pliegues, revisión preparación maratón..."></textarea>
+            </div>
+
+            <button onclick="submitNewBooking()" class="btn-anyd btn-success" style="width: 100%; padding: 13px; font-weight:700;">
+                Guardar Cita en Calendario
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL HISTORIAL CLÍNICO Y TANITA MC-580 -->
+    <div id="history-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-close" onclick="closeHistoryModal()">&times;</button>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+                <div>
+                    <h2 class="modal-title" style="margin-bottom:4px;" id="h-client-name">Ficha del Deportista</h2>
+                    <div style="font-size:12px; color:#64748B;">
+                        📧 <span id="h-client-email">--</span> | 📞 <span id="h-client-phone">--</span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="openDriveFolderForCurrentClient()" class="btn-anyd" style="background:#059669; border-color:#059669; font-size:12px; padding:6px 12px;">
+                        📁 Carpeta Drive
+                    </button>
+                    <button onclick="openTanitaForCurrentClient()" class="btn-anyd" style="background:#0284C7; font-size:12px; padding:6px 12px;">
+                        ⚖️ Nuevo Pesaje Tanita
+                    </button>
+                </div>
+            </div>
+
+            <div id="h-loading" style="text-align:center; padding:30px; color:#64748B; font-weight:600;">
+                Cargando historial clínico...
+            </div>
+
+            <div id="h-content" style="display:none;">
+                <!-- SECCIÓN BONOS -->
+                <div style="margin-bottom:20px;">
+                    <div class="sidebar-section-title">🎟️ Estado de Bonos Activos / Pasados</div>
+                    <div id="h-bonos-list"></div>
+                </div>
+
+                <!-- SECCIÓN HISTÓRICO TANITA MC-580 -->
+                <div style="margin-bottom:20px;">
+                    <div class="sidebar-section-title">⚖️ Histórico de Pesajes Tanita MC-580 (Fórmula Cunningham)</div>
+                    <div style="overflow-x:auto; background:white; border-radius:6px; border:1px solid #E2E8F0;">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                            <thead>
+                                <tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; color:#64748B;">
+                                    <th style="padding:8px 10px;">Fecha</th>
+                                    <th style="padding:8px 10px;">Peso</th>
+                                    <th style="padding:8px 10px;">% Grasa</th>
+                                    <th style="padding:8px 10px;">Masa Musc.</th>
+                                    <th style="padding:8px 10px;">FFM</th>
+                                    <th style="padding:8px 10px;">G. Visceral</th>
+                                    <th style="padding:8px 10px;">BMR Cunningham</th>
+                                </tr>
+                            </thead>
+                            <tbody id="h-tanita-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN HISTÓRICO DE CITAS -->
+                <div>
+                    <div class="sidebar-section-title">📅 Histórico de Citas & Asistencias</div>
+                    <div style="overflow-x:auto; background:white; border-radius:6px; border:1px solid #E2E8F0; max-height:220px; overflow-y:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                            <thead>
+                                <tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; color:#64748B;">
+                                    <th style="padding:8px 10px;">Fecha / Hora</th>
+                                    <th style="padding:8px 10px;">Modalidad</th>
+                                    <th style="padding:8px 10px;">Estado</th>
+                                    <th style="padding:8px 10px;">Notas / Servicio</th>
+                                </tr>
+                            </thead>
+                            <tbody id="h-appts-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SINCRONIZACIÓN GOOGLE CALENDAR -->
+    <div id="gcal-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 580px;">
+            <button class="modal-close" onclick="closeGcalModal()">&times;</button>
+            <h2 class="modal-title" style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:24px;">📅</span> Sincronización Google Calendar
+            </h2>
+            <p style="font-size:13px; color:#64748B; margin-bottom:15px; line-height:1.5;">
+                Ten todas las citas de tu clínica deportiva actualizadas en tiempo real en la app Google Calendar de tu móvil (Android / iPhone) o PC sin pagar cuotas a terceros.
+            </p>
+
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:15px; margin-bottom:15px;">
+                <div style="font-size:12px; font-weight:700; color:#1E293B; margin-bottom:6px;">URL Oficial del Feed iCalendar (.ics):</div>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="gcal-url-input" class="modal-input" readonly value="http://localhost:8080/calendar.ics" style="font-family:monospace; font-size:12px; background:white;">
+                    <button onclick="copyGcalUrl()" class="btn-anyd" style="font-size:12px; white-space:nowrap; padding:6px 12px;">
+                        📋 Copiar
+                    </button>
+                </div>
+            </div>
+
+            <div style="font-size:13px; color:#334155; line-height:1.6; margin-bottom:18px;">
+                <strong>Cómo activarlo en 30 segundos:</strong>
+                <ol style="margin-left:20px; margin-top:6px;">
+                    <li>Abre <a href="https://calendar.google.com" target="_blank" style="color:#0086cd; font-weight:600;">calendar.google.com</a> en el navegador.</li>
+                    <li>En el panel lateral izquierdo, ve a <strong>Otros calendarios</strong> y haz clic en <strong>+</strong> &rarr; <strong>Desde una URL</strong>.</li>
+                    <li>Pega el enlace de arriba y pulsa <strong>Añadir calendario</strong>.</li>
+                </ol>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <a href="/calendar.ics" download="citas_anyd.ics" class="btn-anyd btn-outline" style="flex:1; text-align:center; justify-content:center;">
+                    💾 Descargar Archivo .ics
+                </a>
+                <button onclick="closeGcalModal()" class="btn-anyd" style="flex:1;">
+                    Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN FLOTANTE Y CAJÓN COPILOTO IA ANyD -->
+    <button class="copilot-fab" onclick="toggleCopilot()">
+        <span class="copilot-pulse"></span>
+        <span>🤖 Copiloto IA</span>
+    </button>
+
+    <div id="copilot-drawer" class="copilot-drawer hidden">
+        <div class="copilot-header">
+            <div>
+                <div class="copilot-title">🤖 Copiloto Clínico ANyD</div>
+                <div style="font-size:11px; opacity:0.85;">Román Illescas Quiroga (Col. MAD00274)</div>
+            </div>
+            <button class="copilot-close" onclick="toggleCopilot()">&times;</button>
+        </div>
+
+        <div class="copilot-chips">
+            <button class="copilot-chip" onclick="sendCopilotPreset('Agenda de hoy')">📋 Agenda Hoy</button>
+            <button class="copilot-chip" onclick="sendCopilotPreset('Alertas de bonos por agotar')">⚠️ Alertas Bonos</button>
+            <button class="copilot-chip" onclick="sendCopilotPreset('Últimos pesajes Tanita MC-580')">⚖️ Tanita MC-580</button>
+            <button class="copilot-chip" onclick="sendCopilotPreset('Pautas clínicas ANyD')">🥗 Pautas ANyD</button>
+        </div>
+
+        <div class="copilot-messages" id="copilot-messages">
+            <div class="copilot-bubble copilot-bubble-bot">
+                <strong>¡Hola Román!</strong> Soy tu Copiloto clínico y de gestión en ANyD. Puedo resumirte la agenda de hoy, avisarte de bonos agotándose, abrir expedientes en Google Drive o calcular el gasto calórico (Cunningham) para tus deportistas.<br><br>
+                <em>Haz clic en uno de los accesos rápidos de arriba o escribe cualquier consulta.</em>
+            </div>
+        </div>
+
+        <div class="copilot-footer">
+            <input type="text" id="copilot-input" class="copilot-input" placeholder="Pregunta a tu Copiloto IA..." onkeydown="if(event.key==='Enter') sendCopilotQuery()">
+            <button class="copilot-send-btn" onclick="sendCopilotQuery()" title="Enviar consulta">➤</button>
+        </div>
+    </div>
+
+    <!-- MODAL CALENDARIO DE FESTIVOS Y CIERRES -->
+    <div id="holidays-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 640px; max-height: 85vh; overflow-y: auto;">
+            <button class="modal-close" onclick="closeHolidaysModal()">&times;</button>
+            <h2 class="modal-title" style="display:flex; align-items:center; gap:8px;">
+                <span>🎉</span> Festivos y Días Cerrados Oficiales
+            </h2>
+            <p style="font-size:12.5px; color:#64748B; margin-bottom:14px; line-height:1.4;">
+                Festivos de Alcorcón, Comunidad de Madrid y Nacionales bloqueados para impedir reservas en días no laborables:
+            </p>
+
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; overflow:hidden; margin-bottom:15px;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                    <thead>
+                        <tr style="background:#F1F5F9; border-bottom:1px solid #CBD5E1; color:#475569;">
+                            <th style="padding:8px 12px;">Fecha</th>
+                            <th style="padding:8px 12px;">Festividad</th>
+                            <th style="padding:8px 12px;">Ámbito</th>
+                            <th style="padding:8px 12px; text-align:center;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holidays-table-body">
+                        <!-- Rellenado dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end;">
+                <button onclick="closeHolidaysModal()" class="btn-anyd" style="padding:7px 18px;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INICIALIZACIÓN DE FULLCALENDAR CON DISEÑO RESERVIO, DRAG & DROP Y DURACIÓN VARIABLE -->
+    <script>
+        let calendar = null;
+        let selectedEventData = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            if (!calendarEl) return;
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'es',
+                initialView: 'timeGridWeek',
+                firstDay: 1, // Lunes como en Reservio
+                allDaySlot: false,
+                displayEventTime: false,
+                slotMinTime: '09:00:00',
+                slotMaxTime: '22:00:00',
+                slotDuration: '00:30:00',
+                snapDuration: '00:15:00',
+                expandRows: true,
+                nowIndicator: true,
+                editable: true,
+                eventStartEditable: true,
+                eventDurationEditable: true,
+                eventResizableFromStart: false,
+                headerToolbar: {
+                    left: 'title',
+                    center: '',
+                    right: 'listWeek,timeGridDay,timeGridWeek prev,today,next'
+                },
+                buttonText: {
+                    today: 'Hoy',
+                    timeGridWeek: 'Semana',
+                    timeGridDay: 'Día',
+                    listWeek: 'Agenda'
+                },
+                events: '/api/calendar/events',
+                eventContent: function(arg) {
+                    const client = arg.event.title;
+                    const service = arg.event.extendedProps.service || 'Nutrición';
+                    const duration = arg.event.extendedProps.duration_minutes || 30;
+
+                    // Si es vista de lista (Agenda)
+                    if (arg.view && arg.view.type.startsWith('list')) {
+                        return {
+                            html: `
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; font-size:12px;">
+                                    <div><strong>${client}</strong> <span style="color:#64748B;">· ${service}</span></div>
+                                    <span class="event-duration-badge" style="font-size:10px;">${duration} min</span>
+                                </div>
+                            `
+                        };
+                    }
+
+                    // En cuadrícula semanal / diaria (sin hora dentro de la reserva):
+                    if (duration <= 15) {
+                        return {
+                            html: `
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; height:100%; overflow:hidden;" title="${client} (${service})">
+                                    <div class="event-client-name" style="font-size:10px; margin:0;">${client}</div>
+                                    <span class="event-duration-badge" style="font-size:8px; padding:0 2px;">${duration}m</span>
+                                </div>
+                            `
+                        };
+                    }
+
+                    return {
+                        html: `
+                            <div style="display:flex; flex-direction:column; justify-content:center; width:100%; height:100%; overflow:hidden;" title="${client} · ${service} (${duration}m)">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:3px;">
+                                    <div class="event-client-name">${client}</div>
+                                    <span class="event-duration-badge">${duration}m</span>
+                                </div>
+                                <div class="event-service-name">${service}</div>
+                            </div>
+                        `
+                    };
+                },
+                eventClick: function(info) {
+                    if (info.event.extendedProps && info.event.extendedProps.is_holiday) {
+                        const h = info.event.extendedProps;
+                        const dateStr = info.event.startStr ? info.event.startStr.substring(0, 10) : '';
+                        alert(`⛔ CLÍNICA CERRADA POR FESTIVO\n\nFecha: ${dateStr}\nFestividad: ${h.holiday_name}\nÁmbito: ${h.scope}\n\nLas reservas están bloqueadas de forma oficial.`);
+                        return;
+                    }
+                    openEventModal(info.event);
+                },
+                dateClick: async function(info) {
+                    const dateStr = info.dateStr.includes('T') ? info.dateStr.split('T')[0] : info.dateStr;
+                    try {
+                        const checkRes = await fetch(`/api/available-slots?date=${dateStr}`);
+                        const checkData = await checkRes.json();
+                        if (checkData.is_holiday) {
+                            if (!confirm(`⚠️ AVISO: El día ${dateStr} es festivo (${checkData.holiday_name} - ${checkData.scope}) y está marcado como CERRADO.\n\n¿Deseas forzar el agendamiento de una consulta excepcional?`)) {
+                                return;
+                            }
+                        }
+                    } catch(e) {}
+                    openNewBookingModalWithSlot(info.dateStr);
+                },
+                eventDrop: async function(info) {
+                    await handleReschedule(info);
+                },
+                eventResize: async function(info) {
+                    await handleReschedule(info);
+                }
+            });
+
+            calendar.render();
+        });
+
+        // Conversión segura de Date a formato YYYY-MM-DD y HH:MM local (evita desfase UTC)
+        function formatLocalDateTime(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const mm = String(dateObj.getMinutes()).padStart(2, '0');
+            return {
+                dateStr: `${y}-${m}-${d}`,
+                timeStr: `${hh}:${mm}`
+            };
+        }
+
+        // Manejador único para Drag & Drop y para Redimensionar Duración arrastrando el borde
+        async function handleReschedule(info) {
+            const { dateStr, timeStr } = formatLocalDateTime(info.event.start);
+            let duration = 30;
+            if (info.event.end) {
+                duration = Math.round((info.event.end - info.event.start) / 60000);
+            } else if (info.event.extendedProps && info.event.extendedProps.duration_minutes) {
+                duration = info.event.extendedProps.duration_minutes;
+            }
+
+            if (duration < 15) duration = 15;
+
+            showToast(`Guardando: ${info.event.title} -> ${dateStr} ${timeStr} (${duration} min)...`, 'info');
+
+            try {
+                const res = await fetch('/api/calendar/reschedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: parseInt(info.event.id),
+                        date: dateStr,
+                        time: timeStr,
+                        duration_minutes: duration
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✓ Cita de ${info.event.title} guardada: ${dateStr} ${timeStr} (${duration} min)`, 'success');
+                    calendar.refetchEvents();
+                } else {
+                    info.revert();
+                    showToast(`Error al mover: ${data.message || 'No se pudo guardar'}`, 'error');
+                }
+            } catch (e) {
+                info.revert();
+                showToast('Error de conexión al mover la cita.', 'error');
+            }
+        }
+
+        function updateDurationChipsUI(duration) {
+            const d = parseInt(duration) || 30;
+            document.getElementById('d-duration-select').value = d;
+            const badge = document.getElementById('d-duration-badge');
+            if (badge) badge.innerText = `${d} min`;
+
+            [15, 30, 45, 60, 90].forEach(m => {
+                const chip = document.getElementById(`chip-${m}`);
+                if (chip) {
+                    if (m === d) {
+                        chip.classList.add('active');
+                    } else {
+                        chip.classList.remove('active');
+                    }
+                }
+            });
+
+            const customInput = document.getElementById('d-custom-duration-input');
+            if (customInput) {
+                customInput.value = [15, 30, 45, 60, 90].includes(d) ? '' : d;
+            }
+        }
+
+        async function quickSetDuration(minutes) {
+            const id = document.getElementById('d-appt-id').value;
+            const date = document.getElementById('d-date-input').value;
+            const time = document.getElementById('d-time-input').value;
+
+            if (!id) return;
+            const dur = parseInt(minutes) || 30;
+
+            try {
+                const res = await fetch('/api/calendar/reschedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: parseInt(id),
+                        date: date,
+                        time: time,
+                        duration_minutes: dur
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    updateDurationChipsUI(dur);
+                    showToast(`✓ Duración cambiada a ${dur} minutos`, 'success');
+                    calendar.refetchEvents();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (e) {
+                alert("Error de conexión al cambiar la duración.");
+            }
+        }
+
+        async function applyCustomDuration() {
+            const input = document.getElementById('d-custom-duration-input');
+            const val = parseInt(input.value);
+            if (!val || val < 5 || val > 240) {
+                alert("Por favor introduce una duración válida en minutos (entre 5 y 240 min).");
+                return;
+            }
+            await quickSetDuration(val);
+        }
+
+        async function bulkSetDuration30() {
+            if (!confirm("¿Deseas fijar la duración de todas tus citas en el calendario a 30 minutos por norma general?\n\nPodrás seguir modificando cualquier cita individualmente al tiempo que consideres.")) return;
+
+            try {
+                showToast("Ajustando todas las citas a 30 minutos...", "info");
+                const res = await fetch('/api/calendar/bulk-set-duration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ duration_minutes: 30, only_future: false })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✓ ¡Listo! ${data.affected} citas ajustadas a 30 minutos`, "success");
+                    calendar.refetchEvents();
+                } else {
+                    alert("Error al ajustar duraciones.");
+                }
+            } catch (e) {
+                alert("Error de conexión.");
+            }
+        }
+
+        function openEventModal(event) {
+            selectedEventData = event;
+            const props = event.extendedProps;
+            document.getElementById('d-client-name').innerText = props.client_name;
+
+            // Selección de Tipo de Consulta (Servicio)
+            const sSelect = document.getElementById('d-service-select');
+            const rawService = props.service || 'Anyd Nutrición Deportiva';
+            if (sSelect) {
+                let found = false;
+                for (let opt of sSelect.options) {
+                    if (opt.value.toLowerCase() === rawService.toLowerCase() || opt.text.toLowerCase() === rawService.toLowerCase()) {
+                        sSelect.value = opt.value;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    for (let opt of sSelect.options) {
+                        if (opt.value.toLowerCase().includes(rawService.toLowerCase()) || rawService.toLowerCase().includes(opt.value.toLowerCase())) {
+                            sSelect.value = opt.value;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found && rawService) {
+                    const newOpt = new Option(rawService, rawService, true, true);
+                    sSelect.add(newOpt);
+                    sSelect.value = rawService;
+                }
+            }
+            if (document.getElementById('d-service')) {
+                document.getElementById('d-service').innerText = rawService;
+            }
+
+            // Modalidad
+            const mSelect = document.getElementById('d-modality-select');
+            const rawModality = props.modality || (rawService.toLowerCase().includes('online') ? 'Online' : 'Presencial');
+            if (mSelect) {
+                mSelect.value = rawModality.toLowerCase().includes('online') ? 'Online' : 'Presencial';
+            }
+            if (document.getElementById('d-modality')) {
+                document.getElementById('d-modality').innerText = rawModality;
+            }
+
+            document.getElementById('d-date-input').value = props.date;
+            document.getElementById('d-time-input').value = props.time;
+            const dur = props.duration_minutes || 30;
+            updateDurationChipsUI(dur);
+            document.getElementById('d-contact').innerText = `${props.email || 'Sin email'} ${props.phone ? '· ' + props.phone : ''}`;
+            document.getElementById('d-notes').innerText = props.notes || 'Ninguna observación';
+            document.getElementById('d-appt-id').value = event.id;
+
+            document.getElementById('event-detail-modal').classList.remove('hidden');
+        }
+
+        function onModalServiceChange() {
+            const sSelect = document.getElementById('d-service-select');
+            if (!sSelect) return;
+            const s = sSelect.value;
+            const mSelect = document.getElementById('d-modality-select');
+            if (document.getElementById('d-service')) {
+                document.getElementById('d-service').innerText = s;
+            }
+            if (mSelect) {
+                if (s.toLowerCase().includes('online')) {
+                    mSelect.value = 'Online';
+                } else if (s.toLowerCase().includes('deportiva') || s.toLowerCase().includes('catedral') || s.toLowerCase().includes('tracius')) {
+                    mSelect.value = 'Presencial';
+                }
+                if (document.getElementById('d-modality')) {
+                    document.getElementById('d-modality').innerText = mSelect.value;
+                }
+            }
+        }
+
+        function closeEventModal() {
+            document.getElementById('event-detail-modal').classList.add('hidden');
+        }
+
+        async function saveModalScheduleChanges() {
+            const id = document.getElementById('d-appt-id').value;
+            const date = document.getElementById('d-date-input').value;
+            const time = document.getElementById('d-time-input').value;
+            const duration = parseInt(document.getElementById('d-duration-select').value) || 30;
+            const sSelect = document.getElementById('d-service-select');
+            const mSelect = document.getElementById('d-modality-select');
+            const service = sSelect ? sSelect.value : null;
+            const modality = mSelect ? mSelect.value : null;
+
+            if (!date || !time) {
+                alert("Por favor indica fecha y hora válidas.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/calendar/reschedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: parseInt(id),
+                        date: date,
+                        time: time,
+                        duration_minutes: duration,
+                        service: service,
+                        modality: modality
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✓ Cita actualizada: ${service || ''} (${date} ${time})`, 'success');
+                    closeEventModal();
+                    calendar.refetchEvents();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (e) {
+                alert("Error de conexión al actualizar la cita.");
+            }
+        }
+
+        async function actionComplete() {
+            const id = document.getElementById('d-appt-id').value;
+            const name = document.getElementById('d-client-name').innerText;
+            if (!confirm(`¿Confirmas que ${name} asistió a la consulta?\n\nEsto escribirá 'Román DD/MM/AAAA' en tu Excel y descontará la sesión.`)) return;
+
+            try {
+                const res = await fetch(`/api/complete-appointment?id=${id}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`¡Consulta completada! ${data.message}`, 'success');
+                    closeEventModal();
+                    calendar.refetchEvents();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (e) {
+                alert("Error de conexión.");
+            }
+        }
+
+        function actionTanita() {
+            const name = document.getElementById('d-client-name').innerText;
+            window.location.href = `/tanita?client=${encodeURIComponent(name)}`;
+        }
+
+        async function actionCancel() {
+            const id = document.getElementById('d-appt-id').value;
+            const name = document.getElementById('d-client-name').innerText;
+            if (!confirm(`¿Deseas cancelar la cita de ${name}? El hueco se liberará en el calendario.`)) return;
+
+            try {
+                const res = await fetch('/api/cancel-appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: parseInt(id) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Cita cancelada correctamente.", 'info');
+                    closeEventModal();
+                    calendar.refetchEvents();
+                }
+            } catch (e) {
+                alert("Error al cancelar.");
+            }
+        }
+
+        let bookingLookupTimeout = null;
+
+        function resetBookingModal() {
+            document.getElementById('m-client-name').value = '';
+            document.getElementById('m-client-email').value = '';
+            document.getElementById('m-client-phone').value = '';
+            document.getElementById('m-notes').value = '';
+            document.getElementById('m-selected-bono-id').value = '';
+            const infoBox = document.getElementById('m-client-info-box');
+            if (infoBox) infoBox.style.display = 'none';
+        }
+
+        function onBookingClientInput() {
+            clearTimeout(bookingLookupTimeout);
+            bookingLookupTimeout = setTimeout(onBookingClientChange, 300);
+        }
+
+        async function onBookingClientChange() {
+            const name = document.getElementById('m-client-name').value.trim();
+            const infoBox = document.getElementById('m-client-info-box');
+            if (!name || name.length < 2) {
+                if (infoBox) infoBox.style.display = 'none';
+                document.getElementById('m-selected-bono-id').value = '';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/client-details?name=${encodeURIComponent(name)}`);
+                const data = await res.json();
+                if (data.found) {
+                    if (infoBox) infoBox.style.display = 'block';
+                    document.getElementById('m-info-name').innerText = data.name;
+                    if (data.email) document.getElementById('m-client-email').value = data.email;
+                    if (data.phone) document.getElementById('m-client-phone').value = data.phone;
+
+                    const badge = document.getElementById('m-info-badge');
+                    const orderSpan = document.getElementById('m-info-bono-order');
+                    const titleSpan = document.getElementById('m-info-bono-title');
+                    const sessSpan = document.getElementById('m-info-bono-sessions');
+                    const bonoIdInput = document.getElementById('m-selected-bono-id');
+
+                    if (data.bono && data.bono.is_active) {
+                        badge.innerText = '✓ Bono Activo';
+                        badge.style.background = '#DEF7EC';
+                        badge.style.color = '#03543F';
+                        orderSpan.innerText = `Nº Pedido/Bono: #${data.bono.order_id}`;
+                        titleSpan.innerText = data.bono.tipo_bono;
+                        sessSpan.innerText = `${data.bono.remaining_sessions} de ${data.bono.total_sessions} restantes`;
+                        bonoIdInput.value = data.bono.id;
+                    } else if (data.bono && data.bono.is_exhausted) {
+                        badge.innerText = '⚠️ Bono Agotado';
+                        badge.style.background = '#FEF3C7';
+                        badge.style.color = '#92400E';
+                        orderSpan.innerText = `Último Pedido: #${data.bono.order_id}`;
+                        titleSpan.innerText = data.bono.tipo_bono;
+                        sessSpan.innerText = `0 sesiones restantes`;
+                        bonoIdInput.value = '';
+                    } else {
+                        badge.innerText = '⚠️ Sin Bono Activo';
+                        badge.style.background = '#F1F5F9';
+                        badge.style.color = '#64748B';
+                        orderSpan.innerText = '';
+                        titleSpan.innerText = 'Sesión Suelta / Pendiente de Bono';
+                        sessSpan.innerText = '--';
+                        bonoIdInput.value = '';
+                    }
+
+                    if (data.note) {
+                        document.getElementById('m-info-note-row').style.display = 'block';
+                        document.getElementById('m-info-note').innerText = data.note;
+                    } else {
+                        document.getElementById('m-info-note-row').style.display = 'none';
+                    }
+                }
+            } catch (e) {
+                console.error("Error al buscar cliente:", e);
+            }
+        }
+
+        function openNewBookingModal() {
+            resetBookingModal();
+            document.getElementById('m-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('booking-modal').classList.remove('hidden');
+        }
+
+        function openNewBookingModalWithSlot(dateTimeStr) {
+            resetBookingModal();
+            if (dateTimeStr.includes('T')) {
+                const [d, t] = dateTimeStr.split('T');
+                document.getElementById('m-date').value = d;
+                const hhmm = t.substring(0, 5);
+                document.getElementById('m-time').value = hhmm;
+            } else {
+                document.getElementById('m-date').value = dateTimeStr;
+            }
+            document.getElementById('booking-modal').classList.remove('hidden');
+        }
+
+        function closeBookingModal() {
+            document.getElementById('booking-modal').classList.add('hidden');
+            resetBookingModal();
+        }
+
+        function onServiceChange() {
+            const s = document.getElementById('m-service').value.toLowerCase();
+            const durSelect = document.getElementById('m-duration');
+            if (s.includes('informativa') || s.includes('15 min')) {
+                durSelect.value = "15";
+            } else if (s.includes('primera') || s.includes('inicial')) {
+                durSelect.value = "60";
+            } else if (s.includes('revisión') || s.includes('antropometría')) {
+                durSelect.value = "30";
+            } else {
+                durSelect.value = "30";
+            }
+        }
+
+        async function submitNewBooking() {
+            const name = document.getElementById('m-client-name').value.trim();
+            const service = document.getElementById('m-service').value;
+            const duration = parseInt(document.getElementById('m-duration').value) || 30;
+            const date = document.getElementById('m-date').value;
+            const time = document.getElementById('m-time').value;
+            const email = document.getElementById('m-client-email').value.trim();
+            const phone = document.getElementById('m-client-phone').value.trim();
+            const notes = document.getElementById('m-notes').value.trim();
+            const bonoId = parseInt(document.getElementById('m-selected-bono-id').value) || null;
+
+            if (!name || !date || !time) {
+                alert("Por favor completa el nombre del deportista, fecha y hora.");
+                return;
+            }
+
+            const modality = service.toLowerCase().includes('online') ? 'Online' : 'Presencial';
+
+            try {
+                const res = await fetch('/api/manual-booking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_name: name,
+                        client_email: email,
+                        client_phone: phone,
+                        bono_id: bonoId,
+                        date: date,
+                        time: time,
+                        duration_minutes: duration,
+                        service: service,
+                        modality: modality,
+                        notes: `Servicio: ${service}. ${notes}`
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    closeBookingModal();
+                    calendar.refetchEvents();
+                } else {
+                    alert("No se pudo agendar la cita: " + (data.message || 'Error'));
+                }
+            } catch (e) {
+                alert("Error al guardar.");
+            }
+        }
+
+        function showToast(msg, type = 'info') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast-msg ${type}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.4s, transform 0.4s';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 400);
+            }, 3500);
+        }
+
+        function actionWhatsApp() {
+            const props = (selectedEventData && selectedEventData.extendedProps) ? selectedEventData.extendedProps : {};
+            const name = document.getElementById('d-client-name').innerText;
+            const date = document.getElementById('d-date-input').value;
+            const time = document.getElementById('d-time-input').value;
+            const service = (document.getElementById('d-service-select') && document.getElementById('d-service-select').value) || (document.getElementById('d-service') && document.getElementById('d-service').innerText) || 'Anyd Nutrición Deportiva';
+            const modality = (document.getElementById('d-modality-select') && document.getElementById('d-modality-select').value) || (document.getElementById('d-modality') && document.getElementById('d-modality').innerText) || 'Presencial';
+            let phone = (props && props.phone) ? props.phone : '';
+
+            let targetPhone = phone.replace(/[^0-9]/g, '');
+            if (!targetPhone || targetPhone.length < 9) {
+                const inputPhone = prompt(`Introduce el teléfono móvil de ${name} (ej. 612345678):`);
+                if (!inputPhone) return;
+                targetPhone = inputPhone.replace(/[^0-9]/g, '');
+            }
+
+            if (!targetPhone.startsWith('34') && targetPhone.length === 9) {
+                targetPhone = '34' + targetPhone;
+            }
+
+            const msg = `Hola ${name}, te escribo de ANyD Nutricionistas (Román Illescas) para confirmar tu consulta (${service} - ${modality}) programada para el ${date} a las ${time}. ¡Nos vemos pronto!`;
+            const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
+            window.open(waUrl, '_blank');
+        }
+
+        async function actionViewHistory() {
+            const name = document.getElementById('d-client-name').innerText;
+            if (!name || name === '--') return;
+            openHistoryModal(name);
+        }
+
+        async function openHistoryModal(clientName) {
+            document.getElementById('h-client-name').innerText = clientName;
+            document.getElementById('history-modal').classList.remove('hidden');
+            document.getElementById('h-loading').style.display = 'block';
+            document.getElementById('h-content').style.display = 'none';
+
+            try {
+                const res = await fetch(`/api/client-history?name=${encodeURIComponent(clientName)}`);
+                const data = await res.json();
+                
+                document.getElementById('h-client-email').innerText = data.client.email || '--';
+                document.getElementById('h-client-phone').innerText = data.client.phone || '--';
+                
+                // Bonos
+                const bonosContainer = document.getElementById('h-bonos-list');
+                bonosContainer.innerHTML = '';
+                if (data.bonos.length === 0) {
+                    bonosContainer.innerHTML = '<span style="color:#64748B; font-size:12px;">Sin bonos activos registrados.</span>';
+                } else {
+                    data.bonos.forEach(b => {
+                        const rem = b.total_sessions - b.used_sessions;
+                        bonosContainer.innerHTML += `
+                            <div style="background:#F1F5F9; border-radius:6px; padding:8px 12px; margin-bottom:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                                <strong>${b.tipo_bono}</strong>
+                                <span>Sesiones: <b>${b.used_sessions} / ${b.total_sessions}</b> (${rem} restantes) - <span style="color:${b.status==='Activo'?'#10B981':'#64748B'}; font-weight:700;">${b.status}</span></span>
+                            </div>
+                        `;
+                    });
+                }
+
+                // Citas
+                const apptsBody = document.getElementById('h-appts-table-body');
+                apptsBody.innerHTML = '';
+                if (data.appointments.length === 0) {
+                    apptsBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748B; padding:10px;">Sin citas registradas.</td></tr>';
+                } else {
+                    data.appointments.forEach(a => {
+                        apptsBody.innerHTML += `
+                            <tr>
+                                <td style="padding:6px 10px; font-weight:600;">${a.appointment_date} ${a.appointment_time || ''}</td>
+                                <td style="padding:6px 10px;">${a.modality || 'Presencial'}</td>
+                                <td style="padding:6px 10px;"><span style="font-weight:600; color:${a.status==='Completada'?'#10B981':(a.status==='Cancelada'?'#EF4444':'#2563EB')}">${a.status}</span></td>
+                                <td style="padding:6px 10px; font-size:11px; color:#64748B;">${a.notes || ''}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Tanita
+                const tanitaBody = document.getElementById('h-tanita-table-body');
+                tanitaBody.innerHTML = '';
+                if (data.tanita.length === 0) {
+                    tanitaBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748B; padding:10px;">Sin pesajes registrados en la Tanita MC-580.</td></tr>';
+                } else {
+                    data.tanita.forEach(t => {
+                        tanitaBody.innerHTML += `
+                            <tr>
+                                <td style="padding:6px 10px; font-weight:600;">${t.measurement_date || (t.created_at ? t.created_at.substring(0, 10) : '--')}</td>
+                                <td style="padding:6px 10px;">${t.weight ? t.weight + ' kg' : '--'}</td>
+                                <td style="padding:6px 10px;">${t.fat_percent ? t.fat_percent + '%' : '--'}</td>
+                                <td style="padding:6px 10px;">${t.muscle_mass ? t.muscle_mass + ' kg' : '--'}</td>
+                                <td style="padding:6px 10px;">${t.ffm ? t.ffm + ' kg' : '--'}</td>
+                                <td style="padding:6px 10px;">${t.visceral_fat != null ? t.visceral_fat : '--'}</td>
+                                <td style="padding:6px 10px; font-weight:700; color:#0284C7;">${t.bmr_cunningham ? t.bmr_cunningham + ' kcal' : '--'}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                document.getElementById('h-loading').style.display = 'none';
+                document.getElementById('h-content').style.display = 'block';
+
+            } catch (e) {
+                alert("Error cargando historial del deportista.");
+                closeHistoryModal();
+            }
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('history-modal').classList.add('hidden');
+        }
+
+        function openTanitaForCurrentClient() {
+            const name = document.getElementById('h-client-name').innerText;
+            window.location.href = `/tanita?client=${encodeURIComponent(name)}`;
+        }
+
+        function openGcalModal() {
+            document.getElementById('gcal-url-input').value = window.location.origin + '/calendar.ics';
+            document.getElementById('gcal-modal').classList.remove('hidden');
+        }
+
+        function closeGcalModal() {
+            document.getElementById('gcal-modal').classList.add('hidden');
+        }
+
+        function copyGcalUrl() {
+            const input = document.getElementById('gcal-url-input');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => {
+                showToast("¡Enlace de Google Calendar copiado al portapapeles!", "success");
+            });
+        }
+
+        // --- FUNCIONES GOOGLE DRIVE (EXPEDIENTES DEPORTISTAS) ---
+        async function actionOpenDriveFromModal() {
+            const name = document.getElementById('d-client-name').innerText;
+            if (!name || name === '--') return;
+            openDriveFolderByName(name);
+        }
+
+        async function openDriveFolderForCurrentClient() {
+            const name = document.getElementById('h-client-name').innerText;
+            if (!name || name === '--') return;
+            openDriveFolderByName(name);
+        }
+
+        async function openDriveFolderByName(name) {
+            try {
+                showToast(`Buscando carpeta de ${name} en Google Drive...`, "info");
+                const res = await fetch('/api/drive/open-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Carpeta abierta en Explorador: ${data.matched_folder || name}`, "success");
+                } else {
+                    alert(data.message || `No se encontró carpeta para "${name}" en Google Drive.`);
+                }
+            } catch (e) {
+                alert("Error al intentar abrir la carpeta en Drive: " + e);
+            }
+        }
+
+        // --- FUNCIONES COPILOTO IA ANyD ---
+        function toggleCopilot() {
+            const drawer = document.getElementById('copilot-drawer');
+            drawer.classList.toggle('hidden');
+            if (!drawer.classList.contains('hidden')) {
+                document.getElementById('copilot-input').focus();
+            }
+        }
+
+        function sendCopilotPreset(text) {
+            const drawer = document.getElementById('copilot-drawer');
+            if (drawer.classList.contains('hidden')) {
+                drawer.classList.remove('hidden');
+            }
+            document.getElementById('copilot-input').value = text;
+            sendCopilotQuery();
+        }
+
+        async function sendCopilotQuery() {
+            const input = document.getElementById('copilot-input');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            const messagesContainer = document.getElementById('copilot-messages');
+            
+            // Burbuja del usuario
+            const userBubble = document.createElement('div');
+            userBubble.className = 'copilot-bubble copilot-bubble-user';
+            userBubble.innerText = prompt;
+            messagesContainer.appendChild(userBubble);
+
+            input.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Burbuja cargando bot
+            const loadingBubble = document.createElement('div');
+            loadingBubble.className = 'copilot-bubble copilot-bubble-bot';
+            loadingBubble.innerHTML = '<span style="color:#64748B;">🤖 Consultando base de datos ANyD y evidencia...</span>';
+            messagesContainer.appendChild(loadingBubble);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                const res = await fetch('/api/ai/copilot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                const data = await res.json();
+                
+                loadingBubble.innerHTML = data.reply_html || data.reply || 'Sin respuesta';
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } catch (e) {
+                loadingBubble.innerHTML = '<span style="color:#EF4444;">Error conectando con el Copiloto IA. Comprueba que el servidor esté activo.</span>';
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+
+        // --- FUNCIONES GESTIÓN DE FESTIVOS Y CIERRES ---
+        async function showHolidaysModal() {
+            const modal = document.getElementById('holidays-modal');
+            const tbody = document.getElementById('holidays-table-body');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748B;">Cargando festivos oficiales...</td></tr>';
+            modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/holidays');
+                const data = await res.json();
+                tbody.innerHTML = '';
+
+                data.holidays.forEach(h => {
+                    const isAlcorcon = h.scope.toLowerCase().includes('alcorc');
+                    const isMadrid = h.scope.toLowerCase().includes('madrid');
+                    const badgeColor = isAlcorcon ? '#059669' : (isMadrid ? '#D97706' : '#2563EB');
+                    const badgeBg = isAlcorcon ? '#D1FAE5' : (isMadrid ? '#FEF3C7' : '#DBEAFE');
+
+                    tbody.innerHTML += `
+                        <tr style="border-bottom:1px solid #E2E8F0;">
+                            <td style="padding:8px 12px; font-weight:700; white-space:nowrap;">${h.date}</td>
+                            <td style="padding:8px 12px; font-weight:600; color:#1E293B;">${h.name}</td>
+                            <td style="padding:8px 12px;">
+                                <span style="background:${badgeBg}; color:${badgeColor}; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">
+                                    ${h.scope}
+                                </span>
+                            </td>
+                            <td style="padding:8px 12px; text-align:center;">
+                                <span style="background:#FEE2E2; color:#991B1B; font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px;">
+                                    ⛔ CERRADO
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#EF4444;">Error cargando festivos.</td></tr>';
+            }
+        }
+
+        function closeHolidaysModal() {
+            document.getElementById('holidays-modal').classList.add('hidden');
+        }
+
+        // --- FUNCIONES HISTÓRICO Y BONOS (EXCEL) ---
+        async function triggerExcelSync() {
+            const btn = document.getElementById('btn-sync-excel');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '🔄 Sincronizando con Excel...';
+            }
+            try {
+                const res = await fetch('/api/sync-excel', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    alert('Error: ' + data.message);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = '🔄 Sincronizar ahora con Excel';
+                    }
+                }
+            } catch (e) {
+                alert('Error al sincronizar con Excel: ' + e);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = '🔄 Sincronizar ahora con Excel';
+                }
+            }
+        }
+
+        function filterBonosAndAppts() {
+            const query = (document.getElementById('bonos-search-input')?.value || '').trim().toLowerCase();
+            const bonoRows = document.querySelectorAll('.bono-row');
+            let visibleBonos = 0;
+            bonoRows.forEach(row => {
+                const text = row.getAttribute('data-search') || '';
+                if (!query || text.includes(query)) {
+                    row.style.display = '';
+                    visibleBonos++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const apptRows = document.querySelectorAll('.appt-row');
+            let visibleAppts = 0;
+            apptRows.forEach(row => {
+                const text = row.getAttribute('data-search') || '';
+                if (!query || text.includes(query)) {
+                    row.style.display = '';
+                    visibleAppts++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const counter = document.getElementById('search-counter');
+            if (counter && query) {
+                counter.innerText = `${visibleBonos} bonos · ${visibleAppts} citas`;
+            } else if (counter) {
+                counter.innerText = '';
+            }
+        }
+
+        function directWhatsApp(name, phone) {
+            let targetPhone = (phone || '').replace(/[^0-9]/g, '');
+            if (!targetPhone) return;
+            if (!targetPhone.startsWith('34') && targetPhone.length === 9) {
+                targetPhone = '34' + targetPhone;
+            }
+            const msg = `Hola ${name}, te escribo de ANyD Nutricionistas (Román Illescas) en relación a tu bono de consultas. ¡Un saludo!`;
+            window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>

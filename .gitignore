@@ -1,0 +1,36 @@
+# Entornos de ejecución y bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Base de datos local (RGPD: contiene datos de citas y pacientes)
+*.db
+*.sqlite
+*.sqlite3
+anyd_booking.db
+
+# Hojas de cálculo y backups locales con datos reales
+*.xlsx
+*.xls
+backups/
+
+# Configuración local y credenciales privadas
+config.json
+.env
+.env.*
+secrets.*
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini

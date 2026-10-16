@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva tu Cita | ANyD Nutricionistas Deportivos</title>
+    <!-- Fuentes oficiales de anyd.es -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Paleta oficial extraída de anyd.es */
+            --anyd-blue: #0086cd;
+            --anyd-blue-hover: #30acee;
+            --anyd-dark: #101218;
+            --anyd-gray-text: #494B51;
+            --anyd-bg-light: #F3F5F5;
+            --anyd-white: #FFFFFF;
+            --anyd-border: #E2E8F0;
+            --anyd-success: #10b981;
+            --anyd-success-bg: #ecfdf5;
+            --anyd-danger: #ef4444;
+            --anyd-danger-bg: #fef2f2;
+            --anyd-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --anyd-radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            color: var(--anyd-gray-text);
+            background-color: var(--anyd-bg-light);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* BARRA SUPERIOR / HEADER ANYD */
+        .site-header {
+            background: var(--anyd-white);
+            border-bottom: 1px solid var(--anyd-border);
+            padding: 15px 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }
+        .header-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-img {
+            max-height: 52px;
+            max-width: 200px;
+            width: auto;
+            object-fit: contain;
+            display: block;
+        }
+        .header-contact {
+            font-size: 13px;
+            color: var(--anyd-gray-text);
+            text-align: right;
+            display: none;
+        }
+        @media(min-width: 600px) {
+            .header-contact { display: block; }
+        }
+        .header-contact strong {
+            color: var(--anyd-dark);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* CONTENEDOR PRINCIPAL */
+        .main-container {
+            max-width: 720px;
+            margin: 35px auto;
+            padding: 0 15px;
+        }
+
+        /* BANNER TITULAR */
+        .title-block {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .badge-clinica {
+            display: inline-block;
+            background: rgba(0, 134, 205, 0.1);
+            color: var(--anyd-blue);
+            font-family: 'Montserrat', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+        .title-block h1 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--anyd-dark);
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 8px;
+        }
+        .title-block p {
+            font-size: 15px;
+            color: var(--anyd-gray-text);
+        }
+
+        /* TARJETAS DE PROCESO */
+        .booking-card {
+            background: var(--anyd-white);
+            border-radius: 12px;
+            padding: 30px 25px;
+            border: 1px solid var(--anyd-border);
+            box-shadow: var(--anyd-shadow);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .step-heading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+        .step-pill {
+            background: var(--anyd-blue);
+            color: var(--anyd-white);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .step-heading h2 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--anyd-dark);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        /* FORMULARIOS */
+        .form-label {
+            display: block;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--anyd-dark);
+            margin-bottom: 8px;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 13px 16px;
+            border: 1.5px solid var(--anyd-border);
+            border-radius: var(--anyd-radius);
+            font-size: 15px;
+            color: var(--anyd-dark);
+            background: var(--anyd-white);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            margin-bottom: 15px;
+        }
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--anyd-blue);
+            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.15);
+        }
+
+        /* BOTONES ESTILO RUBIK ANYD */
+        .btn-anyd {
+            display: inline-block;
+            width: 100%;
+            background-color: var(--anyd-blue);
+            color: var(--anyd-white);
+            border: 1px solid var(--anyd-blue);
+            padding: 15px 24px;
+            font-family: 'Rubik', sans-serif;
+            font-weight: 500;
+            font-size: 15px;
+            border-radius: var(--anyd-radius);
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn-anyd:hover {
+            background-color: var(--anyd-blue-hover);
+            border-color: var(--anyd-blue-hover);
+        }
+        .btn-anyd:disabled {
+            background-color: #CBD5E1;
+            border-color: #CBD5E1;
+            cursor: not-allowed;
+        }
+        .btn-success {
+            background-color: var(--anyd-success);
+            border-color: var(--anyd-success);
+        }
+        .btn-success:hover {
+            background-color: #059669;
+            border-color: #059669;
+        }
+
+        /* ESTADO DEL BONO */
+        .status-box {
+            border-radius: var(--anyd-radius);
+            padding: 16px;
+            margin: 18px 0;
+            font-size: 14px;
+        }
+        .status-box.active {
+            background: var(--anyd-success-bg);
+            border: 1px solid #A7F3D0;
+            color: #065F46;
+        }
+        .status-box.inactive {
+            background: var(--anyd-danger-bg);
+            border: 1px solid #FECACA;
+            color: #991B1B;
+        }
+        .status-box strong {
+            font-family: 'Montserrat', sans-serif;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+
+        /* GRILLA DE HORAS */
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+            gap: 10px;
+            margin: 12px 0 20px;
+        }
+        .slot-btn {
+            background: var(--anyd-white);
+            border: 1.5px solid var(--anyd-border);
+            border-radius: 6px;
+            padding: 10px 6px;
+            text-align: center;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--anyd-dark);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .slot-btn:hover {
+            border-color: var(--anyd-blue);
+            color: var(--anyd-blue);
+            background: rgba(0, 134, 205, 0.04);
+        }
+        .slot-btn.selected {
+            background: var(--anyd-blue);
+            border-color: var(--anyd-blue);
+            color: var(--anyd-white);
+        }
+
+        /* CONFIRMACIÓN EXITOSA */
+        .success-wrapper {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .success-icon {
+            width: 65px;
+            height: 65px;
+            background: var(--anyd-success-bg);
+            color: var(--anyd-success);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 18px;
+        }
+        .success-wrapper h2 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--anyd-dark);
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        /* FOOTER */
+        .site-footer {
+            text-align: center;
+            padding: 30px 15px;
+            font-size: 13px;
+            color: #94A3B8;
+        }
+        .site-footer a {
+            color: var(--anyd-blue);
+            text-decoration: none;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- CABECERA CON LOGO REAL DE ANYD -->
+    <header class="site-header">
+        <div class="header-container">
+            <a href="/reservar">
+                <img src="/static/logo.png" alt="ANYD Nutricionistas" class="logo-img" onerror="this.src='/static/logo_sin_fondo.png'">
+            </a>
+            <div class="header-contact">
+                <strong>Román Illescas Quiroga</strong><br>
+                <span>Colegiado MAD00274 &bull; Alcorcón (Madrid)</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="title-block">
+            <span class="badge-clinica">Agendamiento Oficial</span>
+            <h1>Reserva tu Consulta de Nutrición</h1>
+            <p>Introduce tu correo para verificar el saldo de tu bono y agendar tu próxima sesión.</p>
+        </div>
+
+        <!-- PASO 1: VALIDACIÓN DE BONO -->
+        <div class="booking-card" id="step1-card">
+            <div class="step-heading">
+                <div class="step-pill">1</div>
+                <h2>Identificación del Deportista</h2>
+            </div>
+
+            <label class="form-label" for="client-email">Correo Electrónico (el utilizado en tu compra o ficha):</label>
+            <input type="email" id="client-email" class="form-input" placeholder="ejemplo@deportista.com" required>
+
+            <button class="btn-anyd" id="btn-check-email" onclick="checkClient()">
+                Consultar Saldo de Sesiones
+            </button>
+
+            <div id="status-box" class="status-box hidden"></div>
+        </div>
+
+        <!-- PASO 2: SELECCIÓN DE MODALIDAD, FECHA Y HORA -->
+        <div class="booking-card hidden" id="step2-card">
+            <div class="step-heading">
+                <div class="step-pill">2</div>
+                <h2>Elige Día y Franja Horaria</h2>
+            </div>
+            <div style="font-size: 13px; color: #64748B; margin-top: -8px; margin-bottom: 15px;">
+                ⏱️ Duración de cada consulta: <strong style="color: var(--anyd-blue);">30 minutos</strong>
+            </div>
+
+            <label class="form-label" for="modality">Tipo de Consulta:</label>
+            <select id="modality" class="form-select">
+                <option value="Presencial">Presencial en Clínica (Bioimpedancia Tanita MC-580 / Antropometría)</option>
+                <option value="Online">Online por Videollamada (Google Meet)</option>
+            </select>
+
+            <label class="form-label" for="appt-date">Fecha de la Consulta:</label>
+            <input type="date" id="appt-date" class="form-input" onchange="loadAvailableSlots()">
+
+            <label class="form-label">Horas Disponibles con Román:</label>
+            <div id="slots-container" class="slots-grid">
+                <p style="color: #94A3B8; font-size: 13px; grid-column: 1 / -1;">
+                    Elige una fecha para consultar la disponibilidad en tiempo real.
+                </p>
+            </div>
+
+            <button class="btn-anyd btn-success" id="btn-confirm-appt" onclick="confirmAppointment()" disabled>
+                Confirmar y Agendar Consulta
+            </button>
+        </div>
+
+        <!-- PANTALLA DE ÉXITO -->
+        <div class="booking-card hidden" id="success-card">
+            <div class="success-wrapper">
+                <div class="success-icon">✓</div>
+                <h2>¡Cita Reservada con Éxito!</h2>
+                <div id="success-details" style="font-size: 15px; margin-bottom: 20px; color: var(--anyd-dark);"></div>
+                <div style="background: var(--anyd-bg-light); padding: 15px; border-radius: 8px; font-size: 13px; text-align: left; margin-bottom: 25px;">
+                    <strong>Recordatorio importante:</strong>
+                    <p style="margin-top: 5px;">Recibirás un recordatorio automático por correo <strong>48 horas antes (2 días)</strong> con las instrucciones de vaciamiento gástrico y preparación para la bioimpedancia.</p>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px;">
+                    <a id="gcal-add-btn" href="#" target="_blank" class="btn-anyd" style="background: #4285F4; border-color: #4285F4; width: auto; padding: 10px 22px; font-size: 13px; text-decoration: none;">
+                        📅 Añadir a mi Google Calendar
+                    </a>
+                    <a href="/reservar" class="btn-anyd btn-outline" style="width: auto; padding: 10px 22px; font-size: 13px; text-decoration: none;">
+                        Agendar Otra Consulta
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 ANyD Nutricionistas &bull; Román Illescas Quiroga (Col. MAD00274)</p>
+        <p><a href="https://anyd.es" target="_blank">anyd.es</a> &bull; Rendimiento Deportivo, Competición y Salud Clínica</p>
+    </footer>
+
+    <script>
+        let currentClient = null;
+        let selectedTime = null;
+
+        // Establecer fecha mínima hoy
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('appt-date').min = today;
+
+        async function checkClient() {
+            const email = document.getElementById('client-email').value.trim();
+            const btn = document.getElementById('btn-check-email');
+            const box = document.getElementById('status-box');
+            const step2 = document.getElementById('step2-card');
+
+            if (!email) {
+                alert('Por favor, indica tu correo electrónico.');
+                return;
+            }
+
+            btn.innerText = "Consultando...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/check-client?email=${encodeURIComponent(email)}`);
+                const data = await res.json();
+                btn.innerText = "Consultar Saldo de Sesiones";
+                btn.disabled = false;
+
+                if (!data.found || !data.has_active_bono) {
+                    box.className = "status-box inactive";
+                    box.innerHTML = `
+                        <strong>No se ha encontrado un bono activo para este correo.</strong>
+                        <p style="margin-top: 4px;">Si acabas de realizar la compra o tu bono se agotó, puedes adquirir tus nuevas consultas en nuestra tienda online:</p>
+                        <a href="https://anyd.es" target="_blank" style="display:inline-block; margin-top:8px; color: var(--anyd-danger); font-weight: 700; text-decoration: underline;">
+                            Ver Bonos Disponibles en anyd.es &rarr;
+                        </a>
+                    `;
+                    box.classList.remove('hidden');
+                    step2.classList.add('hidden');
+                    return;
+                }
+
+                currentClient = data;
+                box.className = "status-box active";
+                box.innerHTML = `
+                    <strong>¡Hola, ${data.name}!</strong>
+                    <p>Bono activo: <strong>${data.tipo_bono}</strong></p>
+                    <p style="color: #047857; font-weight: 600;">Dispones de <strong>${data.remaining_sessions} de ${data.total_sessions} consultas</strong> en tu bono.</p>
+                `;
+                box.classList.remove('hidden');
+                step2.classList.remove('hidden');
+                step2.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                btn.innerText = "Consultar Saldo de Sesiones";
+                btn.disabled = false;
+                alert("Error de conexión al verificar el cliente.");
+            }
+        }
+
+        async function loadAvailableSlots() {
+            const date = document.getElementById('appt-date').value;
+            const container = document.getElementById('slots-container');
+            const confirmBtn = document.getElementById('btn-confirm-appt');
+            selectedTime = null;
+            confirmBtn.disabled = true;
+
+            if (!date) return;
+
+            container.innerHTML = '<p style="color: #94A3B8; font-size: 13px; grid-column: 1 / -1;">Comprobando huecos libres...</p>';
+
+            try {
+                const res = await fetch(`/api/available-slots?date=${date}`);
+                const data = await res.json();
+
+                container.innerHTML = '';
+
+                // Comprobar si la clínica está cerrada por festivo oficial o de Alcorcón
+                if (data.is_holiday || data.closed) {
+                    if (data.is_holiday) {
+                        container.innerHTML = `
+                            <div style="grid-column: 1 / -1; background:#FEF2F2; border:1.5px solid #F87171; border-radius:10px; padding:18px; text-align:center;">
+                                <div style="font-size:28px; margin-bottom:6px;">⛔</div>
+                                <div style="font-weight:700; color:#991B1B; font-size:15px; margin-bottom:4px;">CLÍNICA CERRADA POR FESTIVO</div>
+                                <div style="font-weight:600; color:#B91C1C; font-size:13.5px; margin-bottom:8px;">${data.holiday_name} (${data.scope})</div>
+                                <div style="font-size:12px; color:#7F1D1D; line-height:1.5;">La clínica ANyD permanece cerrada para reservas en este día festivo.<br>Por favor, selecciona otra fecha disponible en el selector.</div>
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = `<p style="color: #94A3B8; font-size: 13px; grid-column: 1 / -1;">${data.message || 'No hay horas disponibles en esta fecha. Selecciona otro día (Lunes a Viernes).'}</p>`;
+                    }
+                    return;
+                }
+
+                if (!data.slots || data.slots.length === 0) {
+                    container.innerHTML = '<p style="color: #94A3B8; font-size: 13px; grid-column: 1 / -1;">No hay horas disponibles en esta fecha. Selecciona otro día (Lunes a Viernes).</p>';
+                    return;
+                }
+
+                data.slots.forEach(time => {
+                    const btn = document.createElement('div');
+                    btn.className = 'slot-btn';
+                    btn.innerText = time;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        selectedTime = time;
+                        confirmBtn.disabled = false;
+                    };
+                    container.appendChild(btn);
+                });
+            } catch (e) {
+                container.innerHTML = '<p style="color: var(--anyd-danger); font-size: 13px; grid-column: 1 / -1;">Error al consultar horarios.</p>';
+            }
+        }
+
+        async function confirmAppointment() {
+            if (!currentClient || !selectedTime) return;
+
+            const date = document.getElementById('appt-date').value;
+            const modality = document.getElementById('modality').value;
+            const btn = document.getElementById('btn-confirm-appt');
+
+            btn.innerText = "Agendando Consulta...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/book-appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bono_id: currentClient.bono_id,
+                        client_id: currentClient.client_id,
+                        client_name: currentClient.name,
+                        client_email: currentClient.email,
+                        date: date,
+                        time: selectedTime,
+                        duration_minutes: 30,
+                        modality: modality
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('step1-card').classList.add('hidden');
+                    document.getElementById('step2-card').classList.add('hidden');
+                    const successCard = document.getElementById('success-card');
+                    
+                    document.getElementById('success-details').innerHTML = `
+                        <p><strong>Deportista:</strong> ${currentClient.name}</p>
+                        <p><strong>Fecha y Hora:</strong> ${data.date} a las ${data.time}</p>
+                        <p><strong>Duración:</strong> ${data.duration_minutes || 30} minutos</p>
+                        <p><strong>Modalidad:</strong> ${data.modality}</p>
+                        <p style="margin-top: 8px; color: var(--anyd-blue); font-weight: 600;">
+                            Sesiones restantes en tu bono: ${data.remaining_sessions}
+                        </p>
+                    `;
+
+                    // Enlace interactivo a Google Calendar
+                    try {
+                        const [y, m, d] = data.date.split('-');
+                        const [hh, mm] = data.time.split(':');
+                        const durMin = data.duration_minutes || 30;
+                        const startDate = `${y}${m}${d}T${hh}${mm}00`;
+                        const startObj = new Date(`${data.date}T${data.time}:00`);
+                        const endObj = new Date(startObj.getTime() + durMin*60000);
+                        const endH = String(endObj.getHours()).padStart(2, '0');
+                        const endM = String(endObj.getMinutes()).padStart(2, '0');
+                        const endDate = `${y}${m}${d}T${endH}${endM}00`;
+
+                        const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Consulta Nutrición ANyD (" + data.modality + ")")}&dates=${startDate}/${endDate}&details=${encodeURIComponent("Consulta con Román Illescas Quiroga (ANyD Nutricionistas). Web: https://anyd.es")}&location=${encodeURIComponent(data.modality === 'Presencial' ? 'ANyD Nutricionistas, Madrid' : 'Videollamada OnLine')}`;
+                        document.getElementById('gcal-add-btn').href = gcalUrl;
+                    } catch (err) {}
+
+                    successCard.classList.remove('hidden');
+                    successCard.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert(data.message || "No fue posible agendar la cita.");
+                    btn.innerText = "Confirmar y Agendar Consulta";
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert("Error de comunicación con el servidor.");
+                btn.innerText = "Confirmar y Agendar Consulta";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
