@@ -1,10 +1,13 @@
+import os
 import openpyxl
 import sqlite3
 import re
 from datetime import datetime
 
-EXCEL_PATH = r"G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx"
-DB_PATH = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\anyd_booking.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_EXCEL = r"G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx"
+EXCEL_PATH = os.environ.get("EXCEL_PATH", DEFAULT_EXCEL)
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
 
 def determine_total_sessions(tipo_bono):
     tipo = str(tipo_bono).upper()
@@ -18,8 +21,12 @@ def determine_total_sessions(tipo_bono):
         return 1
     return 3 # default fallback
 
-def sync_active_bonos():
-    wb = openpyxl.load_workbook(EXCEL_PATH, data_only=True)
+def sync_active_bonos(file_path=None):
+    target_file = file_path or EXCEL_PATH
+    if not os.path.exists(target_file):
+        raise FileNotFoundError(f"No se encontró el archivo '{target_file}'. Si estás en la nube (Render), utiliza el botón para subir el archivo 'Bonos activos_claude.xlsx' o sincroniza desde tu ordenador local (http://localhost:8000).")
+
+    wb = openpyxl.load_workbook(target_file, data_only=True)
     sheet = wb["Bonos activos"]
     
     conn = sqlite3.connect(DB_PATH)

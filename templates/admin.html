@@ -1200,7 +1200,37 @@
         </div>
     </div>
 
-    <!-- BOTÓN FLOTANTE Y CAJÓN COPILOTO IA ANyD -->
+    <!-- MODAL SUBIDA EXCEL PARA ENTORNO NUBE (RENDER) -->
+    <div id="excel-upload-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 540px;">
+            <button class="modal-close" onclick="closeExcelUploadModal()">&times;</button>
+            <h2 class="modal-title" style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:24px;">🔄</span> Sincronizar Excel en la Nube
+            </h2>
+            <div style="background:#FEF3C7; border-left:4px solid #F59E0B; padding:12px 14px; border-radius:4px; font-size:12.5px; color:#92400E; margin-bottom:15px; line-height:1.5;">
+                Estás accediendo desde el servidor en la nube de <strong>Render</strong>. Como el servidor remoto no tiene acceso físico a tu disco duro local (<code>G:\Mi unidad\...</code>), puedes sincronizar seleccionando tu archivo Excel aquí mismo.
+            </div>
+
+            <div style="background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:8px; padding:20px; text-align:center; margin-bottom:18px;">
+                <label for="excel-file-input" style="display:block; font-size:13px; font-weight:700; color:#1E293B; margin-bottom:8px; cursor:pointer;">
+                    📂 Selecciona tu archivo <code>Bonos activos_claude.xlsx</code>:
+                </label>
+                <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="font-size:12px; margin-top:6px;">
+                <p style="font-size:11px; color:#64748B; margin-top:8px;">
+                    Ubicación habitual: <code>G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx</code>
+                </p>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button type="button" onclick="submitExcelUpload()" id="btn-submit-excel-upload" class="btn-anyd" style="flex:1; justify-content:center; background:#059669;">
+                    📤 Subir y Sincronizar Bonos
+                </button>
+                <button type="button" onclick="closeExcelUploadModal()" class="btn-anyd btn-outline">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
     <button class="copilot-fab" onclick="toggleCopilot()">
         <span class="copilot-pulse"></span>
         <span>🤖 Copiloto IA</span>
@@ -2186,19 +2216,68 @@
                 if (data.success) {
                     showToast(data.message, 'success');
                     setTimeout(() => window.location.reload(), 1000);
+                } else if (data.is_cloud) {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = '🔄 Sincronizar Excel';
+                    }
+                    openExcelUploadModal();
                 } else {
                     alert('Error: ' + data.message);
                     if (btn) {
                         btn.disabled = false;
-                        btn.innerText = '🔄 Sincronizar ahora con Excel';
+                        btn.innerText = '🔄 Sincronizar Excel';
                     }
                 }
             } catch (e) {
                 alert('Error al sincronizar con Excel: ' + e);
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerText = '🔄 Sincronizar ahora con Excel';
+                    btn.innerText = '🔄 Sincronizar Excel';
                 }
+            }
+        }
+
+        function openExcelUploadModal() {
+            document.getElementById('excel-upload-modal').classList.remove('hidden');
+        }
+
+        function closeExcelUploadModal() {
+            document.getElementById('excel-upload-modal').classList.add('hidden');
+        }
+
+        async function submitExcelUpload() {
+            const fileInput = document.getElementById('excel-file-input');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("Por favor, selecciona el archivo 'Bonos activos_claude.xlsx'.");
+                return;
+            }
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadBtn = document.getElementById('btn-submit-excel-upload');
+            uploadBtn.disabled = true;
+            uploadBtn.innerText = '⏳ Procesando archivo Excel...';
+
+            try {
+                const res = await fetch('/api/upload-excel', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    alert('Error: ' + data.message);
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerText = '📤 Subir y Sincronizar Bonos';
+                }
+            } catch (e) {
+                alert('Error al subir el archivo: ' + e);
+                uploadBtn.disabled = false;
+                uploadBtn.innerText = '📤 Subir y Sincronizar Bonos';
             }
         }
 

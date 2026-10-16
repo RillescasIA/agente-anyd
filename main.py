@@ -906,8 +906,33 @@ def api_sync_excel():
     try:
         count = sync_excel.sync_active_bonos()
         return {"success": True, "synced": count, "message": f"Sincronizados {count} bonos activos de 'Bonos activos_claude.xlsx'."}
+    except FileNotFoundError as e:
+        return {"success": False, "is_cloud": True, "message": str(e)}
     except Exception as e:
-        return {"success": False, "message": f"Error al sincronizar con Excel: {str(e)}"}
+        return {"success": False, "is_cloud": False, "message": f"Error al sincronizar con Excel: {str(e)}"}
+
+@app.post("/api/upload-excel")
+async def api_upload_excel(file: UploadFile = File(...)):
+    r"""
+    Permite subir 'Bonos activos_claude.xlsx' directamente desde el navegador
+    para sincronizar los bonos en Render sin necesidad de acceso físico a G:\.
+    """
+    try:
+        import tempfile
+        suffix = os.path.splitext(file.filename)[1] or ".xlsx"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        count = sync_excel.sync_active_bonos(file_path=tmp_path)
+        try:
+            os.remove(tmp_path)
+        except:
+            pass
+        return {"success": True, "synced": count, "message": f"¡Excel subido y sincronizado con éxito! {count} bonos activos actualizados."}
+    except Exception as e:
+        return {"success": False, "message": f"Error al procesar el archivo Excel: {str(e)}"}
 
 @app.post("/api/sync-reservio")
 def api_sync_reservio():
