@@ -66,15 +66,17 @@ Se abrirá la consola y el servidor estará activo en `http://localhost:8080`.
 
 ---
 
-## 📌 Enlaces de Acceso Local
+## 📌 Enlaces de Acceso y Producción
 
-| Módulo | Enlace Local | Descripción |
-| :--- | :--- | :--- |
-| **Calendario / Admin** | [http://localhost:8080/admin](http://localhost:8080/admin) | Cuadrante semanal estilo Reservio, drag & drop, asistencias y bonos. |
-| **Portal de Reservas** | [http://localhost:8080/reservar](http://localhost:8080/reservar) | Portal público donde el deportista reserva con su email. |
-| **Báscula Tanita MC-580** | [http://localhost:8080/tanita](http://localhost:8080/tanita) | Monitor en vivo USB/COM y lector de tarjetas SD Tanita. |
-| **Swagger / API Docs** | [http://localhost:8080/docs](http://localhost:8080/docs) | Documentación interactiva de todos los endpoints REST. |
-| **Redoc API** | [http://localhost:8080/redoc](http://localhost:8080/redoc) | Especificación técnica OpenAPI. |
+| Módulo | Enlace Local (PC) | Enlace Nube (Render) | Descripción |
+| :--- | :--- | :--- | :--- |
+| **🏠 Menú Central Hub** | [http://localhost:8000/](http://localhost:8000/) | [https://agente-anyd.onrender.com/](https://agente-anyd.onrender.com/) | Portal de entrada unificado con acceso a todos los módulos. |
+| **📅 Calendario / Admin** | [http://localhost:8000/admin](http://localhost:8000/admin) | [https://agente-anyd.onrender.com/admin](https://agente-anyd.onrender.com/admin) | Cuadrante semanal estilo Reservio, drag & drop, asistencias y bonos. |
+| **🎟️ Histórico / Bonos** | [http://localhost:8000/admin?tab=past](http://localhost:8000/admin?tab=past) | [https://agente-anyd.onrender.com/admin?tab=past](https://agente-anyd.onrender.com/admin?tab=past) | Listado de citas pasadas y estado de bonos activos sincronizados. |
+| **🔗 Portal de Reservas** | [http://localhost:8000/reservar](http://localhost:8000/reservar) | [https://agente-anyd.onrender.com/reservar](https://agente-anyd.onrender.com/reservar) | Portal público donde el deportista reserva con su email. |
+| **⚖️ Báscula Tanita MC-580**| [http://localhost:8000/tanita](http://localhost:8000/tanita) | [https://agente-anyd.onrender.com/tanita](https://agente-anyd.onrender.com/tanita) | Monitor en vivo USB/COM y lector de tarjetas SD Tanita. |
+| **📲 Feed Google Calendar** | [http://localhost:8000/calendar.ics](http://localhost:8000/calendar.ics) | [https://agente-anyd.onrender.com/calendar.ics](https://agente-anyd.onrender.com/calendar.ics) | Feed oficial iCal para suscripción en Google Calendar. |
+| **📖 Swagger / API Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | [https://agente-anyd.onrender.com/docs](https://agente-anyd.onrender.com/docs) | Documentación interactiva de todos los endpoints REST. |
 
 ---
 
@@ -83,27 +85,26 @@ Se abrirá la consola y el servidor estará activo en `http://localhost:8080`.
 ```text
 g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\
 │
-├── main.py                          # Servidor principal FastAPI y endpoints de la API
-├── excel_manager.py                 # Motor de lectura/escritura del Excel de Google Drive y copias de seguridad
-├── tanita_receiver.py               # Módulo de lectura serie COM y parseo CSV de la Tanita MC-580
-├── email_service.py                 # Plantillas HTML y envío de emails transaccionales
-├── scheduler.py                     # Cron en segundo plano para recordatorios de citas a 48h
-├── config.json                      # Configuración de servidor, correo SMTP y rutas
-├── iniciar_servidor.bat             # Lanzador rápido en 1 clic para Windows
+├── main.py                               # Servidor principal FastAPI y endpoints de la API
+├── sync_reservio_feed.py                 # Sincronizador en caliente del feed oficial iCal de Reservio
+├── excel_manager.py                      # Motor de lectura/escritura del Excel de Google Drive y copias
+├── tanita_receiver.py                    # Módulo de lectura serie COM y parseo CSV de la Tanita MC-580
+├── email_service.py                      # Plantillas HTML y envío de emails transaccionales
+├── scheduler.py                          # Cron en segundo plano para recordatorios de citas a 48h
+├── config.json                           # Configuración de servidor, correo SMTP y rutas
+├── iniciar_servidor.bat                  # Lanzador rápido en 1 clic para Windows
 │
-├── anyd_booking.db                  # Base de datos SQLite (clientes, citas, bonos, tanita)
-├── import_reservio.py               # Script de migración inicial desde el CSV de Reservio
-├── import_historical_appointments.py# Script que importó el histórico de 1.859 citas
-├── sync_excel.py                    # Sincronizador inicial del Excel a SQLite
-├── link_clients.py                  # Vinculador de nombres de bonos con emails de clientes
+├── anyd_booking.db                       # Base de datos SQLite (2.923 citas, 390 clientes)
 │
-├── templates/                       # Plantillas HTML Jinja2
-│   ├── admin.html                   # Cuadrante semanal FullCalendar 6 (estilo Reservio)
-│   ├── reservar.html                # Portal de reservas branding anyd.es
-│   └── tanita.html                  # Interfaz de pesaje en directo Tanita MC-580
+├── templates/                            # Plantillas HTML Jinja2
+│   ├── index.html                        # Portal central (Hub de bienvenida)
+│   ├── admin.html                        # Cuadrante semanal FullCalendar 6 (estilo Reservio)
+│   ├── reservar.html                     # Portal de reservas branding anyd.es
+│   └── tanita.html                       # Interfaz de pesaje en directo Tanita MC-580
 │
-├── backups/                         # Copias de seguridad automáticas de Bonos activos_claude.xlsx
-├── README.md                        # Documentación general del sistema
-├── CONFIGURACION.md                 # Guía paso a paso de configuración (WooCommerce, SMTP, Tanita)
-└── ACCESOS_Y_RUTAS.md               # Tabla de rutas, URLs y credenciales del sistema
+├── backups/                              # Copias de seguridad automáticas de la BD y Excel
+├── PLAN_TRANSICION_Y_AUDITORIA_RESERVIO.md # Auditoría operativa y hoja de ruta para sustituir Reservio
+├── README.md                             # Documentación general del sistema
+├── CONFIGURACION.md                      # Guía de configuración (WooCommerce, SMTP, Tanita)
+└── ACCESOS_Y_RUTAS.md                    # Hoja de referencia de accesos y endpoints
 ```

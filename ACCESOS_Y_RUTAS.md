@@ -21,31 +21,39 @@ Ficha técnica y mapa de rutas del sistema de reservas para **ANyD Nutricionista
 
 ## 2. Direcciones URL y Vistas del Sistema
 
-| Vista | URL | Descripción |
-| :--- | :--- | :--- |
-| **Calendario / Admin** | `http://localhost:8080/admin` | Cuadrante semanal interactivo (estilo Reservio), drag & drop, duraciones y asistencias. |
-| **Histórico / Bonos** | `http://localhost:8080/admin?tab=past` | Listado de citas pasadas y estado de bonos activos sincronizados. |
-| **Portal de Reservas** | `http://localhost:8080/reservar` | Portal para que el deportista verifique su bono y reserve hora. |
-| **Báscula Tanita MC-580** | `http://localhost:8080/tanita` | Monitor COM en directo y procesador CSV/SD con fórmula Cunningham. |
-| **Documentación Swagger** | `http://localhost:8080/docs` | Interfaz interactiva para probar todos los endpoints REST en vivo. |
-| **Documentación ReDoc** | `http://localhost:8080/redoc` | Documentación técnica detallada OpenAPI. |
+| Vista | URL Local (PC) | URL Producción (Render) | Descripción |
+| :--- | :--- | :--- | :--- |
+| **🏠 Menú Central Hub** | `http://localhost:8000/` | `https://agente-anyd.onrender.com/` | Portal de entrada unificado y bienvenida. |
+| **📅 Calendario / Admin** | `http://localhost:8000/admin` | `https://agente-anyd.onrender.com/admin` | Cuadrante semanal interactivo (estilo Reservio), drag & drop, duraciones y asistencias. |
+| **🎟️ Histórico / Bonos** | `http://localhost:8000/admin?tab=past` | `https://agente-anyd.onrender.com/admin?tab=past` | Listado de citas pasadas y estado de bonos activos sincronizados con Excel. |
+| **🔗 Portal de Reservas** | `http://localhost:8000/reservar` | `https://agente-anyd.onrender.com/reservar` | Portal para que el deportista verifique su bono y reserve hora. |
+| **⚖️ Báscula Tanita MC-580**| `http://localhost:8000/tanita` | `https://agente-anyd.onrender.com/tanita` | Monitor COM en directo y procesador CSV/SD con fórmula Cunningham. |
+| **📲 Google Calendar (.ics)**| `http://localhost:8000/calendar.ics` | `https://agente-anyd.onrender.com/calendar.ics` | Feed oficial iCalendar RFC 5545 para suscripción en Google Calendar. |
+| **📖 Documentación Swagger**| `http://localhost:8000/docs` | `https://agente-anyd.onrender.com/docs` | Interfaz interactiva para probar todos los endpoints REST en vivo. |
+| **📘 Documentación ReDoc**  | `http://localhost:8000/redoc` | `https://agente-anyd.onrender.com/redoc` | Documentación técnica detallada OpenAPI. |
 
 ---
 
 ## 3. Catálogo de Endpoints REST API
+
+### Sincronización e Importación
+- **`POST /api/sync-reservio`**
+  - **Función:** Conecta en caliente con el feed iCal oficial de Reservio, descarga todas las citas nuevas/modificadas y las integra en SQLite.
+- **`POST /api/sync-excel`**
+  - **Función:** Fuerza la sincronización de bonos activos desde `Bonos activos_claude.xlsx` a SQLite.
 
 ### Calendario y Cuadrante
 - **`GET /api/calendar/events`**
   - **Parámetros:** `start` (opcional, YYYY-MM-DD), `end` (opcional, YYYY-MM-DD).
   - **Función:** Devuelve las citas en formato estándar FullCalendar con cálculo dinámico de hora fin según `duration_minutes` y colores por servicio.
 - **`POST /api/calendar/reschedule`**
-  - **Payload:** `{"id": int, "date": "YYYY-MM-DD", "time": "HH:MM", "duration_minutes": int}`
-  - **Función:** Actualiza fecha, hora y duración tras arrastrar (*drag & drop*) o redimensionar una cita en el cuadrante.
+  - **Payload:** `{"id": int, "date": "YYYY-MM-DD", "time": "HH:MM", "duration_minutes": int, "service": str, "modality": str}`
+  - **Función:** Actualiza fecha, hora, duración, tipo de consulta o modalidad de cualquier cita (incluso pasadas).
 - **`POST /api/manual-booking`**
   - **Payload:** `{"client_name": str, "client_email": str, "date": str, "time": str, "duration_minutes": int, "modality": str, "notes": str}`
   - **Función:** Da de alta una cita desde el botón `+ CREAR NUEVO` o haciendo clic en un hueco vacío.
-- **`GET /calendar.ics` & `GET /api/calendar/export.ics`**
-  - **Función:** Genera el feed oficial iCalendar (RFC 5545) para suscripción en tiempo real en Google Calendar (móvil y PC).
+- **`GET /calendar.ics` & `GET /calendar/sync.ics` & `GET /api/calendar/export.ics`**
+  - **Función:** Genera el feed oficial iCalendar (RFC 5545) con zona horaria Europe/Madrid (CET/CEST) para suscripción en Google Calendar.
 - **`GET /api/client-history?name=...&client_id=...`**
   - **Función:** Devuelve la ficha completa del deportista: datos de contacto, bonos activos/agotados, historial de citas asistidas y mediciones históricas de la Tanita MC-580.
 
@@ -91,19 +99,27 @@ Ficha técnica y mapa de rutas del sistema de reservas para **ANyD Nutricionista
 
 1. **`clients`**:
    - `id`, `reservio_id`, `fullname`, `email`, `phone`, `notes`, `created_at`.
-   - *Poblada con los 380 clientes migrados de Reservio.*
+   - *Poblada con los 390 clientes migrados de Reservio y WooCommerce.*
 2. **`bonos`**:
    - `id`, `order_id`, `client_id`, `client_name`, `client_email`, `tipo_bono`, `purchase_date`, `total_sessions`, `used_sessions`, `status`, `notes`.
    - *Sincronizada con la hoja 'Bonos activos' de Google Drive.*
 3. **`appointments`**:
-   - `id`, `bono_id`, `client_id`, `client_name`, `client_email`, `client_phone`, `appointment_date`, `appointment_time`, `duration_minutes`, `modality`, `status`, `reminder_sent`, `notes`, `created_at`.
-   - *1.859 citas históricas y futuras registradas.*
+   - `id`, `bono_id`, `client_id`, `client_name`, `client_email`, `client_phone`, `appointment_date`, `appointment_time`, `duration_minutes`, `modality`, `status`, `reminder_sent`, `notes`, `created_at`, `service`.
+   - *2.923 citas históricas y futuras registradas.*
 4. **`tanita_measurements`**:
    - `id`, `client_name`, `measurement_date`, `weight_kg`, `fat_percent`, `fat_mass_kg`, `ffm_kg`, `muscle_mass_kg`, `tbw_kg`, `visceral_fat`, `bmr_cunningham`, `raw_data`.
 
 ---
 
-## 5. Estructura del Excel (`Bonos activos_claude.xlsx`)
+## 5. Documentación de Apoyo
+
+* **[`PLAN_TRANSICION_Y_AUDITORIA_RESERVIO.md`](file:///g:/Mi%20unidad/1.-%20IA/IA%20Gemini/Agente%20anyd/PLAN_TRANSICION_Y_AUDITORIA_RESERVIO.md)**: Plan maestro de auditoría operativa, riesgos y sustitución segura de Reservio.
+* **[`CONFIGURACION.md`](file:///g:/Mi%20unidad/1.-%20IA/IA%20Gemini/Agente%20anyd/CONFIGURACION.md)**: Guía detallada para activar correos SMTP, WhatsApp, WooCommerce y Tanita.
+* **[`README.md`](file:///g:/Mi%20unidad/1.-%20IA/IA%20Gemini/Agente%20anyd/README.md)**: Descripción general del sistema y arquitectura.
+
+---
+
+## 6. Estructura del Excel (`Bonos activos_claude.xlsx`)
 
 - **Hoja `Bonos activos`**:
   - Columnas: `Centro` | `Nombre` | `Tipo bono` | `Fecha compra` | `Nº Pedido` | `Importe` | `Activo` | `Forma pago` | `Nutri` | `1ª Consulta` | `2ª Consulta` | `3ª Consulta` | `4ª Consulta` | `5ª Consulta` | ...
