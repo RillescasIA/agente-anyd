@@ -16,6 +16,7 @@ import drive_manager
 import ai_copilot
 import holidays_manager
 import sync_excel
+import sync_reservio_feed
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -850,6 +851,20 @@ def api_sync_excel():
         return {"success": True, "synced": count, "message": f"Sincronizados {count} bonos activos de 'Bonos activos_claude.xlsx'."}
     except Exception as e:
         return {"success": False, "message": f"Error al sincronizar con Excel: {str(e)}"}
+
+@app.post("/api/sync-reservio")
+def api_sync_reservio():
+    """
+    Sincroniza en caliente todas las reservas desde el feed oficial de Reservio.
+    """
+    try:
+        res = sync_reservio_feed.run_reservio_sync()
+        return {
+            "success": True,
+            "message": f"Sincronizadas {res['total']} citas de Reservio ({res['inserted']} nuevas, {res['updated']} actualizadas)."
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error al sincronizar con Reservio: {str(e)}"}
 
 @app.post("/api/manual-booking")
 def manual_booking(req: ManualBookingRequest):

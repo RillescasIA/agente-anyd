@@ -606,8 +606,11 @@
                     </p>
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button onclick="triggerReservioSync()" id="btn-sync-reservio" class="btn-anyd" style="background:#0284c7; border-color:#0284c7; font-size:12.5px; padding:8px 16px;">
+                        📅 Sincronizar Reservio
+                    </button>
                     <button onclick="triggerExcelSync()" id="btn-sync-excel" class="btn-anyd" style="background:#059669; border-color:#059669; font-size:12.5px; padding:8px 16px;">
-                        🔄 Sincronizar ahora con Excel
+                        🔄 Sincronizar Excel
                     </button>
                     <button onclick="openNewBookingModal()" class="btn-anyd" style="background:#0086cd; font-size:12.5px; padding:8px 16px;">
                         + Agendar Consulta
@@ -2140,7 +2143,36 @@
             document.getElementById('holidays-modal').classList.add('hidden');
         }
 
-        // --- FUNCIONES HISTÓRICO Y BONOS (EXCEL) ---
+        // --- FUNCIONES SINCRONIZACIÓN RESERVIO Y EXCEL ---
+        async function triggerReservioSync() {
+            const btn = document.getElementById('btn-sync-reservio');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '⏳ Sincronizando Reservio...';
+            }
+            try {
+                const res = await fetch('/api/sync-reservio', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    if (typeof calendar !== 'undefined' && calendar) {
+                        calendar.refetchEvents();
+                    } else {
+                        setTimeout(() => window.location.reload(), 1200);
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (e) {
+                alert('Error al sincronizar con Reservio: ' + e);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = '📅 Sincronizar Reservio';
+                }
+            }
+        }
+
         async function triggerExcelSync() {
             const btn = document.getElementById('btn-sync-excel');
             if (btn) {
