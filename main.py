@@ -17,6 +17,7 @@ import ai_copilot
 import holidays_manager
 import sync_excel
 import sync_reservio_feed
+import diet_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -111,17 +112,30 @@ init_db()
 def auto_seed_if_empty():
     """
     Si el servidor arranca con la base de datos vacía (ej. en Render con disco efímero),
-    descarga e importa automáticamente todas las citas desde el feed de Reservio.
+    descarga e importa automáticamente todas las citas desde Reservio y las recetas de Dietowin.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM appointments")
         count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='diet_recipes'")
+        has_diet_table = cursor.fetchone()[0]
+        diet_count = 0
+        if has_diet_table:
+            cursor.execute("SELECT COUNT(*) FROM diet_recipes")
+            diet_count = cursor.fetchone()[0]
         conn.close()
+
         if count == 0:
             print("[AUTO-SYNC] Base de datos vacía detectada al inicio. Sincronizando con Reservio...")
             sync_reservio_feed.run_reservio_sync()
+
+        if diet_count == 0:
+            print("[AUTO-SYNC] Importando recetas y alimentos de Dietowin...")
+            import import_dietowin_data
+            import_dietowin_data.import_dietowin_to_db()
     except Exception as e:
         print(f"[AUTO-SYNC ERROR] Error en auto-sincronización inicial: {e}")
 
@@ -1248,5 +1262,136 @@ def api_add_holiday(req: AddHolidayRequest):
 def api_delete_holiday(holiday_id: int):
     ok = holidays_manager.remove_holiday(holiday_id)
     return {"success": ok}
+
+# --- ENDPOINTS DIETOWIN 2.0 (ANyD NUTRI-PLANNER) ---
+
+class CalculateNeedsRequest(BaseModel):
+    weight_kg: float
+    ffm_kg: Optional[float] = 0.0
+    height_cm: Optional[float] = 175.0
+    age: Optional[int] = 30
+    gender: Optional[str] = "M"
+    formula: Optional[str] = "cunningham"
+    pal: Optional[float] = 1.5
+    goal: Optional[str] = "mantenimiento"
+
+class SmartWeekRequest(BaseModel):
+    target_kcal: float = 2200.0
+    target_protein_g: float = 140.0
+
+class SavePlanRequest(BaseModel):
+    client_name: str
+    plan_name: str
+    client_id: Optional[int] = None
+    weight: Optional[float] = 0.0
+    ffm: Optional[float] = 0.0
+    bmr: Optional[float] = 0.0
+    tdee: Optional[float] = 0.0
+    target_kcal: Optional[float] = 0.0
+    target_protein_g: Optional[float] = 0.0
+    target_carbs_g: Optional[float] = 0.0
+    target_fat_g: Optional[float] = 0.0
+    weekly_data: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = ""
+
+@app.get("/dietas", response_class=HTMLResponse)
+def page_dietas(request: Request, client: Optional[str] = None):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, fullname, phone, email FROM clients ORDER BY fullname ASC")
+    clients = cursor.fetchall()
+    conn.close()
+
+    groups = diet_manager.get_canonical_groups()
+    recipes_info = diet_manager.get_recipes(limit=1)
+    foods_info = diet_manager.get_foods(limit=1)
+
+    return templates.TemplateResponse(request=request, name="dietas.html", context={
+        "clients": clients,
+        "selected_client": client or "",
+        "groups": groups,
+        "total_recipes": recipes_info["total"],
+        "total_foods": foods_info["total"]
+    })
+
+@app.get("/api/diet/recipes")
+def api_get_recipes(q: str = "", group: str = "", limit: int = 50, offset: int = 0):
+    return diet_manager.get_recipes(query=q, group=group, limit=limit, offset=offset)
+
+@app.get("/api/diet/foods")
+def api_get_foods(q: str = "", familia: str = "", limit: int = 50, offset: int = 0):
+    return diet_manager.get_foods(query=q, familia=familia, limit=limit, offset=offset)
+
+@app.get("/api/diet/groups")
+def api_get_diet_groups():
+    return {"groups": diet_manager.get_canonical_groups()}
+
+@app.post("/api/diet/calculate-needs")
+def api_calculate_needs(req: CalculateNeedsRequest):
+    return diet_manager.calculate_metabolism(
+        weight_kg=req.weight_kg,
+        ffm_kg=req.ffm_kg or 0.0,
+        height_cm=req.height_cm or 175.0,
+        age=req.age or 30,
+        gender=req.gender or "M",
+        formula=req.formula or "cunningham",
+        pal=req.pal or 1.5,
+        goal=req.goal or "mantenimiento"
+    )
+
+@app.post("/api/diet/generate-smart-week")
+def api_generate_smart_week(req: SmartWeekRequest):
+    return diet_manager.generate_smart_week(
+        target_kcal=req.target_kcal,
+        target_protein_g=req.target_protein_g
+    )
+
+@app.post("/api/diet/plan/save")
+def api_save_diet_plan(req: SavePlanRequest):
+    plan_id = diet_manager.save_diet_plan(
+        client_name=req.client_name,
+        plan_name=req.plan_name,
+        client_id=req.client_id,
+        weight=req.weight or 0.0,
+        ffm=req.ffm or 0.0,
+        bmr=req.bmr or 0.0,
+        tdee=req.tdee or 0.0,
+        target_kcal=req.target_kcal or 0.0,
+        target_prot=req.target_protein_g or 0.0,
+        target_carbs=req.target_carbs_g or 0.0,
+        target_fat=req.target_fat_g or 0.0,
+        weekly_data=req.weekly_data or {},
+        notes=req.notes or ""
+    )
+    return {"success": True, "plan_id": plan_id, "message": f"Plan '{req.plan_name}' guardado con éxito."}
+
+@app.get("/api/diet/plans")
+def api_get_diet_plans(client: str = ""):
+    plans = diet_manager.get_diet_plans_list(client_name=client)
+    return {"plans": plans}
+
+@app.get("/api/diet/plan/{plan_id}")
+def api_get_diet_plan(plan_id: int):
+    plan = diet_manager.get_diet_plan_by_id(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan no encontrado")
+    return plan
+
+@app.get("/api/diet/latest-tanita/{client_name}")
+def api_get_latest_tanita(client_name: str):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT weight, ffm, fat_percent, muscle_mass, bmr_cunningham, measurement_date
+    FROM tanita_measurements
+    WHERE client_name LIKE ?
+    ORDER BY measurement_date DESC, id DESC LIMIT 1
+    """, (f"%{client_name.strip()}%",))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {"found": True, "data": dict(row)}
+    return {"found": False}
+
 
 
