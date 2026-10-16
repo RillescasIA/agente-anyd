@@ -401,15 +401,17 @@ def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None):
     return events
 
 @app.get("/calendar.ics")
+@app.get("/calendar/sync.ics")
 @app.get("/api/calendar/export.ics")
 def export_calendar_ics():
     """
     Feed oficial iCalendar (.ics) para sincronización automática con Google Calendar en el móvil de Román.
+    Sustituye por completo al feed de Reservio con coste 0€.
     """
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT id, client_name, client_email, client_phone, appointment_date, appointment_time, duration_minutes, modality, notes
+    SELECT id, client_name, client_email, client_phone, appointment_date, appointment_time, duration_minutes, modality, notes, service
     FROM appointments
     WHERE status != 'Cancelada' AND appointment_date >= date('now', '-30 days')
     ORDER BY appointment_date ASC, appointment_time ASC
@@ -424,7 +426,25 @@ def export_calendar_ics():
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "X-WR-CALNAME:Citas ANyD Nutricionistas",
-        "X-WR-TIMEZONE:Europe/Madrid"
+        "X-WR-TIMEZONE:Europe/Madrid",
+        "BEGIN:VTIMEZONE",
+        "TZID:Europe/Madrid",
+        "X-LIC-LOCATION:Europe/Madrid",
+        "BEGIN:DAYLIGHT",
+        "TZOFFSETFROM:+0100",
+        "TZOFFSETTO:+0200",
+        "TZNAME:CEST",
+        "DTSTART:19700329T020000",
+        "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU",
+        "END:DAYLIGHT",
+        "BEGIN:STANDARD",
+        "TZOFFSETFROM:+0200",
+        "TZOFFSETTO:+0100",
+        "TZNAME:CET",
+        "DTSTART:19701025T030000",
+        "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU",
+        "END:STANDARD",
+        "END:VTIMEZONE"
     ]
 
     for r in rows:
@@ -446,15 +466,19 @@ def export_calendar_ics():
             dt_start = start_dt.strftime("%Y%m%dT%H%M00")
             dt_end = end_dt.strftime("%Y%m%dT%H%M00")
 
-            summary = f"Cita ANyD: {r['client_name']} ({r['modality']})"
-            desc = f"Deportista: {r['client_name']}\\nEmail: {r['client_email'] or 'N/A'}\\nTel: {r['client_phone'] or 'N/A'}\\nModalidad: {r['modality']}\\nNotas: {r['notes'] or ''}"
+            service_label = r["service"] if ("service" in r.keys() and r["service"]) else "Nutrición Deportiva"
+            modality_label = r["modality"] or "Presencial"
+            summary = f"{r['client_name']} - {service_label} ({modality_label})"
+            location = "ANyD Nutricionistas (Alcorcón)" if modality_label.lower() == "presencial" else "Online / Videollamada"
+            desc = f"Paciente: {r['client_name']}\\nServicio: {service_label}\\nModalidad: {modality_label}\\nTeléfono: {r['client_phone'] or 'N/A'}\\nEmail: {r['client_email'] or 'N/A'}\\nNotas: {r['notes'] or ''}"
 
             lines.append("BEGIN:VEVENT")
             lines.append(f"UID:anyd-appt-{r['id']}@anyd.es")
             lines.append(f"DTSTAMP:{dt_stamp}")
-            lines.append(f"DTSTART:{dt_start}")
-            lines.append(f"DTEND:{dt_end}")
+            lines.append(f"DTSTART;TZID=Europe/Madrid:{dt_start}")
+            lines.append(f"DTEND;TZID=Europe/Madrid:{dt_end}")
             lines.append(f"SUMMARY:{summary}")
+            lines.append(f"LOCATION:{location}")
             lines.append(f"DESCRIPTION:{desc}")
             lines.append("STATUS:CONFIRMED")
             lines.append("END:VEVENT")
@@ -463,7 +487,7 @@ def export_calendar_ics():
 
     lines.append("END:VCALENDAR")
     ics_content = "\r\n".join(lines)
-    return Response(content=ics_content, media_type="text/calendar", headers={
+    return Response(content=ics_content, media_type="text/calendar; charset=utf-8", headers={
         "Content-Disposition": "attachment; filename=citas_anyd.ics",
         "Cache-Control": "no-cache, no-store, must-revalidate"
     })
