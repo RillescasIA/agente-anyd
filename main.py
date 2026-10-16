@@ -129,9 +129,9 @@ class BookingRequest(BaseModel):
     duration_minutes: Optional[int] = 30
     modality: str = "Presencial"
 
-@app.get("/")
-def home():
-    return RedirectResponse(url="/reservar")
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/reservar", response_class=HTMLResponse)
 def page_reservar(request: Request):

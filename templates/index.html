@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANyD Nutricionistas | Plataforma Central de Gestión</title>
+    <!-- Fuentes oficiales de anyd.es -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anyd-blue: #0086cd;
+            --anyd-blue-hover: #0284c7;
+            --anyd-blue-light: #e0f2fe;
+            --anyd-dark: #0f172a;
+            --anyd-gray-text: #475569;
+            --anyd-bg-light: #f8fafc;
+            --anyd-white: #ffffff;
+            --anyd-border: #e2e8f0;
+            --anyd-success: #10b981;
+            --anyd-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --anyd-shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+            --anyd-shadow-hover: 0 20px 30px -10px rgba(0, 134, 205, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            --anyd-radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            color: var(--anyd-gray-text);
+            background-color: var(--anyd-bg-light);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* BARRA SUPERIOR / HEADER */
+        .site-header {
+            background: var(--anyd-white);
+            border-bottom: 1px solid var(--anyd-border);
+            padding: 16px 24px;
+            box-shadow: var(--anyd-shadow-sm);
+        }
+
+        .header-container {
+            max-width: 1160px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .logo-img {
+            max-height: 48px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #DEF7EC;
+            color: #03543F;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid #BCF0DA;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            background: #10B981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* HERO INTRO */
+        .hero {
+            max-width: 1160px;
+            margin: 40px auto 30px;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            background: var(--anyd-blue-light);
+            color: var(--anyd-blue);
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 4px 14px;
+            border-radius: 30px;
+            margin-bottom: 14px;
+        }
+
+        .hero h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--anyd-dark);
+            margin-bottom: 10px;
+            line-height: 1.25;
+        }
+
+        .hero p {
+            font-size: 16px;
+            color: var(--anyd-gray-text);
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        /* GRID DE MÓDULOS / MENÚ */
+        .modules-container {
+            max-width: 1160px;
+            margin: 10px auto 50px;
+            padding: 0 20px;
+            width: 100%;
+            flex: 1;
+        }
+
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+            gap: 24px;
+        }
+
+        .module-card {
+            background: var(--anyd-white);
+            border: 1.5px solid var(--anyd-border);
+            border-radius: var(--anyd-radius);
+            padding: 28px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: var(--anyd-shadow-sm);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--anyd-blue);
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .module-card:hover {
+            transform: translateY(-5px);
+            border-color: #93C5FD;
+            box-shadow: var(--anyd-shadow-hover);
+        }
+
+        .module-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            margin-bottom: 16px;
+        }
+
+        .card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 16px;
+            transition: transform 0.2s ease;
+        }
+
+        .module-card:hover .card-icon {
+            transform: scale(1.08);
+        }
+
+        .icon-admin { background: #EFF6FF; }
+        .icon-reservar { background: #ECFDF5; }
+        .icon-tanita { background: #F0F9FF; }
+        .icon-docs { background: #FAF5FF; }
+
+        .card-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .tag-admin { background: #DBEAFE; color: #1E40AF; }
+        .tag-reservar { background: #DEF7EC; color: #03543F; }
+        .tag-tanita { background: #E0F2FE; color: #0369A1; }
+        .tag-docs { background: #F3E8FF; color: #6B21A8; }
+
+        .card-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--anyd-dark);
+            margin-bottom: 8px;
+        }
+
+        .card-desc {
+            font-size: 13.5px;
+            color: var(--anyd-gray-text);
+            line-height: 1.55;
+            margin-bottom: 20px;
+        }
+
+        .card-features {
+            list-style: none;
+            margin-bottom: 22px;
+            padding-top: 14px;
+            border-top: 1px dashed var(--anyd-border);
+        }
+
+        .card-features li {
+            font-size: 12.5px;
+            color: #64748B;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-features li strong {
+            color: #334155;
+        }
+
+        .card-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #F8FAFC;
+            border: 1px solid var(--anyd-border);
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--anyd-blue);
+            transition: all 0.2s ease;
+        }
+
+        .module-card:hover .card-btn {
+            background: var(--anyd-blue);
+            color: white;
+            border-color: var(--anyd-blue);
+        }
+
+        .card-btn span.arrow {
+            transition: transform 0.2s ease;
+        }
+
+        .module-card:hover .card-btn span.arrow {
+            transform: translateX(4px);
+        }
+
+        /* ACCESOS RÁPIDOS */
+        .quick-strip {
+            max-width: 1160px;
+            margin: 0 auto 50px;
+            padding: 0 20px;
+            width: 100%;
+        }
+
+        .strip-card {
+            background: white;
+            border: 1px solid var(--anyd-border);
+            border-radius: var(--anyd-radius);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: var(--anyd-shadow-sm);
+        }
+
+        .strip-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .strip-icon {
+            font-size: 24px;
+        }
+
+        .strip-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: #F1F5F9;
+            color: #334155;
+            text-decoration: none;
+            font-size: 12.5px;
+            font-weight: 600;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .btn-link:hover {
+            background: #E2E8F0;
+            color: #0F172A;
+        }
+
+        /* FOOTER */
+        .site-footer {
+            background: var(--anyd-white);
+            border-top: 1px solid var(--anyd-border);
+            padding: 24px 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #94A3B8;
+            margin-top: auto;
+        }
+
+        .site-footer a {
+            color: var(--anyd-blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .site-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 26px; }
+            .hero p { font-size: 14.5px; }
+            .strip-card { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CABECERA -->
+    <header class="site-header">
+        <div class="header-container">
+            <a href="/" class="logo-wrap">
+                <img src="/static/logo.png" alt="ANyD Nutricionistas" class="logo-img" onerror="this.onerror=null; this.src='/static/logo_oficial.png';">
+            </a>
+            <div class="header-badge">
+                <div class="pulse-dot"></div>
+                <span>Servidor en Directo (Render)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO PRESENTACIÓN -->
+    <section class="hero">
+        <div class="hero-tag">Ecosistema Clínico & Deportivo</div>
+        <h1>Plataforma de Gestión Integral</h1>
+        <p>Selecciona el módulo al que deseas acceder para gestionar tu agenda, atender a deportistas o monitorizar la composición corporal.</p>
+    </section>
+
+    <!-- MENÚ PRINCIPAL EN TARJETAS -->
+    <main class="modules-container">
+        <div class="modules-grid">
+
+            <!-- 1. PANEL DE ADMINISTRACIÓN -->
+            <a href="/admin" class="module-card">
+                <div>
+                    <div class="card-icon icon-admin">📅</div>
+                    <span class="card-tag tag-admin">Cuadrante Semanal</span>
+                    <h2 class="card-title">Panel de Control</h2>
+                    <p class="card-desc">Calendario interactivo estilo Reservio, gestión de citas, ficha clínica y modificación de servicios.</p>
+                    <ul class="card-features">
+                        <li><span>✓</span> <strong>Cuadrante semanal</strong> con Drag & Drop</li>
+                        <li><span>✓</span> <strong>Duraciones flexibles</strong> (15 a 90 min)</li>
+                        <li><span>✓</span> <strong>Sincronización con Excel</strong> en Drive</li>
+                        <li><span>✓</span> <strong>Cambio de tipo de consulta</strong> en 1 clic</li>
+                    </ul>
+                </div>
+                <div class="card-btn">
+                    <span>Entrar al Panel Admin</span>
+                    <span class="arrow">→</span>
+                </div>
+            </a>
+
+            <!-- 2. PORTAL DE RESERVAS -->
+            <a href="/reservar" class="module-card">
+                <div>
+                    <div class="card-icon icon-reservar">🌐</div>
+                    <span class="card-tag tag-reservar">Para Deportistas</span>
+                    <h2 class="card-title">Portal de Reservas</h2>
+                    <p class="card-desc">Portal público donde los atletas seleccionan su modalidad, franja horaria y agendan su cita.</p>
+                    <ul class="card-features">
+                        <li><span>✓</span> <strong>Diseño corporativo</strong> anyd.es</li>
+                        <li><span>✓</span> <strong>Presencial / Online</strong> (Alcorcón y Meet)</li>
+                        <li><span>✓</span> <strong>Añadir a Google Calendar</strong> automático</li>
+                        <li><span>✓</span> <strong>Recordatorio previo a 48h</strong> por email</li>
+                    </ul>
+                </div>
+                <div class="card-btn">
+                    <span>Abrir Portal de Reservas</span>
+                    <span class="arrow">→</span>
+                </div>
+            </a>
+
+            <!-- 3. BÁSCULA TANITA MC-580 -->
+            <a href="/tanita" class="module-card">
+                <div>
+                    <div class="card-icon icon-tanita">⚖️</div>
+                    <span class="card-tag tag-tanita">Bioimpedancia Médica</span>
+                    <h2 class="card-title">Tanita MC-580</h2>
+                    <p class="card-desc">Monitor en vivo para captura por cable USB COM o carga de volcados CSV desde la tarjeta SD.</p>
+                    <ul class="card-features">
+                        <li><span>✓</span> <strong>Captura en directo</strong> a 9600 baudios</li>
+                        <li><span>✓</span> <strong>Fórmula de Cunningham</strong> (1980/1991)</li>
+                        <li><span>✓</span> <strong>Masa libre de grasa (FFM)</strong> y % graso</li>
+                        <li><span>✓</span> <strong>Asignación automática</strong> al deportista</li>
+                    </ul>
+                </div>
+                <div class="card-btn">
+                    <span>Abrir Monitor Tanita</span>
+                    <span class="arrow">→</span>
+                </div>
+            </a>
+
+            <!-- 4. DOCUMENTACIÓN API -->
+            <a href="/docs" class="module-card">
+                <div>
+                    <div class="card-icon icon-docs">⚡</div>
+                    <span class="card-tag tag-docs">Integraciones REST</span>
+                    <h2 class="card-title">Documentación API</h2>
+                    <p class="card-desc">Especificación OpenAPI interactiva Swagger para conectar automatizaciones y webhooks.</p>
+                    <ul class="card-features">
+                        <li><span>✓</span> <strong>40 endpoints REST</strong> documentados</li>
+                        <li><span>✓</span> <strong>Webhook WooCommerce</strong> para bonos</li>
+                        <li><span>✓</span> <strong>Exportación de calendario</strong> .ics</li>
+                        <li><span>✓</span> <strong>Test interactivo</strong> en navegador</li>
+                    </ul>
+                </div>
+                <div class="card-btn">
+                    <span>Ver Documentación Swagger</span>
+                    <span class="arrow">→</span>
+                </div>
+            </a>
+
+        </div>
+    </main>
+
+    <!-- BARRA INFERIOR DE ACCESOS RÁPIDOS -->
+    <div class="quick-strip">
+        <div class="strip-card">
+            <div class="strip-info">
+                <span class="strip-icon">🔗</span>
+                <div>
+                    <strong style="color: #1E293B; font-size: 13.5px;">Enlaces rápidos y suscripciones externas</strong>
+                    <p style="font-size: 12px; color: #64748B;">Accede a tu web oficial o suscríbete al feed de calendario.</p>
+                </div>
+            </div>
+            <div class="strip-links">
+                <a href="https://anyd.es" target="_blank" class="btn-link">
+                    🌐 Web Oficial anyd.es
+                </a>
+                <a href="/calendar.ics" class="btn-link" title="Suscripción en Google Calendar / iCal">
+                    📅 Suscripción .ICS
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+        <p><strong>ANyD Nutricionistas</strong> · Román Illescas Quiroga (Col. MAD00274)</p>
+        <p style="margin-top: 4px; font-size: 12px;">Nutrición Deportiva y Clínica de Alto Rendimiento · Alcorcón (Madrid) · <a href="https://anyd.es" target="_blank">anyd.es</a></p>
+    </footer>
+
+</body>
+</html>
