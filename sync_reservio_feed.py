@@ -24,6 +24,14 @@ def utc_to_madrid(dt_utc: datetime) -> datetime:
     else:
         return dt_utc + timedelta(hours=1)
 
+def clean_name(n: str) -> str:
+    if not n:
+        return ""
+    s = (n or "").lower()
+    s = re.sub(r'[^a-záéíóúñ]', '', s)
+    trans = str.maketrans('áéíóú', 'aeiou')
+    return s.translate(trans)
+
 def normalize_service(raw_service: str) -> str:
     s = (raw_service or "").strip()
     s_clean = re.sub(r"^\d+\s*[-_]?\s*", "", s).strip()
@@ -80,7 +88,7 @@ def run_reservio_sync():
     email_to_client = {}
     for c in client_rows:
         if c["fullname"]:
-            name_to_client[c["fullname"].strip().lower()] = dict(c)
+            name_to_client[clean_name(c["fullname"])] = dict(c)
         if c["email"]:
             email_to_client[c["email"].strip().lower()] = dict(c)
 
@@ -92,7 +100,7 @@ def run_reservio_sync():
     appt_date_name_map = {}
     
     for a in existing_appts:
-        c_name = (a["client_name"] or "").strip().lower()
+        c_name = clean_name(a["client_name"])
         d_str = a["appointment_date"]
         t_str = a["appointment_time"] or "10:00"
         
@@ -127,6 +135,7 @@ def run_reservio_sync():
             name_part, service_part = raw_summary, "Anyd Nutrición Deportiva"
 
         client_name = re.sub(r"^\d+\s*[-_]?\s*", "", name_part).strip()
+        client_name = client_name.rstrip(":").strip()
         service = normalize_service(service_part)
 
         # Parsear fechas y duración
@@ -193,11 +202,12 @@ def run_reservio_sync():
         clean_ph = phone.strip() if (phone and phone.strip()) else None
 
         # Matching o creación del cliente
+        c_clean = clean_name(client_name)
         matched_client = None
         if clean_em and clean_em in email_to_client:
             matched_client = email_to_client[clean_em]
-        elif client_name and client_name.strip().lower() in name_to_client:
-            matched_client = name_to_client[client_name.strip().lower()]
+        elif c_clean and c_clean in name_to_client:
+            matched_client = name_to_client[c_clean]
 
         client_id = matched_client["id"] if matched_client else None
 
@@ -209,7 +219,7 @@ def run_reservio_sync():
                 """, (client_name, clean_em, clean_ph))
                 client_id = cursor.lastrowid
                 new_c = {"id": client_id, "fullname": client_name, "email": clean_em, "phone": clean_ph}
-                name_to_client[client_name.strip().lower()] = new_c
+                name_to_client[c_clean] = new_c
                 if clean_em:
                     email_to_client[clean_em] = new_c
                 new_clients_count += 1
@@ -239,8 +249,8 @@ def run_reservio_sync():
         final_phone = clean_ph or (matched_client.get("phone") if matched_client else None)
 
         # Gestión de duplicados / actualización de horas reales de Excel
-        key_exact = (client_name.lower(), date_str, time_str)
-        key_date = (client_name.lower(), date_str)
+        key_exact = (c_clean, date_str, time_str)
+        key_date = (c_clean, date_str)
 
         if key_exact in appt_exact_map:
             skipped_count += 1
