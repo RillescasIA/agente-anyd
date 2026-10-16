@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import excel_manager
 import email_service
@@ -1346,8 +1346,8 @@ def api_get_recipes(q: str = "", group: str = "", limit: int = 50, offset: int =
     return diet_manager.get_recipes(query=q, group=group, limit=limit, offset=offset)
 
 @app.get("/api/diet/foods")
-def api_get_foods(q: str = "", familia: str = "", limit: int = 50, offset: int = 0):
-    return diet_manager.get_foods(query=q, familia=familia, limit=limit, offset=offset)
+def api_get_foods(q: str = "", familia: str = "", fuente: str = "", limit: int = 50, offset: int = 0):
+    return diet_manager.get_foods(query=q, familia=familia, fuente=fuente, limit=limit, offset=offset)
 
 @app.get("/api/diet/food/{food_id}")
 def api_get_food_detail(food_id: int):
@@ -1355,6 +1355,17 @@ def api_get_food_detail(food_id: int):
     if not food:
         raise HTTPException(status_code=404, detail="Alimento no encontrado")
     return food
+
+@app.get("/api/diet/off/search")
+def api_search_off(q: str = "", limit: int = 15):
+    if not q or len(q.strip()) < 2:
+        return {"products": []}
+    return {"products": diet_manager.search_open_food_facts(q, page_size=limit)}
+
+@app.post("/api/diet/off/import")
+def api_import_off(item: Dict[str, Any] = Body(...)):
+    res = diet_manager.import_off_product_to_db(item)
+    return res
 
 @app.get("/api/diet/groups")
 def api_get_diet_groups():

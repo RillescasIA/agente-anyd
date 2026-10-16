@@ -328,16 +328,32 @@
             </div>
         </section>
 
-        <!-- ================= PESTAÑA 3: BASE DE ALIMENTOS (602 ALIMENTOS BEDCA) ================= -->
+        <!-- ================= PESTAÑA 3: BASES CIENTÍFICAS ESPAÑOLAS (BEDCA, CESNID, MOREIRAS, MAPA/FEN, OFF) ================= -->
         <section id="section-foods" class="hidden">
             <div class="card">
-                <div class="card-header-flex">
+                <div class="card-header-flex" style="flex-wrap:wrap; gap:12px;">
                     <div>
-                        <h2 class="card-title">🥦 Base de Alimentos Oficial ({{ total_foods }} Alimentos BEDCA)</h2>
-                        <p style="font-size:12px; color:#64748B; margin-top:2px;">Composición bromatológica oficial por cada 100g de alimento de la Base de Datos Española de Composición de Alimentos (AESAN / Ministerio de Sanidad).</p>
+                        <h2 class="card-title">🥦 Bases Científicas de Alimentos Españoles</h2>
+                        <p style="font-size:12px; color:#64748B; margin-top:2px;">
+                            Bases integradas: 
+                            <span class="badge" style="background:#EFF6FF; color:#1D4ED8;">BEDCA (AESAN)</span>
+                            <span class="badge" style="background:#FAF5FF; color:#7E22CE;">CESNID (UB) & Moreiras (UCM)</span>
+                            <span class="badge" style="background:#F0FDF4; color:#15803D;">MAPA / FEN (DOP/IGP)</span>
+                            <span class="badge" style="background:#FFFBEB; color:#B45309;">OFF España (Supermercados)</span>
+                        </p>
                     </div>
-                    <div style="display:flex; gap:10px; flex:1; max-width:400px;">
-                        <input type="text" id="food-search-input" class="form-control" placeholder="Buscar alimento en BEDCA (ej. avena, salmón, lenteja)..." oninput="debounceFoodSearch()">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <select id="food-source-filter" class="form-control" style="max-width:210px; font-size:13px;" onchange="loadFoodsCatalog()">
+                            <option value="all">📚 Todas las Fuentes Españolas</option>
+                            <option value="bedca">🏛️ BEDCA (AESAN / Sanidad)</option>
+                            <option value="cesnid_moreiras">🥘 CESNID & Moreiras (Platos & Raciones)</option>
+                            <option value="mapa_fen">🌾 MAPA / FEN (Alimentos con DOP/IGP)</option>
+                            <option value="off">🛒 OFF España (Mercadona, Lidl, Carrefour...)</option>
+                        </select>
+                        <input type="text" id="food-search-input" class="form-control" style="max-width:280px;" placeholder="Buscar alimento, plato o marca..." oninput="debounceFoodSearch()">
+                        <button onclick="openOffSearchModal()" class="btn-anyd btn-outline" style="font-size:12px; padding:8px 12px; white-space:nowrap;">
+                            🌐 Buscar en OFF España (En vivo)
+                        </button>
                     </div>
                 </div>
 
@@ -345,8 +361,9 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Alimento</th>
-                                <th>Familia</th>
+                                <th>Alimento / Plato</th>
+                                <th>Fuente & Marca</th>
+                                <th>Medida Casera</th>
                                 <th>Kcal / 100g</th>
                                 <th>Proteína (g)</th>
                                 <th>Carbohidratos (g)</th>
@@ -443,6 +460,36 @@
             <div class="modal-footer">
                 <span style="font-size:11px; color:#94A3B8; margin-right:auto;">Fuente: Base de Datos Española de Composición de Alimentos (BEDCA / AESAN)</span>
                 <button onclick="closeFoodDetailModal()" class="btn-anyd btn-outline">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL BÚSQUEDA EN VIVO EN OPEN FOOD FACTS ESPAÑA -->
+    <div id="off-search-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:850px;">
+            <div class="modal-header">
+                <div>
+                    <h3 style="font-family:'Montserrat', sans-serif; font-size:17px; font-weight:800; color:#0F172A; margin:0;">
+                        🛒 Buscador de Supermercados España (Open Food Facts)
+                    </h3>
+                    <span style="font-size:12px; color:#64748B;">Búsqueda en vivo de productos comerciales de Mercadona (Hacendado), Carrefour, Lidl, Día, etc.</span>
+                </div>
+                <button onclick="closeOffSearchModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748B;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <input type="text" id="off-live-query" class="form-control" placeholder="Escribe el producto o marca (ej. skyr lidl, tofu mercadona, copos de avena bio)..." onkeydown="if(event.key==='Enter') executeOffSearch()">
+                    <button onclick="executeOffSearch()" class="btn-anyd btn-primary" style="white-space:nowrap;">🔍 Buscar en Vivo</button>
+                </div>
+                <div id="off-search-results" style="max-height:450px; overflow-y:auto;">
+                    <div style="text-align:center; color:#94A3B8; padding:30px;">
+                        Introduce el nombre de cualquier producto comercial de España para consultar sus macros y agregarlo a tu base con 1 clic.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span style="font-size:11px; color:#94A3B8; margin-right:auto;">Conexión directa a API Open Food Facts España (ODbL)</span>
+                <button onclick="closeOffSearchModal()" class="btn-anyd btn-outline">Cerrar</button>
             </div>
         </div>
     </div>
@@ -729,52 +776,86 @@
             }, 300);
         }
 
-        async function loadFoodsCatalog(query = '') {
+        async function loadFoodsCatalog() {
+            const query = document.getElementById('food-search-input') ? document.getElementById('food-search-input').value : '';
+            const fuente = document.getElementById('food-source-filter') ? document.getElementById('food-source-filter').value : 'all';
             const tbody = document.getElementById('foods-table-body');
-            const res = await fetch(`/api/diet/foods?q=${encodeURIComponent(query)}&limit=50`);
+            tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:20px; color:#64748B;">Cargando base científica de alimentos...</td></tr>';
+
+            const res = await fetch(`/api/diet/foods?q=${encodeURIComponent(query)}&fuente=${encodeURIComponent(fuente)}&limit=60`);
             const data = await res.json();
 
             if (!data.foods || data.foods.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#64748B; padding:24px;">No se encontraron alimentos en la base BEDCA.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; color:#64748B; padding:24px;">No se encontraron alimentos para esta búsqueda en las bases españolas.</td></tr>';
                 return;
             }
 
             const val = (v, dec=1) => (v !== null && v !== undefined) ? Number(v).toFixed(dec) : '—';
 
-            tbody.innerHTML = data.foods.map(f => `
-                <tr>
-                    <td><strong>${f.nombre}</strong></td>
-                    <td style="color:#64748B; font-size:12px;">${f.familia || '—'}</td>
-                    <td><span class="badge" style="background:#EFF6FF; color:#1D4ED8; font-weight:700;">${Math.round(f.kcal || 0)}</span></td>
-                    <td>${val(f.proteina_g)}</td>
-                    <td>${val(f.carbohidratos_g)}</td>
-                    <td>${val(f.grasa_g)}</td>
-                    <td>${val(f.fibra_g)}</td>
-                    <td style="color:#0F766E; font-weight:600;">${f.calcio_mg !== null && f.calcio_mg !== undefined ? Number(f.calcio_mg).toFixed(0) : '—'}</td>
-                    <td style="color:#B45309; font-weight:600;">${f.hierro_mg !== null && f.hierro_mg !== undefined ? Number(f.hierro_mg).toFixed(1) : '—'}</td>
-                    <td style="color:#4338CA; font-weight:600;">${f.magnesio_mg !== null && f.magnesio_mg !== undefined ? Number(f.magnesio_mg).toFixed(0) : '—'}</td>
-                    <td style="color:#1E293B;">${f.potasio_mg !== null && f.potasio_mg !== undefined ? Number(f.potasio_mg).toFixed(0) : '—'}</td>
-                    <td style="color:#D97706; font-weight:700;">${f.vitamina_d_ug !== null && f.vitamina_d_ug !== undefined ? Number(f.vitamina_d_ug).toFixed(1) : '—'}</td>
-                    <td style="color:#059669; font-weight:700;">${f.vitamina_c_mg !== null && f.vitamina_c_mg !== undefined ? Number(f.vitamina_c_mg).toFixed(1) : '—'}</td>
-                    <td>
-                        <button onclick="openFoodDetailModal('${f.id}')" class="btn-anyd btn-outline" style="padding:4px 8px; font-size:11px; font-weight:600;">🔍 Ficha</button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = data.foods.map(f => {
+                let badgeFuente = '<span class="badge" style="background:#EFF6FF; color:#1D4ED8; font-size:10px;">BEDCA</span>';
+                if ((f.fuente_datos || '').includes('CESNID') || (f.fuente_datos || '').includes('Moreiras')) {
+                    badgeFuente = '<span class="badge" style="background:#FAF5FF; color:#7E22CE; font-size:10px;">CESNID / Moreiras</span>';
+                } else if ((f.fuente_datos || '').includes('MAPA') || (f.fuente_datos || '').includes('FEN')) {
+                    badgeFuente = '<span class="badge" style="background:#F0FDF4; color:#15803D; font-size:10px;">MAPA / FEN</span>';
+                } else if ((f.fuente_datos || '').includes('Open Food Facts')) {
+                    badgeFuente = '<span class="badge" style="background:#FFFBEB; color:#B45309; font-size:10px;">OFF España</span>';
+                }
+
+                let novaBadge = '';
+                if (f.nova_group) {
+                    const colors = {
+                        1: 'background:#DCFCE7; color:#166534;',
+                        2: 'background:#E0F2FE; color:#0369A1;',
+                        3: 'background:#FEF9C3; color:#854D0E;',
+                        4: 'background:#FEE2E2; color:#991B1B;'
+                    };
+                    novaBadge = `<span class="badge" style="${colors[f.nova_group] || ''} font-size:9px; margin-left:3px;">NOVA ${f.nova_group}</span>`;
+                }
+
+                return `
+                    <tr>
+                        <td>
+                            <strong>${f.nombre}</strong>
+                            ${f.codigo_barras ? `<div style="font-size:10px; color:#94A3B8;">EAN: ${f.codigo_barras}</div>` : ''}
+                        </td>
+                        <td>
+                            <div>${badgeFuente} ${novaBadge}</div>
+                            ${f.marca && f.marca !== 'Genérico' ? `<div style="font-size:11px; font-weight:600; color:#475569; margin-top:2px;">${f.marca}</div>` : ''}
+                        </td>
+                        <td>
+                            <span style="font-size:11px; color:#64748B; font-style:italic;">${f.medida_casera || '100g estándar'}</span>
+                        </td>
+                        <td><span class="badge" style="background:#EFF6FF; color:#1D4ED8; font-weight:700;">${Math.round(f.kcal || 0)}</span></td>
+                        <td>${val(f.proteina_g)}</td>
+                        <td>${val(f.carbohidratos_g)}</td>
+                        <td>${val(f.grasa_g)}</td>
+                        <td>${val(f.fibra_g)}</td>
+                        <td style="color:#0F766E; font-weight:600;">${f.calcio_mg !== null && f.calcio_mg !== undefined ? Number(f.calcio_mg).toFixed(0) : '—'}</td>
+                        <td style="color:#B45309; font-weight:600;">${f.hierro_mg !== null && f.hierro_mg !== undefined ? Number(f.hierro_mg).toFixed(1) : '—'}</td>
+                        <td style="color:#4338CA; font-weight:600;">${f.magnesio_mg !== null && f.magnesio_mg !== undefined ? Number(f.magnesio_mg).toFixed(0) : '—'}</td>
+                        <td style="color:#1E293B;">${f.potasio_mg !== null && f.potasio_mg !== undefined ? Number(f.potasio_mg).toFixed(0) : '—'}</td>
+                        <td style="color:#D97706; font-weight:700;">${f.vitamina_d_ug !== null && f.vitamina_d_ug !== undefined ? Number(f.vitamina_d_ug).toFixed(1) : '—'}</td>
+                        <td style="color:#059669; font-weight:700;">${f.vitamina_c_mg !== null && f.vitamina_c_mg !== undefined ? Number(f.vitamina_c_mg).toFixed(1) : '—'}</td>
+                        <td>
+                            <button onclick="openFoodDetailModal('${f.id}')" class="btn-anyd btn-outline" style="padding:4px 8px; font-size:11px; font-weight:600;">🔍 Ficha</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function debounceFoodSearch() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
-                const query = document.getElementById('food-search-input').value;
-                loadFoodsCatalog(query);
+                loadFoodsCatalog();
             }, 300);
         }
 
         async function openFoodDetailModal(foodId) {
             const modal = document.getElementById('food-detail-modal');
             const body = document.getElementById('food-modal-body');
-            body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748B;">Cargando perfil nutricional oficial BEDCA...</div>';
+            body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748B;">Cargando perfil analítico oficial...</div>';
             modal.classList.remove('hidden');
 
             try {
@@ -783,11 +864,22 @@
                 const f = await res.json();
 
                 document.getElementById('food-modal-title').textContent = f.nombre;
-                document.getElementById('food-modal-family').textContent = `Grupo/Familia: ${f.familia || 'Alimento Básico'} | Valores oficiales por cada 100g de porción comestible`;
+                document.getElementById('food-modal-family').textContent = `Fuente: ${f.fuente_datos || 'Base Científica Española'} | Grupo: ${f.familia || 'Alimento Básico'} | Valores por cada 100g de porción comestible`;
 
                 const fmt = (v, unit='', dec=1) => (v !== null && v !== undefined) ? `${Number(v).toFixed(dec)} ${unit}` : '—';
 
+                let metaDetails = `
+                    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:14px; font-size:12px; align-items:center;">
+                        <div><strong>🏛️ Fuente Oficial:</strong> <span style="color:#1D4ED8; font-weight:600;">${f.fuente_datos || 'BEDCA'}</span></div>
+                        ${f.marca && f.marca !== 'Genérico' ? `<div><strong>🏷️ Marca:</strong> <span style="font-weight:600;">${f.marca}</span></div>` : ''}
+                        ${f.codigo_barras ? `<div><strong>🔢 Código de Barras (EAN):</strong> <code>${f.codigo_barras}</code></div>` : ''}
+                        ${f.medida_casera ? `<div><strong>🥄 Medida Casera Habitual:</strong> <span style="color:#0F766E; font-weight:600;">${f.medida_casera}</span></div>` : ''}
+                        ${f.nova_group ? `<div><strong>🔬 Clasificación NOVA:</strong> <span class="badge" style="font-size:11px; background:${f.nova_group === 1 ? '#DCFCE7; color:#166534;' : f.nova_group === 4 ? '#FEE2E2; color:#991B1B;' : '#FEF9C3; color:#854D0E;'}">Grupo ${f.nova_group} (${f.nova_group === 1 ? 'Sin procesar / Mínimo proceso' : f.nova_group === 4 ? 'Ultraprocesado' : 'Procesado'})</span></div>` : ''}
+                    </div>
+                `;
+
                 body.innerHTML = `
+                    ${metaDetails}
                     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:10px; margin-bottom:18px;">
                         <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:10px; text-align:center;">
                             <div style="font-size:10px; color:#1E40AF; font-weight:700; text-transform:uppercase;">Energía</div>
@@ -821,8 +913,8 @@
                         <h4 style="font-size:12px; font-weight:700; color:#374151; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">🥑 Perfil de Ácidos Grasos (Salud Cardiovascular)</h4>
                         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; font-size:12px;">
                             <div><strong>Saturada:</strong> ${fmt(f.grasa_sat_g, 'g')}</div>
-                            <div><strong>Monoinsaturada:</strong> ${fmt(f.grasa_mono_g, 'g')}</div>
-                            <div><strong>Poliinsaturada:</strong> ${fmt(f.grasa_poli_g, 'g')}</div>
+                            <div><strong>Monoinsaturada (Omega-9):</strong> ${fmt(f.grasa_mono_g, 'g')}</div>
+                            <div><strong>Poliinsaturada (Omega-3/6):</strong> ${fmt(f.grasa_poli_g, 'g')}</div>
                         </div>
                     </div>
 
@@ -865,6 +957,87 @@
 
         function closeFoodDetailModal() {
             document.getElementById('food-detail-modal').classList.add('hidden');
+        }
+
+        // --- FUNCIONES OPEN FOOD FACTS ESPAÑA EN VIVO ---
+        function openOffSearchModal() {
+            document.getElementById('off-search-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('off-live-query').focus();
+            }, 100);
+        }
+
+        function closeOffSearchModal() {
+            document.getElementById('off-search-modal').classList.add('hidden');
+        }
+
+        let liveOffCache = [];
+
+        async function executeOffSearch() {
+            const query = document.getElementById('off-live-query').value.trim();
+            const container = document.getElementById('off-search-results');
+            if (!query) {
+                alert("Introduce un término de búsqueda para Open Food Facts");
+                return;
+            }
+
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#64748B;">Buscando en tiempo real en la base de Open Food Facts España...</div>';
+
+            try {
+                const res = await fetch(`/api/diet/off/search?q=${encodeURIComponent(query)}&limit=15`);
+                const data = await res.json();
+                liveOffCache = data.products || [];
+
+                if (liveOffCache.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:25px; color:#EF4444;">No se encontraron productos en Open Food Facts España para esta consulta. Prueba con otro nombre o marca.</div>';
+                    return;
+                }
+
+                container.innerHTML = liveOffCache.map((p, idx) => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px; margin-bottom:10px;">
+                        <div>
+                            <div style="font-weight:700; color:#0F172A; font-size:14px;">${p.nombre}</div>
+                            <div style="font-size:12px; color:#64748B;">
+                                <span style="font-weight:600; color:#475569;">${p.marca}</span> · 
+                                <code>EAN: ${p.codigo_barras || 'N/A'}</code> · 
+                                <span class="badge" style="background:#FFFBEB; color:#B45309; font-size:10px;">NOVA ${p.nova_group}</span>
+                            </div>
+                            <div style="font-size:12px; color:#0F766E; margin-top:4px;">
+                                <strong>${Math.round(p.kcal)} kcal</strong> | Prot: ${p.proteina_g}g | Carbos: ${p.carbohidratos_g}g | Grasa: ${p.grasa_g}g | Fibra: ${p.fibra_g}g
+                            </div>
+                        </div>
+                        <div>
+                            <button onclick="importOffItemToCatalog(${idx})" class="btn-anyd btn-success" style="font-size:12px; padding:6px 12px; white-space:nowrap;">
+                                📥 Guardar en Base
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<div style="text-align:center; padding:25px; color:#DC2626;">Error al consultar Open Food Facts: ${err.message}</div>`;
+            }
+        }
+
+        async function importOffItemToCatalog(idx) {
+            const item = liveOffCache[idx];
+            if (!item) return;
+
+            try {
+                const res = await fetch('/api/diet/off/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`¡Producto '${item.nombre}' importado con éxito a tu base de datos de alimentos!`);
+                    loadFoodsCatalog();
+                } else {
+                    alert(`No se pudo importar: ${data.error || 'Error desconocido'}`);
+                }
+            } catch (err) {
+                alert(`Error al importar el alimento: ${err.message}`);
+            }
         }
 
         // --- TANITA & GOOGLE DRIVE INTEGRACIÓN ---

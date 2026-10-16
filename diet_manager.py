@@ -58,12 +58,12 @@ def get_canonical_groups() -> List[str]:
     conn.close()
     return groups
 
-def get_foods(query: str = "", familia: str = "", limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+def get_foods(query: str = "", familia: str = "", fuente: str = "", limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     conn = get_db()
     cursor = conn.cursor()
 
     sql = """
-    SELECT id, nombre, familia, kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g, agua_g,
+    SELECT id, nombre, familia, marca, codigo_barras, medida_casera, nova_group, kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g, agua_g,
            grasa_sat_g, grasa_mono_g, grasa_poli_g, calcio_mg, hierro_mg, magnesio_mg, potasio_mg, sodio_mg,
            zinc_mg, vitamina_d_ug, vitamina_c_mg, vitamina_b12_ug, fuente_datos
     FROM diet_foods WHERE 1=1
@@ -71,18 +71,32 @@ def get_foods(query: str = "", familia: str = "", limit: int = 50, offset: int =
     params = []
 
     if query:
-        sql += " AND nombre LIKE ?"
-        params.append(f"%{query.strip()}%")
+        sql += " AND (nombre LIKE ? OR marca LIKE ? OR codigo_barras LIKE ?)"
+        term = f"%{query.strip()}%"
+        params.extend([term, term, term])
 
     if familia and familia != "all":
         sql += " AND familia = ?"
         params.append(familia.strip())
 
+    if fuente and fuente != "all":
+        if fuente == "bedca":
+            sql += " AND fuente_datos LIKE '%BEDCA%'"
+        elif fuente == "cesnid_moreiras":
+            sql += " AND (fuente_datos LIKE '%CESNID%' OR fuente_datos LIKE '%Moreiras%')"
+        elif fuente == "mapa_fen":
+            sql += " AND fuente_datos LIKE '%MAPA%'"
+        elif fuente == "off":
+            sql += " AND fuente_datos LIKE '%Open Food Facts%'"
+        else:
+            sql += " AND fuente_datos LIKE ?"
+            params.append(f"%{fuente.strip()}%")
+
     count_sql = "SELECT COUNT(*) FROM (" + sql + ")"
     cursor.execute(count_sql, params)
     total = cursor.fetchone()[0]
 
-    sql += " ORDER BY CASE WHEN id <= 60 THEN 0 ELSE 1 END, nombre ASC LIMIT ? OFFSET ?"
+    sql += " ORDER BY CASE WHEN fuente_datos LIKE '%Open Food Facts%' THEN 1 WHEN fuente_datos LIKE '%MAPA%' THEN 2 WHEN fuente_datos LIKE '%CESNID%' OR fuente_datos LIKE '%Moreiras%' THEN 3 ELSE 4 END, nombre ASC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
     cursor.execute(sql, params)
@@ -104,6 +118,91 @@ def get_food_by_id(food_id: int) -> Optional[Dict[str, Any]]:
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
+
+def search_open_food_facts(query: str, page_size: int = 15) -> List[Dict[str, Any]]:
+    import requests
+    headers = {"User-Agent": "ANyDNutricionistasCRM/2.0 (clinica@anyd.es)"}
+    url = "https://es.openfoodfacts.org/api/v2/search"
+    params = {
+        "search_terms": query.strip(),
+        "page_size": page_size,
+        "fields": "code,product_name,brands,nutriments,nova_group,serving_size"
+    }
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=6)
+        if r.status_code == 200:
+            data = r.json()
+            products = []
+            for p in data.get("products", []):
+                name = p.get("product_name")
+                if not name:
+                    continue
+                nutr = p.get("nutriments", {})
+                products.append({
+                    "codigo_barras": p.get("code", ""),
+                    "nombre": name,
+                    "marca": p.get("brands", "Supermercado España"),
+                    "medida_casera": p.get("serving_size", "1 ración"),
+                    "nova_group": p.get("nova_group") or 1,
+                    "kcal": round(float(nutr.get("energy-kcal_100g") or 0.0), 1),
+                    "proteina_g": round(float(nutr.get("proteins_100g") or 0.0), 1),
+                    "carbohidratos_g": round(float(nutr.get("carbohydrates_100g") or 0.0), 1),
+                    "grasa_g": round(float(nutr.get("fat_100g") or 0.0), 1),
+                    "fibra_g": round(float(nutr.get("fiber_100g") or 0.0), 1),
+                    "fuente_datos": "Open Food Facts España"
+                })
+            return products
+    except Exception as e:
+        print(f"Error consultando Open Food Facts: {e}")
+    return []
+
+def import_off_product_to_db(item: Dict[str, Any]) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+    nombre = item.get("nombre", "").strip()
+    if not nombre:
+        conn.close()
+        return {"success": False, "error": "Nombre requerido"}
+
+    cursor.execute("SELECT id FROM diet_foods WHERE nombre = ? OR (codigo_barras != '' AND codigo_barras = ?)", (nombre, item.get("codigo_barras", "")))
+    row = cursor.fetchone()
+
+    kcal = float(item.get("kcal", 0.0))
+    prot = float(item.get("proteina_g", 0.0))
+    carbs = float(item.get("carbohidratos_g", 0.0))
+    fat = float(item.get("grasa_g", 0.0))
+    fibra = float(item.get("fibra_g", 0.0))
+    marca = item.get("marca", "Supermercado")
+    barcode = item.get("codigo_barras", "")
+    medida = item.get("medida_casera", "1 ración")
+    nova = int(item.get("nova_group") or 1)
+    fuente = "Open Food Facts España"
+    familia = "Supermercado / Marcas"
+
+    if row:
+        fid = row[0]
+        cursor.execute("""
+            UPDATE diet_foods SET
+                marca = ?, codigo_barras = ?, medida_casera = ?, nova_group = ?, fuente_datos = ?,
+                kcal = ?, proteina_g = ?, carbohidratos_g = ?, grasa_g = ?, fibra_g = ?
+            WHERE id = ?
+        """, (marca, barcode, medida, nova, fuente, kcal, prot, carbs, fat, fibra, fid))
+    else:
+        cursor.execute("""
+            INSERT INTO diet_foods (
+                nombre, familia, marca, codigo_barras, medida_casera, nova_group, fuente_datos,
+                kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g, agua_g,
+                grasa_sat_g, grasa_mono_g, grasa_poli_g, colesterol_mg, calcio_mg, hierro_mg,
+                magnesio_mg, potasio_mg, sodio_mg, fosforo_mg, zinc_mg, selenio_ug,
+                vitamina_a_ug, vitamina_d_ug, vitamina_e_mg, vitamina_c_mg, vitamina_b1_mg,
+                vitamina_b2_mg, vitamina_b3_mg, vitamina_b6_mg, folatos_b9_ug, vitamina_b12_ug
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        """, (nombre, familia, marca, barcode, medida, nova, fuente, kcal, kcal * 4.184, prot, carbs, fat, fibra))
+        fid = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return {"success": True, "id": fid, "nombre": nombre}
 
 def calculate_metabolism(weight_kg: float, ffm_kg: float = 0.0, height_cm: float = 175.0, age: int = 30, gender: str = "M", formula: str = "cunningham", pal: float = 1.5, goal: str = "mantenimiento") -> Dict[str, Any]:
     """
