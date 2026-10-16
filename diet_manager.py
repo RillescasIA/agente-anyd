@@ -62,7 +62,12 @@ def get_foods(query: str = "", familia: str = "", limit: int = 50, offset: int =
     conn = get_db()
     cursor = conn.cursor()
 
-    sql = "SELECT id, nombre, familia, kcal, proteina_g, carbohidratos_g, grasa_g, fibra_g, grasa_sat_g FROM diet_foods WHERE 1=1"
+    sql = """
+    SELECT id, nombre, familia, kcal, energia_kj, proteina_g, carbohidratos_g, grasa_g, fibra_g, agua_g,
+           grasa_sat_g, grasa_mono_g, grasa_poli_g, calcio_mg, hierro_mg, magnesio_mg, potasio_mg, sodio_mg,
+           zinc_mg, vitamina_d_ug, vitamina_c_mg, vitamina_b12_ug, fuente_datos
+    FROM diet_foods WHERE 1=1
+    """
     params = []
 
     if query:
@@ -77,7 +82,7 @@ def get_foods(query: str = "", familia: str = "", limit: int = 50, offset: int =
     cursor.execute(count_sql, params)
     total = cursor.fetchone()[0]
 
-    sql += " ORDER BY nombre ASC LIMIT ? OFFSET ?"
+    sql += " ORDER BY CASE WHEN id <= 60 THEN 0 ELSE 1 END, nombre ASC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
     cursor.execute(sql, params)
@@ -91,6 +96,14 @@ def get_foods(query: str = "", familia: str = "", limit: int = 50, offset: int =
         "limit": limit,
         "offset": offset
     }
+
+def get_food_by_id(food_id: int) -> Optional[Dict[str, Any]]:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM diet_foods WHERE id = ?", (food_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 def calculate_metabolism(weight_kg: float, ffm_kg: float = 0.0, height_cm: float = 175.0, age: int = 30, gender: str = "M", formula: str = "cunningham", pal: float = 1.5, goal: str = "mantenimiento") -> Dict[str, Any]:
     """

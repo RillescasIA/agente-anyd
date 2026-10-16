@@ -1349,6 +1349,13 @@ def api_get_recipes(q: str = "", group: str = "", limit: int = 50, offset: int =
 def api_get_foods(q: str = "", familia: str = "", limit: int = 50, offset: int = 0):
     return diet_manager.get_foods(query=q, familia=familia, limit=limit, offset=offset)
 
+@app.get("/api/diet/food/{food_id}")
+def api_get_food_detail(food_id: int):
+    food = diet_manager.get_food_by_id(food_id)
+    if not food:
+        raise HTTPException(status_code=404, detail="Alimento no encontrado")
+    return food
+
 @app.get("/api/diet/groups")
 def api_get_diet_groups():
     return {"groups": diet_manager.get_canonical_groups()}
