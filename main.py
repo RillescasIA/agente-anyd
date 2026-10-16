@@ -108,6 +108,25 @@ def init_db():
 
 init_db()
 
+def auto_seed_if_empty():
+    """
+    Si el servidor arranca con la base de datos vacía (ej. en Render con disco efímero),
+    descarga e importa automáticamente todas las citas desde el feed de Reservio.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM appointments")
+        count = cursor.fetchone()[0]
+        conn.close()
+        if count == 0:
+            print("[AUTO-SYNC] Base de datos vacía detectada al inicio. Sincronizando con Reservio...")
+            sync_reservio_feed.run_reservio_sync()
+    except Exception as e:
+        print(f"[AUTO-SYNC ERROR] Error en auto-sincronización inicial: {e}")
+
+auto_seed_if_empty()
+
 # Inicializar tabla oficial de festivos Nacionales, Madrid y Alcorcón
 holidays_manager.init_holidays_table()
 
