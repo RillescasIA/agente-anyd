@@ -1492,26 +1492,44 @@
             const container = document.getElementById('diet-preview-container');
             const days = Object.keys(week);
 
+            const formatMeal = (m, label) => {
+                if (!m) return '';
+                return `
+                    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:6px 8px; margin-bottom:6px;">
+                        <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase;">${label}</div>
+                        <div style="font-size:11.5px; font-weight:700; color:#1E293B; margin:1px 0;">${m.nombre}</div>
+                        <div style="font-size:10.5px; color:#0284C7;">
+                            <strong>${Math.round(m.kcal)} kcal</strong> &bull; ${m.proteina_g}g P &bull; ${m.carbohidratos_g}g C &bull; ${m.grasa_g}g G
+                        </div>
+                    </div>
+                `;
+            };
+
             container.innerHTML = `
                 <div style="background:#DEF7EC; border:1px solid #BCF0DA; border-radius:6px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; color:#03543F; display:flex; justify-content:space-between; align-items:center;">
-                    <span>✓ <strong>Menú Periodizado Generado:</strong> Mínimo 4 legumbres semanales, omega-3 y cereales 100% integrales.</span>
+                    <span>✓ <strong>Menú Periodizado Generado:</strong> Mínimo 4 legumbres semanales, omega-3 y cereales 100% integrales con recetas reales de Dietowin.</span>
                     <button class="btn-anyd btn-success" style="font-size:11px;" onclick="showToast('Menú guardado en la ficha del atleta.')">💾 Asignar Menú al Atleta</button>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
                     ${days.map(d => {
                         const dayData = week[d];
+                        const meals = dayData.meals || {};
+                        const sum = dayData.summary || {};
                         return `
                             <div style="background:white; border:1px solid #CBD5E1; border-radius:8px; padding:12px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #F1F5F9; padding-bottom:6px; margin-bottom:8px;">
                                     <strong style="color:var(--anyd-dark); font-size:14px;">${d}</strong>
-                                    <span style="font-size:11px; font-weight:700; color:#059669;">${dayData.total_kcal} kcal</span>
+                                    <span style="font-size:12px; font-weight:800; color:#059669;">${sum.kcal || 0} kcal</span>
                                 </div>
-                                <div style="font-size:12px; line-height:1.45;">
-                                    <p><strong>Desayuno:</strong> ${dayData.desayuno?.nombre || '--'}</p>
-                                    <p><strong>Comida:</strong> ${dayData.comida_1?.nombre || '--'} + ${dayData.comida_2?.nombre || ''}</p>
-                                    <p><strong>Merienda:</strong> ${dayData.merienda?.nombre || '--'}</p>
-                                    <p><strong>Cena:</strong> ${dayData.cena_1?.nombre || '--'} + ${dayData.cena_2?.nombre || ''}</p>
+                                <div style="font-size:11px; color:#64748B; margin-bottom:8px; background:#F1F5F9; padding:4px 6px; border-radius:4px;">
+                                    P: ${sum.proteina_g || 0}g &bull; C: ${sum.carbohidratos_g || 0}g &bull; G: ${sum.grasa_g || 0}g
                                 </div>
+                                ${formatMeal(meals.desayuno, '🌅 Desayuno')}
+                                ${formatMeal(meals.media_manana, '🥪 Media Mañana')}
+                                ${formatMeal(meals.comida_primer_plato, '🍲 Comida (1º Plato)')}
+                                ${formatMeal(meals.comida_segundo_plato, '🍗 Comida (2º Plato)')}
+                                ${formatMeal(meals.merienda, '☕ Merienda')}
+                                ${formatMeal(meals.cena, '🥗 Cena')}
                             </div>
                         `;
                     }).join('')}
