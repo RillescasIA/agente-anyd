@@ -18,6 +18,7 @@ import holidays_manager
 import sync_excel
 import sync_reservio_feed
 import diet_manager
+import clinical_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -143,6 +144,7 @@ auto_seed_if_empty()
 
 # Inicializar tabla oficial de festivos Nacionales, Madrid y Alcorcón
 holidays_manager.init_holidays_table()
+clinical_manager.init_clinical_tables()
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(STATIC_DIR):
@@ -1417,6 +1419,61 @@ def api_get_latest_tanita(client_name: str):
     if row:
         return {"found": True, "data": dict(row)}
     return {"found": False}
+
+# ==========================================
+# RUTAS DE LA ESTACIÓN CLÍNICA & DEPORTIVA (CONSULTA 360°)
+# ==========================================
+
+@app.get("/consulta", response_class=HTMLResponse)
+@app.get("/clinica", response_class=HTMLResponse)
+def page_clinica_workstation(request: Request, client_id: Optional[int] = None):
+    """
+    Estación Clínica Integral: Historia Clínica SOAP, Tanita MC-580,
+    Cunningham, Dietowin 2.0 y Analíticas de Sangre.
+    """
+    return templates.TemplateResponse(request=request, name="consulta.html", context={"initial_client_id": client_id})
+
+@app.get("/api/clinica/athletes")
+def api_clinica_athletes(q: str = "", limit: int = 50):
+    athletes = clinical_manager.search_athletes(query=q, limit=limit)
+    return {"athletes": athletes}
+
+@app.get("/api/clinica/today-appointments")
+def api_clinica_today():
+    today_list = clinical_manager.get_today_scheduled_athletes()
+    return {"today": today_list}
+
+@app.get("/api/clinica/athlete/{client_id}")
+def api_clinica_athlete_360(client_id: int):
+    data = clinical_manager.get_athlete_360(client_id)
+    if not data or not data.get("client"):
+        raise HTTPException(status_code=404, detail="Deportista no encontrado")
+    return data
+
+@app.post("/api/clinica/athlete/{client_id}/profile")
+async def api_save_athlete_profile(client_id: int, request: Request):
+    payload = await request.json()
+    clinical_manager.save_athlete_profile(client_id, payload)
+    return {"success": True, "message": "Ficha y perfil clínico guardados correctamente"}
+
+@app.post("/api/clinica/athlete/{client_id}/soap")
+async def api_save_soap_note(client_id: int, request: Request):
+    payload = await request.json()
+    note_id = clinical_manager.save_soap_note(client_id, payload)
+    return {"success": True, "note_id": note_id, "message": "Consulta SOAP registrada correctamente"}
+
+@app.post("/api/clinica/athlete/{client_id}/tanita")
+async def api_save_tanita(client_id: int, request: Request):
+    payload = await request.json()
+    client_name = payload.get("client_name") or f"Atleta {client_id}"
+    m_id = clinical_manager.save_manual_tanita(client_id, client_name, payload)
+    return {"success": True, "measurement_id": m_id, "message": "Medición de bioimpedancia registrada"}
+
+@app.post("/api/clinica/athlete/{client_id}/lab-test")
+async def api_save_lab_test(client_id: int, request: Request):
+    payload = await request.json()
+    test_id = clinical_manager.save_lab_test(client_id, payload)
+    return {"success": True, "test_id": test_id, "message": "Analítica sanguínea registrada correctamente"}
 
 
 
