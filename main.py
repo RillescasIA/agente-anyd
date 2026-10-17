@@ -169,6 +169,39 @@ class BookingRequest(BaseModel):
 def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
+@app.get("/api/dashboard/stats")
+def api_dashboard_stats():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM clients")
+    total_clients = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM diet_recipes")
+    total_recipes = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM diet_foods")
+    total_foods = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM diet_plans")
+    total_plans = c.fetchone()[0]
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    c.execute("SELECT COUNT(*) FROM appointments WHERE appointment_date = ?", (today_str,))
+    today_appointments = c.fetchone()[0]
+    conn.close()
+
+    tanita_status = {
+        "connected": tanita_receiver.tanita_instance.is_listening,
+        "active_port": tanita_receiver.tanita_instance.active_port,
+        "latest_measurement": tanita_receiver.tanita_instance.latest_measurement
+    }
+
+    return {
+        "clients_count": total_clients,
+        "recipes_count": total_recipes,
+        "foods_count": total_foods,
+        "plans_count": total_plans,
+        "today_appointments_count": today_appointments,
+        "tanita": tanita_status
+    }
+
 @app.get("/reservar", response_class=HTMLResponse)
 def page_reservar(request: Request):
     return templates.TemplateResponse(request=request, name="reservar.html")
@@ -1463,6 +1496,11 @@ def api_get_diet_plan(plan_id: int):
     if not plan:
         raise HTTPException(status_code=404, detail="Plan no encontrado")
     return plan
+
+@app.post("/api/diet/shopping-list")
+def api_generate_shopping_list(data: Dict[str, Any] = Body(...)):
+    week_data = data.get("week_data") or data
+    return diet_manager.generate_shopping_list(week_data)
 
 @app.get("/api/diet/latest-tanita/{client_name}")
 def api_get_latest_tanita(client_name: str):

@@ -167,7 +167,7 @@ def copy_recipe(recipe_id: int, new_name: Optional[str] = None) -> Dict[str, Any
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    return {"success": True, "id": new_id, "nombre": recipe_dict["nombre"]}
+    return {"success": True, "id": new_id, "new_recipe_id": new_id, "nombre": recipe_dict["nombre"]}
 
 def get_foods(query: str = "", familia: str = "", fuente: str = "", limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     conn = get_db()
@@ -191,13 +191,14 @@ def get_foods(query: str = "", familia: str = "", fuente: str = "", limit: int =
         params.append(familia.strip())
 
     if fuente and fuente != "all":
-        if fuente == "bedca":
+        f_lower = fuente.strip().lower()
+        if f_lower in ["bedca", "bedca_oficial"]:
             sql += " AND fuente_datos LIKE '%BEDCA%'"
-        elif fuente == "cesnid_moreiras":
+        elif f_lower in ["cesnid_moreiras", "moreiras", "cnip_moreiras", "cesnid"]:
             sql += " AND (fuente_datos LIKE '%CESNID%' OR fuente_datos LIKE '%Moreiras%')"
-        elif fuente == "mapa_fen":
-            sql += " AND fuente_datos LIKE '%MAPA%'"
-        elif fuente == "off":
+        elif f_lower in ["mapa_fen", "fen", "mapa"]:
+            sql += " AND (fuente_datos LIKE '%MAPA%' OR fuente_datos LIKE '%FEN%')"
+        elif f_lower in ["off", "open_food_facts", "supermercados"]:
             sql += " AND fuente_datos LIKE '%Open Food Facts%'"
         else:
             sql += " AND fuente_datos LIKE ?"
@@ -360,43 +361,48 @@ def copy_food(food_id: int, new_name: Optional[str] = None) -> Dict[str, Any]:
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    return {"success": True, "id": new_id, "nombre": food_dict["nombre"]}
+    return {"success": True, "id": new_id, "new_food_id": new_id, "nombre": food_dict["nombre"]}
 
 def search_open_food_facts(query: str, page_size: int = 15) -> List[Dict[str, Any]]:
     import requests
-    headers = {"User-Agent": "ANyDNutricionistasCRM/2.0 (clinica@anyd.es)"}
-    url = "https://es.openfoodfacts.org/api/v2/search"
+    headers = {"User-Agent": "ANyDNutricionistas - WebApp - Version 1.0 (clinica@anyd.es)"}
     params = {
         "search_terms": query.strip(),
-        "page_size": page_size,
-        "fields": "code,product_name,brands,nutriments,nova_group,serving_size"
+        "search_simple": 1,
+        "action": "process",
+        "json": 1,
+        "page_size": page_size
     }
-    try:
-        r = requests.get(url, params=params, headers=headers, timeout=6)
-        if r.status_code == 200:
-            data = r.json()
-            products = []
-            for p in data.get("products", []):
-                name = p.get("product_name")
-                if not name:
-                    continue
-                nutr = p.get("nutriments", {})
-                products.append({
-                    "codigo_barras": p.get("code", ""),
-                    "nombre": name,
-                    "marca": p.get("brands", "Supermercado España"),
-                    "medida_casera": p.get("serving_size", "1 ración"),
-                    "nova_group": p.get("nova_group") or 1,
-                    "kcal": round(float(nutr.get("energy-kcal_100g") or 0.0), 1),
-                    "proteina_g": round(float(nutr.get("proteins_100g") or 0.0), 1),
-                    "carbohidratos_g": round(float(nutr.get("carbohydrates_100g") or 0.0), 1),
-                    "grasa_g": round(float(nutr.get("fat_100g") or 0.0), 1),
-                    "fibra_g": round(float(nutr.get("fiber_100g") or 0.0), 1),
-                    "fuente_datos": "Open Food Facts España"
-                })
-            return products
-    except Exception as e:
-        print(f"Error consultando Open Food Facts: {e}")
+    for host in ["es.openfoodfacts.org", "world.openfoodfacts.org"]:
+        try:
+            url = f"https://{host}/cgi/search.pl"
+            r = requests.get(url, params=params, headers=headers, timeout=6)
+            if r.status_code == 200:
+                data = r.json()
+                products = []
+                for p in data.get("products", []):
+                    name = p.get("product_name")
+                    if not name:
+                        continue
+                    nutr = p.get("nutriments", {})
+                    products.append({
+                        "codigo_barras": p.get("code", ""),
+                        "nombre": name,
+                        "marca": p.get("brands", "Supermercado España"),
+                        "medida_casera": p.get("serving_size", "1 ración"),
+                        "nova_group": p.get("nova_group") or 1,
+                        "kcal": round(float(nutr.get("energy-kcal_100g") or 0.0), 1),
+                        "proteina_g": round(float(nutr.get("proteins_100g") or 0.0), 1),
+                        "carbohidratos_g": round(float(nutr.get("carbohydrates_100g") or 0.0), 1),
+                        "grasa_g": round(float(nutr.get("fat_100g") or 0.0), 1),
+                        "fibra_g": round(float(nutr.get("fiber_100g") or 0.0), 1),
+                        "fuente_datos": "Open Food Facts España"
+                    })
+                if products:
+                    return products
+        except Exception as e:
+            print(f"Error consultando Open Food Facts en {host}: {e}")
+            continue
     return []
 
 def import_off_product_to_db(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -672,3 +678,101 @@ def get_diet_plans_list(client_name: str = "") -> List[Dict[str, Any]]:
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+def generate_shopping_list(week_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Genera la Lista de la Compra Semanal agrupando todos los ingredientes
+    de los 7 días en departamentos de supermercado.
+    """
+    departments = {
+        "frutas_verduras": {"title": "🥬 Frutas, Verduras y Hortalizas Frescas", "items": []},
+        "carnes_pescados": {"title": "🥩 Carnes, Aves, Pescados y Huevos", "items": []},
+        "legumbres_cereales": {"title": "🌾 Arroces, Legumbres, Cereales y Pastas", "items": []},
+        "lacteos": {"title": "🥛 Lácteos, Yogures y Bebidas Vegetales", "items": []},
+        "frutos_secos_aceites": {"title": "🥜 Frutos Secos, Semillas y Aceites", "items": []},
+        "congelados_despensa": {"title": "🥫 Conservas, Congelados y Especias", "items": []},
+        "rendimiento_fit": {"title": "⚡ Suplementación y Rendimiento Deportivo", "items": []}
+    }
+
+    raw_items_count = {}
+
+    def categorize_ingredient(text: str) -> str:
+        t = text.lower()
+        if any(w in t for w in ["plátano", "manzana", "arándano", "fresa", "naranja", "kiwi", "fruta", "tomate", "lechuga", "espinaca", "calabacín", "cebolla", "zanahoria", "brócoli", "judía verde", "pepino", "pimiento", "aguacate", "champiñ", "seta", "espárrago"]):
+            return "frutas_verduras"
+        elif any(w in t for w in ["pollo", "pavo", "ternera", "buey", "huevo", "clara", "salmón", "merluza", "atún", "bacalao", "dorada", "lubina", "gamba", "langostino", "carne", "pescado", "sepia", "calamar", "solomillo", "lomo"]):
+            return "carnes_pescados"
+        elif any(w in t for w in ["arroz", "avena", "pasta", "pan", "lenteja", "garbanzo", "alubia", "quinoa", "patata", "boniato", "harina", "tortilla de trigo", "tostada", "copos"]):
+            return "legumbres_cereales"
+        elif any(w in t for w in ["leche", "yogur", "queso", "cottage", "kéfir", "soja", "bebida", "mozzarella", "parmesano", "requesón", "skyr"]):
+            return "lacteos"
+        elif any(w in t for w in ["aceite", "nuez", "nueces", "almendra", "cacahuete", "chía", "lino", "crema de cacahuete", "anacardo", "semilla", "pistacho", "avellana"]):
+            return "frutos_secos_aceites"
+        elif any(w in t for w in ["proteína", "creatina", "whey", "isotónico", "gel", "barrita", "maltodextrina", "electrolitos"]):
+            return "rendimiento_fit"
+        else:
+            return "congelados_despensa"
+
+    # Recorrer todos los días
+    days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    for day in days:
+        day_info = week_data.get(day, {})
+        # Soporta estructura {"meals": {...}} o {...} directo
+        meals = day_info.get("meals", day_info)
+        if not isinstance(meals, dict):
+            continue
+
+        for slot_key, slot_val in meals.items():
+            if not slot_val:
+                continue
+            
+            # Puede ser lista de items o item único
+            items_list = slot_val if isinstance(slot_val, list) else [slot_val]
+
+            for it in items_list:
+                if not it:
+                    continue
+                # Si es un alimento suelto
+                if it.get("tipo") == "food" or "grams" in it:
+                    name = it.get("nombre", "").strip()
+                    grams = it.get("grams", 100)
+                    dep = categorize_ingredient(name)
+                    key = (name, dep, True)
+                    raw_items_count[key] = raw_items_count.get(key, 0) + grams
+                # Si es una receta con desglose
+                elif it.get("ingredientes"):
+                    ing_text = it.get("ingredientes", "")
+                    # Separar ingredientes por comas
+                    parts = [p.strip() for p in ing_text.split(",") if p.strip()]
+                    for p in parts:
+                        dep = categorize_ingredient(p)
+                        key = (p, dep, False)
+                        raw_items_count[key] = raw_items_count.get(key, 0) + 1
+                elif it.get("nombre"):
+                    name = it.get("nombre", "").strip()
+                    dep = categorize_ingredient(name)
+                    key = (name, dep, False)
+                    raw_items_count[key] = raw_items_count.get(key, 0) + 1
+
+    # Clasificar en departamentos
+    for (name, dep, is_grams), count in raw_items_count.items():
+        if is_grams:
+            display_text = f"{name}: {int(count)}g total"
+        elif count > 1:
+            display_text = f"{name} (x{count} raciones en la semana)"
+        else:
+            display_text = name
+
+        departments[dep]["items"].append(display_text)
+
+    # Ordenar alfabéticamente dentro de cada departamento
+    total_distinct = 0
+    for dep_key in departments:
+        departments[dep_key]["items"].sort()
+        total_distinct += len(departments[dep_key]["items"])
+
+    return {
+        "departments": departments,
+        "total_items": total_distinct
+    }
+
