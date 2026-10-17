@@ -17,7 +17,50 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def get_recipes(query: str = "", group: str = "", limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+def classify_recipe_meal_slots(nombre: str, grupo_canonico: str) -> List[str]:
+    """
+    Determina los momentos del día (tomas) clínicamente adecuados para una receta.
+    Evita que platos pesados como fajitas de pollo o estofados se asignen al desayuno.
+    """
+    n = (nombre or "").lower()
+    g = grupo_canonico or ""
+
+    # Suplementos / Rendimiento
+    if any(k in n for k in ['creatina', 'whey', 'aislado', 'bcaa', 'glutamina', 'multivitam', 'omega 3', 'omega-3', 'cafeina', 'electrolit', 'sales']):
+        return ['suplementacion', 'entrenamiento']
+
+    if '09. Rendimiento' in g:
+        if any(k in n for k in ['batido', 'smoothie', 'proteico']):
+            return ['merienda', 'media_manana', 'entrenamiento', 'desayuno']
+        return ['suplementacion', 'entrenamiento']
+
+    # Fajitas, pizzas, hamburguesas, burritos, tacos, empanadas
+    if any(k in n for k in ['fajita', 'pizza', 'hamburguesa', 'burrito', 'taco', 'empanada']):
+        return ['almuerzo', 'cena']
+
+    # Platos principales (primeros y segundos de comida)
+    if any(k in g for k in ['03. Primeros', '04. Primeros', '05. Primeros', '06. Segundos', '07. Segundos', '08. Platos', '10. Cocina Express']):
+        if any(k in n for k in ['tortilla francesa', 'revuelto de huevo', 'huevos revueltos']):
+            return ['desayuno', 'cena']
+        if '05. Primeros: Arroces, Pastas & Legumbres' in g:
+            return ['almuerzo']
+        return ['almuerzo', 'cena']
+
+    # Bocadillos y panes
+    if '02. Bocadillos' in g:
+        if any(k in n for k in ['tostada', 'pan tostado', 'pavo', 'serrano', 'aceite', 'mermelada', 'tomate']):
+            return ['desayuno', 'media_manana', 'merienda']
+        return ['almuerzo', 'cena']
+
+    # Desayunos y meriendas
+    if '01. Desayunos' in g:
+        if any(k in n for k in ['fajita', 'lenteja', 'garbanzo', 'alubia', 'paella', 'arroz con', 'entrecot', 'estofado']):
+            return ['almuerzo', 'cena']
+        return ['desayuno', 'media_manana', 'merienda']
+
+    return ['almuerzo', 'cena']
+
+def get_recipes(query: str = "", group: str = "", meal_slot: str = "", limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     conn = get_db()
     cursor = conn.cursor()
 
@@ -39,12 +82,25 @@ def get_recipes(query: str = "", group: str = "", limit: int = 50, offset: int =
     total = cursor.fetchone()[0]
 
     sql += " ORDER BY id ASC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
+    params.extend([limit * 3 if meal_slot else limit, offset])
 
     cursor.execute(sql, params)
     rows = cursor.fetchall()
 
-    recipes = [dict(r) for r in rows]
+    recipes = []
+    for r in rows:
+        item = dict(r)
+        item["allowed_slots"] = classify_recipe_meal_slots(item["nombre"], item["grupo_canonico"])
+        if meal_slot:
+            if meal_slot.strip().lower() in item["allowed_slots"]:
+                recipes.append(item)
+        else:
+            recipes.append(item)
+
+    if meal_slot:
+        total = len(recipes)
+        recipes = recipes[:limit]
+
     conn.close()
 
     return {
@@ -556,8 +612,17 @@ def generate_smart_week(target_kcal: float = 2200.0, target_protein_g: float = 1
         legumbres_recipes = arroces_legumbres
 
     # Separar carnes rojas para limitar a 1-2
+    # Filtrar desayunos auténticos (excluyendo fajitas, carnes pesadas, legumbres y comidas calientes)
+    desayunos_limpios = [r for r in desayunos if not any(w in r["nombre"].lower() for w in ["fajita", "pizza", "hamburguesa", "arroz con", "lenteja", "garbanzo", "alubia", "entrecot", "estofado"])]
+    if not desayunos_limpios:
+        desayunos_limpios = desayunos
+
     aves_huevos = [r for r in aves_carnes if not any(w in r["nombre"].lower() for w in ["ternera", "buey", "vaca", "cordero"])]
     carnes_rojas = [r for r in aves_carnes if any(w in r["nombre"].lower() for w in ["ternera", "buey", "solomillo"])]
+
+    # Incluir fajitas y wraps saludables como segundos platos válidos para el almuerzo
+    fajitas_platos = [r for r in bocadillos if any(w in r["nombre"].lower() for w in ["fajita", "wrap"])]
+    segundos_almuerzo = aves_huevos + fajitas_platos
 
     days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     week_plan = {}
@@ -566,13 +631,42 @@ def generate_smart_week(target_kcal: float = 2200.0, target_protein_g: float = 1
     red_meat_count = 0
 
     for idx, day in enumerate(days):
-        # Desayuno
-        d_receta = random.choice(desayunos) if desayunos else None
+        # 1. Suplementación
+        supl_items = [
+            {"nombre": "5 g. de Creatina", "tipo": "food", "grams": 5, "kcal": 0, "proteina_g": 0.0, "carbohidratos_g": 0.0, "grasa_g": 0.0, "allowed_slots": ["suplementacion"]}
+        ]
 
-        # Media Mañana
-        mm_receta = random.choice(bocadillos + desayunos) if bocadillos else None
+        # 2. Desayuno (auténtico, nutritivo y sin platos de comida pesada)
+        d_receta = random.choice(desayunos_limpios) if desayunos_limpios else None
+        desayuno_items = [
+            {"nombre": "200 g. de Pieza de Fruta al gusto", "tipo": "food", "grams": 200, "kcal": 95, "proteina_g": 1.5, "carbohidratos_g": 23.0, "grasa_g": 0.3, "allowed_slots": ["desayuno", "media_manana", "merienda"]}
+        ]
+        if d_receta:
+            desayuno_items.append(dict(d_receta))
+        desayuno_items.append(
+            {"nombre": "20 g. de Nueces" if idx % 2 == 0 else "20 g. de Almendras", "tipo": "food", "grams": 20, "kcal": 130, "proteina_g": 3.0, "carbohidratos_g": 2.5, "grasa_g": 12.0, "allowed_slots": ["desayuno", "media_manana", "merienda"]}
+        )
 
-        # Comida: 1er Plato + 2º Plato (o Plato Combinado)
+        # 3. Entrenamiento (Agua / Hidratación / Sales)
+        entreno_items = [
+            {"nombre": "400 g. de Agua", "tipo": "food", "grams": 400, "kcal": 0, "proteina_g": 0.0, "carbohidratos_g": 0.0, "grasa_g": 0.0, "allowed_slots": ["entrenamiento"]}
+        ]
+
+        # 4. Media Mañana
+        if idx == 5:
+            mm_items = [
+                {"nombre": "200 g. de Bocadillo de pollo", "tipo": "food", "grams": 200, "kcal": 280, "proteina_g": 22.0, "carbohidratos_g": 32.0, "grasa_g": 6.5, "allowed_slots": ["media_manana"]}
+            ]
+        elif idx == 6:
+            mm_items = [
+                {"nombre": "120 g. de Café con leche entera", "tipo": "food", "grams": 120, "kcal": 75, "proteina_g": 3.8, "carbohidratos_g": 5.8, "grasa_g": 4.2, "allowed_slots": ["media_manana"]}
+            ]
+        else:
+            mm_items = [
+                {"nombre": "200 g. de Pieza de Fruta al gusto", "tipo": "food", "grams": 200, "kcal": 90, "proteina_g": 1.2, "carbohidratos_g": 22.0, "grasa_g": 0.2, "allowed_slots": ["desayuno", "media_manana", "merienda"]}
+            ]
+
+        # 5. Almuerzo: 1er Plato + 2º Plato (aquí sí van fajitas de pollo, entrecot, pollo, pescados) + Fruta
         if legumbres_count < 4 and (idx in [0, 2, 4, 6] or random.random() < 0.5):
             p1 = random.choice(legumbres_recipes)
             legumbres_count += 1
@@ -587,12 +681,23 @@ def generate_smart_week(target_kcal: float = 2200.0, target_protein_g: float = 1
         elif idx in [1, 3, 5] and pescados:
             p2 = random.choice(pescados)
         else:
-            p2 = random.choice(aves_huevos) if aves_huevos else None
+            p2 = random.choice(segundos_almuerzo) if segundos_almuerzo else (random.choice(aves_huevos) if aves_huevos else None)
 
-        # Merienda
-        mer_receta = random.choice(rendimiento + desayunos) if rendimiento else None
+        frutas_postre = ["200 g. de Mandarinas", "200 g. de Peras", "150 g. de Kiwi", "200 g. de Naranjas", "200 g. de Pieza de Fruta al gusto"]
+        postre_nombre = frutas_postre[idx % len(frutas_postre)]
+        postre_item = {"nombre": postre_nombre, "tipo": "food", "grams": 200, "kcal": 90, "proteina_g": 1.2, "carbohidratos_g": 22.0, "grasa_g": 0.3, "allowed_slots": ["almuerzo", "cena"]}
 
-        # Cena: Ligera, digestiva, rápida (priorizar pescados, huevos, verduras o express)
+        almuerzo_items = []
+        if p1: almuerzo_items.append(dict(p1))
+        if p2: almuerzo_items.append(dict(p2))
+        almuerzo_items.append(postre_item)
+
+        # 6. Merienda
+        mer_items = [
+            {"nombre": "200 g. de Pieza de Fruta al gusto", "tipo": "food", "grams": 200, "kcal": 90, "proteina_g": 1.2, "carbohidratos_g": 22.0, "grasa_g": 0.2, "allowed_slots": ["merienda"]}
+        ]
+
+        # 7. Cena: Ligera, digestiva, rápida (pescados, huevos, verduras o express)
         if idx in [0, 2, 4] and express:
             c1 = random.choice(express)
         elif idx in [1, 6] and pescados:
@@ -600,24 +705,37 @@ def generate_smart_week(target_kcal: float = 2200.0, target_protein_g: float = 1
         else:
             c1 = random.choice(veggie + verduras) if veggie else (random.choice(aves_huevos) if aves_huevos else None)
 
-        # Peri-entreno (opcional)
-        peri = random.choice(rendimiento) if rendimiento and idx in [0, 1, 3, 4] else None
+        cena_items = []
+        if c1: cena_items.append(dict(c1))
+        cena_items.append(
+            {"nombre": "150 g. de Verduras salteadas al wok con AOVE", "tipo": "food", "grams": 150, "kcal": 110, "proteina_g": 3.0, "carbohidratos_g": 10.0, "grasa_g": 6.5, "allowed_slots": ["cena"]}
+        )
 
         day_meals = {
-            "desayuno": d_receta,
-            "media_manana": mm_receta,
+            "suplementacion": supl_items,
+            "desayuno": desayuno_items,
+            "entrenamiento": entreno_items,
+            "media_manana": mm_items,
+            "almuerzo": almuerzo_items,
+            "merienda": mer_items,
+            "cena": cena_items,
+            # Compatibilidad hacia atrás con vistas legacy
             "comida_primer_plato": p1,
             "comida_segundo_plato": p2,
-            "merienda": mer_receta,
-            "cena": c1,
-            "peri_entreno": peri
+            "peri_entreno": entreno_items[0]
         }
 
-        # Calcular totales del día
-        total_k = sum(m["kcal"] for m in day_meals.values() if m and "kcal" in m)
-        total_p = sum(m["proteina_g"] for m in day_meals.values() if m and "proteina_g" in m)
-        total_c = sum(m["carbohidratos_g"] for m in day_meals.values() if m and "carbohidratos_g" in m)
-        total_g = sum(m["grasa_g"] for m in day_meals.values() if m and "grasa_g" in m)
+        # Calcular totales del día sumando todos los items de cada toma
+        total_k = 0
+        total_p = 0
+        total_c = 0
+        total_g = 0
+        for slot_key in ["suplementacion", "desayuno", "entrenamiento", "media_manana", "almuerzo", "merienda", "cena"]:
+            for it in day_meals.get(slot_key, []):
+                total_k += float(it.get("kcal") or 0)
+                total_p += float(it.get("proteina_g") or 0)
+                total_c += float(it.get("carbohidratos_g") or 0)
+                total_g += float(it.get("grasa_g") or 0)
 
         week_plan[day] = {
             "meals": day_meals,

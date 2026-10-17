@@ -77,6 +77,184 @@
         .meta-value { font-family: 'Montserrat', sans-serif; font-size: 22px; font-weight: 800; color: #38BDF8; margin-top: 2px; }
         .meta-sub { font-size: 11px; color: #CBD5E1; }
 
+        /* CUADRANTE MATRICIAL DIETOWIN 2.0 (FILA DE TOMAS A LA IZQUIERDA Y DÍAS EN COLUMNAS) */
+        .dietowin-matrix-wrapper {
+            background: white;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+            margin-bottom: 24px;
+        }
+        .dietowin-matrix-table {
+            width: 100%;
+            min-width: 1400px;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .dietowin-matrix-table th, .dietowin-matrix-table td {
+            border: 1px solid #E2E8F0;
+            vertical-align: top;
+            padding: 0;
+        }
+        /* Columna izquierda de Tomas */
+        .matrix-toma-col {
+            width: 150px;
+            background: #F8FAFC;
+            border-right: 2px solid #CBD5E1 !important;
+        }
+        .matrix-toma-header-cell {
+            padding: 10px 8px;
+            background: #F1F5F9;
+            border-bottom: 2px solid #CBD5E1 !important;
+            text-align: center;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .matrix-toma-row-cell {
+            padding: 10px 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            min-height: 90px;
+            background: #F8FAFC;
+            box-sizing: border-box;
+        }
+        .matrix-toma-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #1E293B;
+            line-height: 1.25;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .matrix-toma-ctrls {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .matrix-toma-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid #CBD5E1;
+            background: white;
+            color: #475569;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .matrix-toma-btn:hover {
+            background: #0086cd;
+            border-color: #0086cd;
+            color: white;
+        }
+
+        /* Cabecera de los Días (Gráfico Circular & Target) */
+        .matrix-day-header-cell {
+            background: #FFFFFF;
+            border-bottom: 2px solid #CBD5E1 !important;
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .matrix-day-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .matrix-day-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: #0F172A;
+        }
+        .matrix-day-pie-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 6px 0;
+        }
+        .macro-pie-chart {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            border: 1.5px solid #CBD5E1;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            flex-shrink: 0;
+        }
+        .matrix-day-macros-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 9.5px;
+            font-weight: 800;
+            text-align: left;
+        }
+        .matrix-day-progress-mini {
+            font-size: 10px;
+            color: #64748B;
+            margin-top: 4px;
+        }
+
+        /* Celdas del cuadrante (intersección Toma x Día) */
+        .matrix-cell {
+            padding: 6px;
+            background: #FFFFFF;
+            min-height: 90px;
+            position: relative;
+            box-sizing: border-box;
+            transition: background-color 0.15s;
+        }
+        .matrix-cell:hover {
+            background: #F8FAFC;
+        }
+        .matrix-items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 6px;
+        }
+        .btn-matrix-add {
+            width: 100%;
+            border: 1px dashed #CBD5E1;
+            background: #F8FAFC;
+            color: #64748B;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .btn-matrix-add:hover {
+            border-color: #0086cd;
+            color: #0086cd;
+            background: #F0F9FF;
+        }
+
+        /* Fila de Totales */
+        .matrix-footer-cell {
+            background: #F1F5F9;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+            border-top: 2px solid #CBD5E1 !important;
+        }
+
         /* CUADRANTE SEMANAL DE 7 DÍAS */
         .week-grid { display: grid; grid-template-columns: repeat(7, minmax(200px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 12px; }
         .day-col { background: white; border: 1.5px solid var(--anyd-border); border-radius: 9px; display: flex; flex-direction: column; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: border-color 0.2s; }
@@ -1218,13 +1396,13 @@
     <script>
         const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
         const MEAL_SLOTS = [
-            { key: "desayuno", label: "🌅 Desayuno" },
-            { key: "media_manana", label: "🥪 Media Mañana" },
-            { key: "comida_primer_plato", label: "🍲 Comida (1º Plato)" },
-            { key: "comida_segundo_plato", label: "🍗 Comida (2º Plato)" },
-            { key: "merienda", label: "☕ Merienda" },
-            { key: "cena", label: "🥗 Cena" },
-            { key: "peri_entreno", label: "⚡ Peri-Entreno (Fit)" }
+            { key: "suplementacion", label: "Suplementación", icon: "💊", defaultTime: "08:00", allowedGroup: "09. Rendimiento: Batidos, Suplementación & Fit" },
+            { key: "desayuno", label: "Desayuno", icon: "🌅", defaultTime: "08:30", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
+            { key: "entrenamiento", label: "Entrenamiento", icon: "🏃", defaultTime: "10:30", allowedGroup: "09. Rendimiento: Batidos, Suplementación & Fit" },
+            { key: "media_manana", label: "Media mañana", icon: "🥪", defaultTime: "11:30", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
+            { key: "almuerzo", label: "Almuerzo", icon: "🍲", defaultTime: "14:30", allowedGroup: "05. Primeros: Arroces, Pastas & Legumbres" },
+            { key: "merienda", label: "Media tarde", icon: "☕", defaultTime: "18:00", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
+            { key: "cena", label: "Cena", icon: "🥗", defaultTime: "21:30", allowedGroup: "06. Segundos: Pescados, Mariscos & Moluscos" }
         ];
 
         // Estado del cuadrante semanal: cada slot contiene un ARRAY de items
@@ -1277,8 +1455,68 @@
             });
         }
 
+        function normalizeDaySlots(dayData) {
+            if (!dayData) return;
+            // Migración transparente de planes guardados con esquema anterior
+            if (!dayData.almuerzo || dayData.almuerzo.length === 0) {
+                dayData.almuerzo = [];
+                if (dayData.comida_primer_plato) {
+                    const it = Array.isArray(dayData.comida_primer_plato) ? dayData.comida_primer_plato : [dayData.comida_primer_plato];
+                    dayData.almuerzo.push(...it);
+                }
+                if (dayData.comida_segundo_plato) {
+                    const it = Array.isArray(dayData.comida_segundo_plato) ? dayData.comida_segundo_plato : [dayData.comida_segundo_plato];
+                    dayData.almuerzo.push(...it);
+                }
+            }
+            if (!dayData.entrenamiento || dayData.entrenamiento.length === 0) {
+                dayData.entrenamiento = [];
+                if (dayData.peri_entreno) {
+                    const it = Array.isArray(dayData.peri_entreno) ? dayData.peri_entreno : [dayData.peri_entreno];
+                    dayData.entrenamiento.push(...it);
+                }
+            }
+            MEAL_SLOTS.forEach(slot => {
+                if (!Array.isArray(dayData[slot.key])) {
+                    dayData[slot.key] = dayData[slot.key] ? [dayData[slot.key]] : [];
+                }
+            });
+            if (!Array.isArray(dayData.workouts)) {
+                dayData.workouts = [];
+            }
+        }
+
+        function getItemColorStyle(name) {
+            const n = (name || '').toLowerCase();
+            if (n.includes('fruta') || n.includes('manzana') || n.includes('kiwi') || n.includes('pera') || n.includes('naranja') || n.includes('mandarina') || n.includes('plátano')) {
+                return { bg: '#F0FDF4', border: '#BBF7D0', text: '#166534', num: '1' };
+            }
+            if (n.includes('tostada') || n.includes('pan') || n.includes('cereal') || n.includes('avena') || n.includes('arroz') || n.includes('macarron') || n.includes('pasta')) {
+                return { bg: '#FEFCE8', border: '#FEF08A', text: '#854D0E', num: '12' };
+            }
+            if (n.includes('fajita') || n.includes('pollo') || n.includes('pavo') || n.includes('ternera') || n.includes('hamburguesa') || n.includes('entrecot')) {
+                return { bg: '#FFF1F2', border: '#FECDD3', text: '#9F1239', num: '14' };
+            }
+            if (n.includes('lubina') || n.includes('merluza') || n.includes('salmón') || n.includes('atún') || n.includes('pescado')) {
+                return { bg: '#ECFEFF', border: '#A5F3FC', text: '#155E75', num: '14' };
+            }
+            if (n.includes('garbanzo') || n.includes('lenteja') || n.includes('alubia')) {
+                return { bg: '#FFF7ED', border: '#FED7AA', text: '#9A3412', num: '12' };
+            }
+            if (n.includes('nuez') || n.includes('almendra') || n.includes('frutos secos') || n.includes('aceite')) {
+                return { bg: '#FAF5FF', border: '#E9D5FF', text: '#6B21A8', num: '5' };
+            }
+            if (n.includes('creatina') || n.includes('whey') || n.includes('suplemento') || n.includes('proteina')) {
+                return { bg: '#F1F5F9', border: '#CBD5E1', text: '#475569', num: '4' };
+            }
+            if (n.includes('agua') || n.includes('isotónica') || n.includes('sales')) {
+                return { bg: '#F0F9FF', border: '#BAE6FD', text: '#0369A1', num: '2' };
+            }
+            return { bg: '#F8FAFC', border: '#E2E8F0', text: '#334155', num: '1' };
+        }
+
         // ============================================================
-        // --- RENDERIZADO DEL CUADRANTE SEMANAL DIETOWIN ---
+        // --- RENDERIZADO DEL CUADRANTE MATRICIAL DIETOWIN 2.0 ---
         // ============================================================
         function renderWeekGrid() {
             const container = document.getElementById('week-plan-grid');
@@ -1289,169 +1527,234 @@
             const targetCarbs = parseFloat(document.getElementById('res-target-carbs').innerText) || 250;
             const targetFat = parseFloat(document.getElementById('res-target-fat').innerText) || 89;
 
-            let html = '';
+            // 1. Normalizar y calcular totales de cada día
+            const dayTotals = {};
             DAYS.forEach(day => {
-                const dayData = currentWeekState[day] || {};
+                normalizeDaySlots(currentWeekState[day]);
+                const dayData = currentWeekState[day];
                 let dayKcal = 0, dayProt = 0, dayCarbs = 0, dayFat = 0;
 
-                let slotsHtml = '';
                 MEAL_SLOTS.forEach(slot => {
-                    const rawVal = dayData[slot.key];
-                    // Normalizar a array para compatibilidad
-                    const items = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
+                    const items = dayData[slot.key] || [];
+                    items.forEach(it => {
+                        dayKcal += Number(it.kcal || 0);
+                        dayProt += Number(it.proteina_g || 0);
+                        dayCarbs += Number(it.carbohidratos_g || 0);
+                        dayFat += Number(it.grasa_g || 0);
+                    });
+                });
+
+                const protKcal = dayProt * 4;
+                const carbsKcal = dayCarbs * 4;
+                const fatKcal = dayFat * 9;
+                const totMacrosKcal = protKcal + carbsKcal + fatKcal;
+
+                let pctP = 20, pctG = 25, pctC = 55;
+                if (totMacrosKcal > 0) {
+                    pctP = Math.round((protKcal / totMacrosKcal) * 100);
+                    pctG = Math.round((fatKcal / totMacrosKcal) * 100);
+                    pctC = Math.max(0, 100 - pctP - pctG);
+                }
+
+                const degP = Math.round(pctP * 3.6);
+                const degG = Math.round(pctG * 3.6);
+
+                const pctAchieved = targetKcal > 0 ? Math.round((dayKcal / targetKcal) * 100) : 0;
+                let pctClass = 'pct-warning';
+                if (pctAchieved >= 92 && pctAchieved <= 108) pctClass = 'pct-perfect';
+                else if (pctAchieved < 80 || pctAchieved > 120) pctClass = 'pct-danger';
+
+                dayTotals[day] = {
+                    kcal: dayKcal,
+                    prot: dayProt,
+                    carbs: dayCarbs,
+                    fat: dayFat,
+                    pctAchieved: pctAchieved,
+                    pctClass: pctClass,
+                    pctP: pctP,
+                    pctG: pctG,
+                    pctC: pctC,
+                    degP: degP,
+                    degG: degG
+                };
+            });
+
+            // 2. Construir la Tabla Matricial Dietowin
+            let html = `
+                <div class="dietowin-matrix-wrapper">
+                    <table class="dietowin-matrix-table">
+                        <thead>
+                            <tr>
+                                <th class="matrix-toma-col matrix-toma-header-cell">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span>Tomas \\ Días</span>
+                                        <span title="Distribución oficial Dietowin 2.0" style="cursor:help;">ℹ️</span>
+                                    </div>
+                                </th>
+            `;
+
+            // Cabeceras de los 7 Días con su Gráfico Circular y Target Kcal
+            DAYS.forEach((day, dIdx) => {
+                const tot = dayTotals[day];
+                html += `
+                    <th class="matrix-day-header-cell">
+                        <div class="matrix-day-title-row">
+                            <span class="matrix-day-name">Día ${dIdx + 1} (${day.slice(0,3)})</span>
+                            <div style="display:flex; align-items:center; gap:3px;">
+                                <span class="day-pct-badge ${tot.pctClass}">${tot.pctAchieved}%</span>
+                                <button type="button" class="matrix-toma-btn" style="width:18px; height:18px; font-size:10px;" onclick="clearDay('${day}')" title="Vaciar este día">-</button>
+                                <button type="button" class="matrix-toma-btn" style="width:18px; height:18px; font-size:10px;" onclick="openCopyDayModal('${day}')" title="Copiar este día">+</button>
+                            </div>
+                        </div>
+
+                        <!-- GRÁFICO CIRCULAR DE MACRONUTRIENTES OFICIAL DIETOWIN -->
+                        <div class="matrix-day-pie-container">
+                            <div class="macro-pie-chart" style="background: conic-gradient(#86EFAC 0deg ${tot.degP}deg, #FDA4AF ${tot.degP}deg ${tot.degP + tot.degG}deg, #FDE68A ${tot.degP + tot.degG}deg 360deg);" title="Distribución: ${tot.pctP}% Proteína · ${tot.pctG}% Grasa · ${tot.pctC}% Carbohidratos"></div>
+                            <div class="matrix-day-macros-legend">
+                                <span style="color:#166534; background:#DCFCE7; padding:1px 4px; border-radius:3px;">${tot.pctP}% P</span>
+                                <span style="color:#9F1239; background:#FFE4E6; padding:1px 4px; border-radius:3px;">${tot.pctG}% G</span>
+                                <span style="color:#854D0E; background:#FEF3C7; padding:1px 4px; border-radius:3px;">${tot.pctC}% C</span>
+                            </div>
+                        </div>
+
+                        <div class="matrix-day-progress-mini">
+                            <strong>${Math.round(tot.kcal)}</strong> / ${Math.round(targetKcal)} kcal
+                        </div>
+                    </th>
+                `;
+            });
+
+            html += `</tr></thead><tbody>`;
+
+            // Filas de las Tomas (Fila a la izquierda que identifica cada una)
+            MEAL_SLOTS.forEach(slot => {
+                html += `
+                    <tr>
+                        <!-- Columna izquierda: Identificador de la Toma -->
+                        <td class="matrix-toma-col">
+                            <div class="matrix-toma-row-cell">
+                                <div>
+                                    <div class="matrix-toma-name">
+                                        <span>${slot.icon}</span> <span>${slot.label}</span>
+                                    </div>
+                                    <div style="font-size:10.5px; color:#64748B; margin-top:2px;">${slot.defaultTime || ''}</div>
+                                </div>
+                                <div class="matrix-toma-ctrls">
+                                    <button type="button" class="matrix-toma-btn" onclick="clearTomaFromWeek('${slot.key}')" title="Vaciar '${slot.label}' de toda la semana">-</button>
+                                    <button type="button" class="matrix-toma-btn" onclick="openItemPicker('Lunes', '${slot.key}')" title="Añadir plato a '${slot.label}'">+</button>
+                                </div>
+                            </div>
+                        </td>
+                `;
+
+                // Celdas de cada día para esta Toma
+                DAYS.forEach(day => {
+                    const items = currentWeekState[day][slot.key] || [];
+                    const workouts = (slot.key === 'entrenamiento' ? (currentWeekState[day].workouts || []) : []);
 
                     let itemsHtml = '';
+
+                    // Si hay entrenamientos ACSM cargados en la fila de entrenamiento
+                    if (workouts.length > 0) {
+                        itemsHtml += workouts.map((w, wIdx) => `
+                            <div style="background:#FFF7ED; border:1px solid #FDBA74; border-radius:5px; padding:4px 6px; margin-bottom:5px; font-size:10.5px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong style="color:#9A3412;">🏃 ${w.start_time} (${w.duration_min}')</strong>
+                                    <button type="button" onclick="removeWorkoutFromDay('${day}', ${wIdx})" style="background:none; border:none; color:#EF4444; cursor:pointer;">&times;</button>
+                                </div>
+                                <div style="color:#1E293B; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${w.sport}</div>
+                                <div style="font-size:9.5px; color:#C2410C;">💧 ${w.nutrition && w.nutrition.intra ? w.nutrition.intra.fluid_ml_h : 500}ml/h | 🧂 ${w.nutrition && w.nutrition.intra ? w.nutrition.intra.sodium_mg_h : 400}mg Na+</div>
+                                <button type="button" onclick="openPeriProtocolModal('${day}', ${wIdx})" class="btn-matrix-add" style="margin-top:3px; padding:1px 4px; font-size:9px;">🔬 Protocolo ACSM</button>
+                            </div>
+                        `).join('');
+                    }
+
+                    // Renderizar los items de comida de la toma
                     items.forEach((item, idx) => {
                         const k = Number(item.kcal || 0);
                         const p = Number(item.proteina_g || 0);
                         const c = Number(item.carbohidratos_g || 0);
                         const g = Number(item.grasa_g || 0);
 
-                        dayKcal += k;
-                        dayProt += p;
-                        dayCarbs += c;
-                        dayFat += g;
-
                         const isFood = (item.tipo === 'food' || item.grams !== undefined);
                         const portionLabel = isFood ? `${item.grams || 100}g` : `${item.multiplier ? Number(item.multiplier).toFixed(2) : '1.0'} rac.`;
-                        const typeIcon = isFood ? '🥦' : '📖';
+                        const colStyle = getItemColorStyle(item.nombre);
 
                         itemsHtml += `
-                            <div class="recipe-chip">
-                                <div class="recipe-chip-top">
-                                    <div class="recipe-chip-title" title="${item.nombre}">
-                                        <span>${typeIcon}</span> ${item.nombre}
+                            <div style="background:${colStyle.bg}; border:1px solid ${colStyle.border}; border-radius:5px; padding:5px 6px; margin-bottom:4px; position:relative; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4px;">
+                                    <div style="font-size:11px; font-weight:700; color:${colStyle.text}; line-height:1.2; flex:1;" title="${item.nombre}">
+                                        ${item.nombre}
                                     </div>
-                                    <button type="button" class="btn-item-del" onclick="removeItemFromSlot('${day}', '${slot.key}', ${idx})" title="Quitar este item">&times;</button>
+                                    <span style="font-size:10px; font-weight:800; color:#94A3B8; opacity:0.6;">${colStyle.num}</span>
+                                    <button type="button" onclick="removeItemFromSlot('${day}', '${slot.key}', ${idx})" style="background:none; border:none; color:#94A3B8; cursor:pointer; font-size:13px; line-height:1; padding:0 2px;" title="Eliminar">&times;</button>
                                 </div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                                    <div class="chip-portion-ctrl">
-                                        <button type="button" class="btn-portion-step" onclick="editItemGrams('${day}', '${slot.key}', ${idx}, -25)" title="Reducir cantidad">-</button>
-                                        <span class="portion-display" onclick="editItemGramsPrompt('${day}', '${slot.key}', ${idx})" title="Clic para escribir cantidad exacta">${portionLabel}</span>
-                                        <button type="button" class="btn-portion-step" onclick="editItemGrams('${day}', '${slot.key}', ${idx}, 25)" title="Aumentar cantidad">+</button>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:3px;">
+                                    <div style="display:inline-flex; align-items:center; gap:2px; background:white; border:1px solid #CBD5E1; border-radius:3px; padding:0 3px; font-size:10px;">
+                                        <button type="button" onclick="editItemGrams('${day}', '${slot.key}', ${idx}, -25)" style="border:none; background:none; cursor:pointer; font-weight:800; color:#475569;">-</button>
+                                        <span onclick="editItemGramsPrompt('${day}', '${slot.key}', ${idx})" style="cursor:pointer; font-weight:700; color:#0284C7; padding:0 2px;" title="Clic para escribir cantidad exacta">${portionLabel}</span>
+                                        <button type="button" onclick="editItemGrams('${day}', '${slot.key}', ${idx}, 25)" style="border:none; background:none; cursor:pointer; font-weight:800; color:#475569;">+</button>
                                     </div>
-                                    <span style="font-weight:700; color:#0284C7; font-size:11px;">${Math.round(k)} kcal</span>
-                                </div>
-                                <div class="recipe-chip-macros">
-                                    <span class="chip-badge badge-prot">${p.toFixed(1)}g P</span>
-                                    <span class="chip-badge badge-carbs">${c.toFixed(1)}g C</span>
-                                    <span class="chip-badge badge-fat">${g.toFixed(1)}g G</span>
+                                    <span style="font-size:10px; font-weight:700; color:#64748B;">${Math.round(k)} kcal</span>
                                 </div>
                             </div>
                         `;
                     });
 
-                    slotsHtml += `
-                        <div class="meal-slot">
-                            <div class="meal-slot-header">
-                                <span>${slot.label}</span>
-                                <div class="meal-slot-actions">
-                                    ${items.length > 0 ? `
-                                        <button type="button" class="btn-rep-meal" onclick="replicateSlotToWeek('${day}', '${slot.key}')" title="Replicar esta toma a toda la semana">🔄 Replicar</button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                            <div class="meal-items-list">
+                    html += `
+                        <td class="matrix-cell">
+                            <div class="matrix-items-list">
                                 ${itemsHtml}
                             </div>
-                            <div class="slot-actions">
-                                <button type="button" class="btn-add-meal" onclick="openItemPicker('${day}', '${slot.key}')">+ Añadir Plato / Alimento</button>
-                            </div>
-                        </div>
+                            <button type="button" class="btn-matrix-add" onclick="openItemPicker('${day}', '${slot.key}')">+ Añadir</button>
+                        </td>
                     `;
                 });
 
-                // Cálculo de porcentaje sobre el target diario
-                const pct = targetKcal > 0 ? Math.round((dayKcal / targetKcal) * 100) : 0;
-                let pctClass = 'pct-warning';
-                let barColor = '#F59E0B';
-                if (pct >= 93 && pct <= 107) {
-                    pctClass = 'pct-perfect';
-                    barColor = '#10B981';
-                } else if (pct < 80 || pct > 120) {
-                    pctClass = 'pct-danger';
-                    barColor = '#EF4444';
-                }
+                html += `</tr>`;
+            });
 
-                // Bloque de entrenamientos del día
-                const workouts = (dayData.workouts || []);
-                let workoutsHtml = '';
-                if (workouts.length > 0) {
-                    workoutsHtml = `
-                        <div style="background:#FFF7ED; border:1.5px solid #FDBA74; border-radius:8px; padding:7px; margin-bottom:8px;">
-                            <div style="font-size:10px; font-weight:800; color:#C2410C; text-transform:uppercase; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                                <span>⚡ Entrenamientos (${workouts.length})</span>
-                                <button type="button" onclick="openTrainingModal('${day}')" style="background:none; border:none; color:#EA580C; cursor:pointer; font-size:10px; font-weight:700;">+ Añadir</button>
-                            </div>
-                            ${workouts.map((w, wIdx) => `
-                                <div style="background:white; border-left:4px solid ${w.theme && w.theme.border ? w.theme.border : '#EA580C'}; border-radius:4px; padding:6px 8px; margin-bottom:4px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-                                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                        <strong style="color:#0F172A; font-size:11.5px;">🏃 ${w.start_time} - ${w.end_time}</strong>
-                                        <span class="chip-badge" style="background:${w.theme && w.theme.badge_bg ? w.theme.badge_bg : '#FED7AA'}; color:${w.theme && w.theme.badge_text ? w.theme.badge_text : '#9A3412'}; font-size:9.5px;">${w.intensity_level || w.intensity}</span>
-                                    </div>
-                                    <div style="font-size:11px; font-weight:700; color:#1E293B; margin-top:2px;">${w.sport} (${w.duration_min} min)</div>
-                                    <div style="font-size:10px; color:#475569; margin-top:3px; display:flex; flex-direction:column; gap:1px;">
-                                        <span>💧 Hidratación: <b>${w.nutrition && w.nutrition.intra ? w.nutrition.intra.fluid_ml_h : 500} ml/h</b></span>
-                                        <span>🧂 Electrolitos: <b>${w.nutrition && w.nutrition.intra ? w.nutrition.intra.sodium_mg_h : 400} mg/h sodio</b></span>
-                                        ${w.nutrition && w.nutrition.intra && w.nutrition.intra.carbs_g_h ? `<span>🍌 CHO: <b>${w.nutrition.intra.carbs_g_h} g/h</b></span>` : ''}
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; border-top:1px dashed #E2E8F0; padding-top:4px;">
-                                        <button type="button" onclick="openPeriProtocolModal('${day}', ${wIdx})" class="btn-anyd btn-outline" style="font-size:10px; padding:2px 6px;">
-                                            🔬 Protocolo & Digestibilidad
-                                        </button>
-                                        <button type="button" onclick="removeWorkoutFromDay('${day}', ${wIdx})" style="background:none; border:none; color:#EF4444; font-size:13px; cursor:pointer;" title="Eliminar entreno">&times;</button>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                } else {
-                    workoutsHtml = `
-                        <div style="border:1px dashed #CBD5E1; border-radius:6px; padding:5px 8px; margin-bottom:8px; text-align:center;">
-                            <button type="button" onclick="openTrainingModal('${day}')" style="background:none; border:none; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer;">
-                                🏃 + Añadir Entreno (${day})
-                            </button>
-                        </div>
-                    `;
-                }
+            // Fila de Totales del Día
+            html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td class="matrix-toma-col matrix-footer-cell">
+                            <strong>TOTAL DÍA</strong>
+                        </td>
+            `;
 
+            DAYS.forEach(day => {
+                const tot = dayTotals[day];
                 html += `
-                    <div class="day-col">
-                        <div class="day-header">
-                            <span>${day}</span>
-                            <div class="day-header-actions">
-                                <button type="button" class="btn-day-action" onclick="openCopyDayModal('${day}')" title="Copiar todo el día a otros días">📋 Copiar</button>
-                                <button type="button" class="btn-day-action" onclick="clearDay('${day}')" style="color:#DC2626;" title="Vaciar este día">🗑️</button>
-                            </div>
+                    <td class="matrix-footer-cell">
+                        <strong style="color:#0284C7; font-size:12px;">${Math.round(tot.kcal)} kcal</strong>
+                        <div style="font-size:9.5px; color:#64748B; margin-top:2px;">
+                            P: ${tot.prot.toFixed(0)}g · C: ${tot.carbs.toFixed(0)}g · G: ${tot.fat.toFixed(0)}g
                         </div>
-
-                        <!-- BARRA DE CALIBRACIÓN DIARIA (TARGET PROGRESS) -->
-                        <div class="day-progress-wrapper">
-                            <div class="day-progress-header">
-                                <span><strong>${Math.round(dayKcal)}</strong> / ${Math.round(targetKcal)} kcal</span>
-                                <span class="day-pct-badge ${pctClass}">${pct}%</span>
-                            </div>
-                            <div class="day-progress-track">
-                                <div class="day-progress-bar" style="width:${Math.min(100, pct)}%; background:${barColor};"></div>
-                            </div>
-                            <div class="day-macro-ratios">
-                                <span>P: <b>${Math.round(dayProt)}</b>/${Math.round(targetProt)}g</span>
-                                <span>C: <b>${Math.round(dayCarbs)}</b>/${Math.round(targetCarbs)}g</span>
-                                <span>G: <b>${Math.round(dayFat)}</b>/${Math.round(targetFat)}g</span>
-                            </div>
-                        </div>
-
-                        <div class="day-body">${workoutsHtml}${slotsHtml}</div>
-
-                        <div class="day-footer">
-                            <strong style="color:#0284C7; font-size:12px;">Total: ${Math.round(dayKcal)} kcal</strong><br>
-                            <span style="font-size:10px; color:#64748B;">P: ${dayProt.toFixed(1)}g · C: ${dayCarbs.toFixed(1)}g · G: ${dayFat.toFixed(1)}g</span>
-                        </div>
-                    </div>
+                    </td>
                 `;
             });
 
+            html += `
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            `;
+
             container.innerHTML = html;
+        }
+
+        function clearTomaFromWeek(slotKey) {
+            const slotObj = MEAL_SLOTS.find(s => s.key === slotKey);
+            const label = slotObj ? slotObj.label : slotKey;
+            if (!confirm(`¿Deseas vaciar la toma de '${label}' en los 7 días de la semana?`)) return;
+
+            DAYS.forEach(day => {
+                currentWeekState[day][slotKey] = [];
+            });
+            renderWeekGrid();
         }
 
         // ============================================================
@@ -1629,13 +1932,30 @@
         function openItemPicker(day, slotKey) {
             activeTargetDay = day;
             activeTargetSlot = slotKey;
-            const slotLabel = (MEAL_SLOTS.find(s => s.key === slotKey) || {}).label || slotKey;
+            const slotObj = MEAL_SLOTS.find(s => s.key === slotKey) || {};
+            const slotLabel = slotObj.label || slotKey;
             
             document.getElementById('picker-modal-title').innerText = `⚡ Añadir a ${day} (${slotLabel})`;
             document.getElementById('picker-recipe-search').value = '';
             document.getElementById('picker-food-search').value = '';
             document.getElementById('picker-food-grams').value = 100;
             document.getElementById('picker-feedback-toast').style.display = 'none';
+
+            // Pertenencia automática según la toma
+            const groupSelect = document.getElementById('picker-recipe-group');
+            if (groupSelect && slotObj.allowedGroup) {
+                let found = false;
+                for (let opt of groupSelect.options) {
+                    if (opt.value === slotObj.allowedGroup) {
+                        groupSelect.value = opt.value;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) groupSelect.value = 'all';
+            } else if (groupSelect) {
+                groupSelect.value = 'all';
+            }
 
             document.getElementById('item-picker-modal').classList.remove('hidden');
             searchPickerRecipes();
@@ -1675,9 +1995,10 @@
             const query = document.getElementById('picker-recipe-search').value.trim();
             const group = document.getElementById('picker-recipe-group').value;
             const container = document.getElementById('picker-recipes-results');
-            container.innerHTML = '<div style="color:#64748B; font-size:12px; padding:10px;">Buscando en las 1.314 recetas maestras...</div>';
+            container.innerHTML = '<div style="color:#64748B; font-size:12px; padding:10px;">Buscando recetas compatibles...</div>';
 
-            const res = await fetch(`/api/diet/recipes?group=${encodeURIComponent(group)}&q=${encodeURIComponent(query)}&limit=15`);
+            const slotParam = activeTargetSlot ? `&meal_slot=${encodeURIComponent(activeTargetSlot)}` : '';
+            const res = await fetch(`/api/diet/recipes?group=${encodeURIComponent(group)}&q=${encodeURIComponent(query)}${slotParam}&limit=20`);
             const data = await res.json();
 
             if (!data.recipes || data.recipes.length === 0) {
@@ -1685,25 +2006,42 @@
                 return;
             }
 
-            container.innerHTML = data.recipes.map(r => `
-                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                    <div style="flex:1;">
-                        <span style="font-size:10px; font-weight:700; color:#0284C7;">${r.grupo_canonico}</span>
-                        <div style="font-weight:700; color:#0F172A; font-size:13px;">${r.nombre}</div>
-                        <div style="font-size:11px; color:#64748B; margin-top:2px;">
-                            <strong>${Math.round(r.kcal)} kcal</strong> · P: ${r.proteina_g}g · C: ${r.carbohidratos_g}g · G: ${r.grasa_g}g · ⏱️ ${r.tiempo_minutos || 15} min
+            container.innerHTML = data.recipes.map(r => {
+                const slots = r.allowed_slots || [];
+                const isOutOfSlot = activeTargetSlot && slots.length > 0 && !slots.includes(activeTargetSlot);
+                const outOfSlotBadge = isOutOfSlot ? `<span style="font-size:9.5px; font-weight:800; color:#DC2626; background:#FEE2E2; padding:1px 5px; border-radius:4px; margin-left:6px;">⚠️ Pertenencia: ${slots.join('/')}</span>` : '';
+
+                return `
+                    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <div style="flex:1;">
+                            <span style="font-size:10px; font-weight:700; color:#0284C7;">${r.grupo_canonico}</span> ${outOfSlotBadge}
+                            <div style="font-weight:700; color:#0F172A; font-size:13px;">${r.nombre}</div>
+                            <div style="font-size:11px; color:#64748B; margin-top:2px;">
+                                <strong>${Math.round(r.kcal)} kcal</strong> · P: ${r.proteina_g}g · C: ${r.carbohidratos_g}g · G: ${r.grasa_g}g · ⏱️ ${r.tiempo_minutos || 15} min
+                            </div>
+                            ${r.ingredientes ? `<div style="font-size:10.5px; color:#475569; margin-top:3px; max-height:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Ingr: ${r.ingredientes}</div>` : ''}
                         </div>
-                        ${r.ingredientes ? `<div style="font-size:10.5px; color:#475569; margin-top:3px; max-height:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Ingr: ${r.ingredientes}</div>` : ''}
+                        <button type="button" class="btn-anyd btn-primary" style="padding:6px 14px; font-size:11px; white-space:nowrap;" onclick="selectRecipeForPicker(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                            ➕ Añadir Plato
+                        </button>
                     </div>
-                    <button type="button" class="btn-anyd btn-primary" style="padding:6px 14px; font-size:11px; white-space:nowrap;" onclick="selectRecipeForPicker(${JSON.stringify(r).replace(/"/g, '&quot;')})">
-                        ➕ Añadir Plato
-                    </button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function selectRecipeForPicker(recipe) {
             if (!activeTargetDay || !activeTargetSlot) return;
+
+            // Validación clínica de grupo de pertenencia
+            if (activeTargetSlot === 'desayuno') {
+                const n = (recipe.nombre || '').toLowerCase();
+                const forbiddenInBreakfast = ['fajita', 'pizza', 'hamburguesa', 'arroz con', 'lenteja', 'garbanzo', 'alubia', 'paella', 'entrecot', 'estofado', 'pescado al horno'];
+                if (forbiddenInBreakfast.some(w => n.includes(w))) {
+                    if (!confirm(`⚠️ Advertencia Clínica ANyD:\n\nEl plato "${recipe.nombre}" pertenece al grupo de Almuerzo/Cena y no al Desayuno.\n\n¿Estás seguro de que deseas prescribirlo en el desayuno de este paciente?`)) {
+                        return;
+                    }
+                }
+            }
 
             const mult = parseFloat(document.getElementById('picker-recipe-multiplier').value) || 1.0;
             const newItem = {
@@ -1721,7 +2059,8 @@
                 carbohidratos_g: parseFloat(((recipe.carbohidratos_g || 0) * mult).toFixed(1)),
                 grasa_g: parseFloat(((recipe.grasa_g || 0) * mult).toFixed(1)),
                 ingredientes: recipe.ingredientes,
-                elaboracion: recipe.elaboracion
+                elaboracion: recipe.elaboracion,
+                allowed_slots: recipe.allowed_slots || []
             };
 
             if (!Array.isArray(currentWeekState[activeTargetDay][activeTargetSlot])) {
@@ -1730,7 +2069,7 @@
             currentWeekState[activeTargetDay][activeTargetSlot].push(newItem);
 
             renderWeekGrid();
-            showPickerToast(`✓ Añadido '${recipe.nombre}' a la toma.`);
+            showPickerToast(`✓ Añadido '${recipe.nombre}' (${mult} rac.) a ${activeTargetSlot}.`);
         }
 
         function debouncePickerFoodSearch() {
@@ -2164,7 +2503,7 @@
                         if (data.week_plan[day] && data.week_plan[day].meals) {
                             MEAL_SLOTS.forEach(slot => {
                                 const m = data.week_plan[day].meals[slot.key];
-                                currentWeekState[day][slot.key] = m ? [m] : [];
+                                currentWeekState[day][slot.key] = Array.isArray(m) ? m : (m ? [m] : []);
                             });
                         }
                     });

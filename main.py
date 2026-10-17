@@ -1376,8 +1376,8 @@ def page_dietas(request: Request, client: Optional[str] = None):
     })
 
 @app.get("/api/diet/recipes")
-def api_get_recipes(q: str = "", group: str = "", limit: int = 50, offset: int = 0):
-    return diet_manager.get_recipes(query=q, group=group, limit=limit, offset=offset)
+def api_get_recipes(q: str = "", group: str = "", meal_slot: str = "", limit: int = 50, offset: int = 0):
+    return diet_manager.get_recipes(query=q, group=group, meal_slot=meal_slot, limit=limit, offset=offset)
 
 @app.get("/api/diet/foods")
 def api_get_foods(q: str = "", familia: str = "", fuente: str = "", limit: int = 50, offset: int = 0):
