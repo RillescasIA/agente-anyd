@@ -226,8 +226,11 @@
                         <span>👤</span> Datos Clínicos y Requerimientos Energéticos (Cunningham / Tanita MC-580)
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="openAthleteDriveTrainingModal()" class="btn-anyd" style="background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%); font-size:12px;" title="Cargar los diferentes entrenamientos de su carpeta Drive según ACSM">
+                            🏃 Cargar Entrenamientos de su Carpeta (ACSM)
+                        </button>
                         <button type="button" onclick="loadLatestTanita()" class="btn-anyd btn-outline" style="font-size:12px;">
-                            ⚖️ Cargar última Tanita MC-580
+                            ⚖️ Cargar Tanita MC-580
                         </button>
                         <button type="button" onclick="openDriveFolderForSelected()" class="btn-anyd btn-outline" style="font-size:12px;">
                             📁 Carpeta Drive Paciente
@@ -244,6 +247,7 @@
                             <option value="{{ c.fullname }}">{{ c.phone or '' }}</option>
                             {% endfor %}
                         </datalist>
+                        <div id="athlete-clinical-banner" style="margin-top:8px; display:none;"></div>
                         <div id="tanita-status-chip" style="margin-top:6px; font-size:11.5px; display:none;"></div>
                         <div id="client-saved-plans-notice" style="margin-top:4px; font-size:11px; color:#64748B; display:none;"></div>
                     </div>
@@ -650,18 +654,45 @@
 
             <!-- TABS DEL MODAL -->
             <div style="display:flex; border-bottom:1px solid #E2E8F0; background:#F8FAFC; padding:0 20px;">
-                <button type="button" id="train-tab-btn-upload" onclick="switchTrainingTab('upload')" style="padding:12px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#EA580C; border-bottom:3px solid #EA580C;">
-                    📄 1. Importar Excel (.xlsx / .csv)
+                <button type="button" id="train-tab-btn-drive" onclick="switchTrainingTab('drive')" style="padding:12px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#EA580C; border-bottom:3px solid #EA580C;">
+                    📂 1. Documentos en su Carpeta Drive
+                </button>
+                <button type="button" id="train-tab-btn-upload" onclick="switchTrainingTab('upload')" style="padding:12px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#64748B; border-bottom:3px solid transparent;">
+                    📄 2. Subir Otro Archivo (.xlsx / .csv)
                 </button>
                 <button type="button" id="train-tab-btn-manual" onclick="switchTrainingTab('manual')" style="padding:12px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#64748B; border-bottom:3px solid transparent;">
-                    ✏️ 2. Añadir / Modificar Sesión Manual
+                    ✏️ 3. Añadir / Modificar Sesión Manual
                 </button>
             </div>
 
             <div class="modal-body" style="padding:20px;">
                 
-                <!-- SECCIÓN A: SUBIR EXCEL -->
-                <div id="train-tab-upload">
+                <!-- SECCIÓN A: DOCUMENTOS DRIVE DEL DEPORTISTA -->
+                <div id="train-tab-drive">
+                    <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong style="color:#0F172A; font-size:13.5px;">Documentos de Entrenamiento Detectados en Google Drive</strong>
+                            <div style="font-size:11.5px; color:#64748B;">Archivos de cuadrantes y planificaciones encontrados en el expediente de <span id="train-drive-client-label" style="font-weight:700; color:#0086cd;">el deportista</span>:</div>
+                        </div>
+                        <button type="button" onclick="refreshAthleteTrainingFiles()" class="btn-anyd btn-outline" style="font-size:11px; padding:4px 10px;">
+                            🔄 Actualizar Carpeta
+                        </button>
+                    </div>
+
+                    <div id="train-drive-files-container" style="min-height:120px;">
+                        <p style="color:#64748B; font-size:12px;">Cargando archivos de entrenamiento del deportista...</p>
+                    </div>
+
+                    <div style="background:#FFF7ED; border-left:4px solid #EA580C; padding:12px 16px; border-radius:6px; font-size:12px; color:#9A3412; margin-top:14px;">
+                        <strong>🏛️ Mapeo Oficial según Compendio ACSM (American College of Sports Medicine):</strong>
+                        <p style="margin:4px 0 0; line-height:1.45;">
+                            Al cargar el documento, cada sesión se clasifica automáticamente con su código ACSM de gasto metabólico (METs), determinando con rigor científico las necesidades de carbohidratos pre, intra (geles/isotónico ratio 2:1) y post-esfuerzo, junto con la reposición electrolítica de sodio y líquidos.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN B: SUBIR EXCEL MANUAL -->
+                <div id="train-tab-upload" class="hidden">
                     <div style="border:2px dashed #CBD5E1; border-radius:10px; padding:30px 20px; text-align:center; background:#FAFAFA; margin-bottom:16px;">
                         <span style="font-size:36px; display:block; margin-bottom:10px;">📊</span>
                         <h4 style="font-family:'Montserrat', sans-serif; font-size:14px; color:#0F172A; margin-bottom:6px;">
@@ -862,25 +893,37 @@
         </div>
     </div>
 
-    <!-- MODAL CREAR / MODIFICAR RECETA -->
+    <!-- MODAL CREAR / MODIFICAR RECETA CON CONSTRUCTOR INTERACTIVO -->
     <div id="recipe-edit-modal" class="modal-overlay hidden">
-        <div class="modal-box" style="max-width:720px;">
+        <div class="modal-box" style="max-width:880px;">
             <div class="modal-header">
                 <div>
                     <h3 id="recipe-modal-title" style="font-family:'Montserrat', sans-serif; font-size:17px; font-weight:800; color:#0F172A; margin:0;">
-                        ➕ Crear Nueva Receta
+                        🍳 Constructor de Recetas & Platos Maestros
                     </h3>
-                    <span style="font-size:12px; color:#64748B;">Mantenimiento y personalización de platos para patrones nutricionales</span>
+                    <span style="font-size:12px; color:#64748B;">Crea platos combinando ingredientes reales de bases españolas con cálculo automático de macronutrientes</span>
                 </div>
                 <button onclick="closeRecipeEditModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748B;">&times;</button>
             </div>
+
+            <!-- TABS DE MODO DE CONSTRUCCIÓN -->
+            <div style="display:flex; border-bottom:1px solid #E2E8F0; background:#F8FAFC; padding:0 20px;">
+                <button type="button" id="rec-tab-btn-builder" onclick="switchRecipeEditTab('builder')" style="padding:10px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#0086cd; border-bottom:3px solid #0086cd;">
+                    ⚡ 1. Constructor con Ingredientes (Cálculo Automático)
+                </button>
+                <button type="button" id="rec-tab-btn-manual" onclick="switchRecipeEditTab('manual')" style="padding:10px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#64748B; border-bottom:3px solid transparent;">
+                    📝 2. Modo Manual / Texto Libre
+                </button>
+            </div>
+
             <div class="modal-body" style="padding:20px; max-height:75vh; overflow-y:auto;">
                 <input type="hidden" id="rec-form-id" value="">
                 
-                <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-bottom:12px;">
+                <!-- DATOS BÁSICOS DEL PLATO -->
+                <div style="display:grid; grid-template-columns:2fr 1fr 100px; gap:12px; margin-bottom:14px;">
                     <div>
                         <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nombre del Plato / Receta *</label>
-                        <input type="text" id="rec-form-name" class="form-control" placeholder="Ej: Bowl de Avena con Yogur y Frutos Rojos">
+                        <input type="text" id="rec-form-name" class="form-control" placeholder="Ej: Bowl de Avena con Yogur Griego y Arándanos">
                     </div>
                     <div>
                         <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Grupo Canónico *</label>
@@ -897,51 +940,160 @@
                             <option value="10. Alternativas Vegetarianas & Veganas">10. Alternativas Vegetarianas & Veganas</option>
                         </select>
                     </div>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                     <div>
-                        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Ingredientes y Cantidades (g o ml)</label>
-                        <textarea id="rec-form-ingredients" class="form-control" rows="4" placeholder="Ej: 50g copos de avena, 150g yogur griego 0%, 50g arándanos frescos, 15g nueces"></textarea>
-                    </div>
-                    <div>
-                        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Elaboración / Instrucciones</label>
-                        <textarea id="rec-form-instructions" class="form-control" rows="4" placeholder="Ej: Mezclar la avena con el yogur en un bol. Añadir los arándanos y las nueces picadas por encima."></textarea>
+                        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Tiempo</label>
+                        <input type="number" id="rec-form-time" class="form-control" value="15" min="1" max="180">
                     </div>
                 </div>
 
-                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px; margin-bottom:12px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:12px; font-weight:700; color:#0F172A;">⚡ Perfil de Macronutrientes (por ración)</span>
-                        <button type="button" onclick="autoCalculateRecipeKcal()" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 8px;">Auto-calcular Kcal (4-4-9)</button>
+                <!-- CONTENEDOR 1: CONSTRUCTOR INTERACTIVO -->
+                <div id="recipe-view-builder">
+                    
+                    <!-- BUSCADOR INTERACTIVO DE INGREDIENTES -->
+                    <div style="background:#F0F9FF; border:1.5px solid #BAE6FD; border-radius:8px; padding:14px; margin-bottom:14px;">
+                        <span style="font-size:12px; font-weight:800; color:#0369A1; display:block; margin-bottom:8px;">
+                            🔍 Añadir Ingrediente desde Bases Españolas (BEDCA, Moreiras, FEN, OFF)
+                        </span>
+                        
+                        <div style="display:grid; grid-template-columns: 2fr 100px auto; gap:8px; align-items:center;">
+                            <div style="position:relative;">
+                                <input type="text" 
+                                       id="builder-ingredient-search" 
+                                       class="form-control" 
+                                       placeholder="Escribe ingrediente (ej. copos de avena, pechuga de pollo, nueces, aceite oliva)..." 
+                                       autocomplete="off"
+                                       oninput="handleBuilderIngredientSearch(this.value)">
+                                <div id="builder-ingredient-dropdown" class="search-results-dropdown" style="width:100%;"></div>
+                            </div>
+                            <div>
+                                <input type="number" id="builder-ingredient-grams" class="form-control" value="100" min="1" max="2000" step="5" placeholder="Gramos">
+                            </div>
+                            <div style="display:flex; gap:4px;">
+                                <button type="button" class="btn-day-action" onclick="setBuilderGrams(30)">30g</button>
+                                <button type="button" class="btn-day-action" onclick="setBuilderGrams(50)">50g</button>
+                                <button type="button" class="btn-day-action" onclick="setBuilderGrams(100)">100g</button>
+                                <button type="button" class="btn-day-action" onclick="setBuilderGrams(150)">150g</button>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">
+
+                    <!-- TABLA VIVA DE INGREDIENTES -->
+                    <div style="margin-bottom:14px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:12.5px; font-weight:700; color:#0F172A;">
+                                🥗 Ingredientes de la Receta (<span id="builder-ing-count">0</span> añadidos)
+                            </span>
+                            <span style="font-size:11px; color:#64748B;">
+                                Modifica los gramos en cualquier fila para recalcular los macros al instante
+                            </span>
+                        </div>
+
+                        <div style="border:1px solid #E2E8F0; border-radius:8px; overflow:hidden;">
+                            <table style="width:100%; border-collapse:collapse; font-size:12px; background:white;">
+                                <thead>
+                                    <tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; color:#475569; font-weight:700; text-align:left;">
+                                        <th style="padding:8px 12px;">Ingrediente</th>
+                                        <th style="padding:8px 12px; width:110px;">Cantidad</th>
+                                        <th style="padding:8px 12px; width:80px;">Kcal</th>
+                                        <th style="padding:8px 12px; width:70px;">Prot (g)</th>
+                                        <th style="padding:8px 12px; width:70px;">Carbs (g)</th>
+                                        <th style="padding:8px 12px; width:70px;">Grasa (g)</th>
+                                        <th style="padding:8px 12px; width:50px; text-align:center;">Quitar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="builder-ingredients-tbody">
+                                    <tr>
+                                        <td colspan="7" style="padding:20px; text-align:center; color:#94A3B8;">
+                                            No hay ingredientes en esta receta. Utiliza el buscador superior para añadir ingredientes con sus tablas nutricionales.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- CONTENEDOR 2: MODO MANUAL / TEXTO LIBRE (SIEMPRE SINCRONIZADO) -->
+                <div id="recipe-view-manual" class="hidden">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                         <div>
-                            <label style="font-size:11px; color:#1E40AF; font-weight:600; display:block;">Kcal</label>
-                            <input type="number" step="1" id="rec-form-kcal" class="form-control" placeholder="0">
+                            <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Ingredientes y Cantidades (Texto)</label>
+                            <textarea id="rec-form-ingredients" class="form-control" rows="5" placeholder="Ej: 80g Copos de avena, 150g Yogur griego 0%, 50g Arándanos frescos, 15g Nueces"></textarea>
                         </div>
                         <div>
-                            <label style="font-size:11px; color:#166534; font-weight:600; display:block;">Proteína (g)</label>
-                            <input type="number" step="0.1" id="rec-form-prot" class="form-control" placeholder="0.0">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; color:#854D0E; font-weight:600; display:block;">Carbos (g)</label>
-                            <input type="number" step="0.1" id="rec-form-carbs" class="form-control" placeholder="0.0">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; color:#9A3412; font-weight:600; display:block;">Grasa (g)</label>
-                            <input type="number" step="0.1" id="rec-form-fat" class="form-control" placeholder="0.0">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; color:#475569; font-weight:600; display:block;">Fibra (g)</label>
-                            <input type="number" step="0.1" id="rec-form-fiber" class="form-control" placeholder="0.0">
+                            <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Elaboración / Instrucciones</label>
+                            <textarea id="rec-form-instructions" class="form-control" rows="5" placeholder="Ej: Mezclar la avena con el yogur en un bol. Añadir los frutos rojos y las nueces picadas por encima."></textarea>
                         </div>
                     </div>
                 </div>
+
+                <!-- PANEL DINÁMICO DE MACRONUTRIENTES EN TIEMPO REAL -->
+                <div style="background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color:white; border-radius:8px; padding:14px 18px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-size:11px; text-transform:uppercase; font-weight:800; color:#94A3B8; letter-spacing:0.5px;">
+                            ⚡ Perfil Nutricional Total (por ración)
+                        </span>
+                        <span id="builder-total-weight" style="font-size:11.5px; color:#CBD5E1;">
+                            Peso total: 0 g
+                        </span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; text-align:center;">
+                        <div style="background:rgba(255,255,255,0.06); padding:8px; border-radius:6px;">
+                            <div style="font-size:10px; color:#94A3B8; font-weight:700;">ENERGÍA</div>
+                            <div id="builder-res-kcal" style="font-family:'Montserrat', sans-serif; font-size:18px; font-weight:800; color:#FCD34D;">0 kcal</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06); padding:8px; border-radius:6px;">
+                            <div style="font-size:10px; color:#94A3B8; font-weight:700;">PROTEÍNA</div>
+                            <div id="builder-res-prot" style="font-family:'Montserrat', sans-serif; font-size:18px; font-weight:800; color:#6EE7B7;">0.0 g</div>
+                            <div id="builder-pct-prot" style="font-size:9.5px; color:#A7F3D0;">0% VCT</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06); padding:8px; border-radius:6px;">
+                            <div style="font-size:10px; color:#94A3B8; font-weight:700;">CARBOS</div>
+                            <div id="builder-res-carbs" style="font-family:'Montserrat', sans-serif; font-size:18px; font-weight:800; color:#7DD3FC;">0.0 g</div>
+                            <div id="builder-pct-carbs" style="font-size:9.5px; color:#BAE6FD;">0% VCT</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06); padding:8px; border-radius:6px;">
+                            <div style="font-size:10px; color:#94A3B8; font-weight:700;">GRASA</div>
+                            <div id="builder-res-fat" style="font-family:'Montserrat', sans-serif; font-size:18px; font-weight:800; color:#F472B6;">0.0 g</div>
+                            <div id="builder-pct-fat" style="font-size:9.5px; color:#FBCFE8;">0% VCT</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06); padding:8px; border-radius:6px;">
+                            <div style="font-size:10px; color:#94A3B8; font-weight:700;">FIBRA</div>
+                            <div id="builder-res-fiber" style="font-family:'Montserrat', sans-serif; font-size:18px; font-weight:800; color:#E2E8F0;">0.0 g</div>
+                        </div>
+                    </div>
+
+                    <!-- INPUTS OCULTOS DE RETROCOMPATIBILIDAD -->
+                    <input type="hidden" id="rec-form-kcal" value="0">
+                    <input type="hidden" id="rec-form-prot" value="0">
+                    <input type="hidden" id="rec-form-carbs" value="0">
+                    <input type="hidden" id="rec-form-fat" value="0">
+                    <input type="hidden" id="rec-form-fiber" value="0">
+                </div>
+
+                <!-- ELABORACIÓN / INSTRUCCIONES EN VISTA BUILDER -->
+                <div id="recipe-builder-instructions-wrap">
+                    <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">
+                        👨‍🍳 Elaboración / Instrucciones del Plato
+                    </label>
+                    <textarea id="rec-form-instructions-builder" class="form-control" rows="3" placeholder="Describe brevemente la preparación, tiempos de cocción y recomendaciones digestivas..." oninput="syncInstructions(this.value)"></textarea>
+                </div>
+
             </div>
-            <div class="modal-footer">
-                <button type="button" onclick="saveRecipeFromModal()" class="btn-anyd btn-success">💾 Guardar Receta</button>
-                <button type="button" onclick="closeRecipeEditModal()" class="btn-anyd btn-outline">Cancelar</button>
+            
+            <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+                <div id="recipe-target-slot-indicator" style="font-size:12px; color:#0369A1; font-weight:700;"></div>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" id="btn-save-and-assign" onclick="saveRecipeFromModal(true)" class="btn-anyd btn-purple" style="display:none; padding:8px 16px;">
+                        ⚡ Guardar y Asignar a la Toma
+                    </button>
+                    <button type="button" onclick="saveRecipeFromModal(false)" class="btn-anyd btn-success" style="padding:8px 18px;">
+                        💾 Guardar Receta
+                    </button>
+                    <button type="button" onclick="closeRecipeEditModal()" class="btn-anyd btn-outline">Cancelar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1825,55 +1977,120 @@
             clientDebounceTimeout = setTimeout(onClientSelectChange, 400);
         }
 
+        let currentAthleteData = null;
+
         async function onClientSelectChange() {
             const clientName = document.getElementById('p-client-name').value.trim();
             const statusChip = document.getElementById('tanita-status-chip');
+            const clinicalBanner = document.getElementById('athlete-clinical-banner');
+
             if (!clientName) {
                 if (statusChip) statusChip.style.display = 'none';
+                if (clinicalBanner) clinicalBanner.style.display = 'none';
+                currentAthleteData = null;
                 return;
             }
 
             try {
-                const res = await fetch(`/api/diet/latest-tanita/${encodeURIComponent(clientName)}`);
+                const res = await fetch(`/api/diet/athlete-details/${encodeURIComponent(clientName)}`);
                 const data = await res.json();
+                currentAthleteData = data;
 
-                if (data.found && data.data) {
-                    const t = data.data;
+                // 1. Cargar composición corporal Tanita si existe
+                if (data.tanita) {
+                    const t = data.tanita;
                     if (t.weight) document.getElementById('p-weight').value = Number(t.weight).toFixed(1);
                     if (t.ffm) document.getElementById('p-ffm').value = Number(t.ffm).toFixed(1);
-                    recalcMetabolism();
+                }
 
-                    if (statusChip) {
-                        statusChip.style.display = 'block';
-                        statusChip.style.background = '#ECFDF5';
-                        statusChip.style.color = '#065F46';
-                        statusChip.style.border = '1px solid #A7F3D0';
-                        statusChip.style.padding = '6px 12px';
-                        statusChip.style.borderRadius = '6px';
-                        statusChip.innerHTML = `
-                            ⚖️ <strong>Tanita MC-580 Sincronizada:</strong> 
-                            Peso: <strong>${t.weight} kg</strong> | 
-                            FFM (Masa Magra): <strong>${t.ffm} kg</strong> | 
-                            Grasa: <strong>${t.fat_percent || '—'}%</strong> 
-                            <span style="color:#047857; font-size:11px;">(${t.measurement_date || 'Último pesaje'})</span>
-                        `;
-                    }
-                } else {
-                    if (statusChip) {
-                        statusChip.style.display = 'block';
-                        statusChip.style.background = '#F8FAFC';
-                        statusChip.style.color = '#475569';
-                        statusChip.style.border = '1px solid #E2E8F0';
-                        statusChip.style.padding = '6px 12px';
-                        statusChip.style.borderRadius = '6px';
-                        statusChip.innerHTML = `ℹ️ Sin pesaje Tanita MC-580 para <strong>${clientName}</strong>. Introduce los datos manualmente.`;
+                // 2. Cargar perfil clínico (objetivo, actividad, altura)
+                if (data.profile) {
+                    const prof = data.profile;
+                    if (prof.main_goal) {
+                        const gSelect = document.getElementById('p-goal');
+                        for (let opt of gSelect.options) {
+                            if (prof.main_goal.toLowerCase().includes(opt.value.toLowerCase())) {
+                                gSelect.value = opt.value;
+                                break;
+                            }
+                        }
                     }
                 }
+
+                recalcMetabolism();
+
+                // 3. Renderizar banner clínico detallado con Tanita y expediente
+                if (clinicalBanner) {
+                    clinicalBanner.style.display = 'block';
+                    const t = data.tanita || {};
+                    const p = data.profile || {};
+                    const filesCount = (data.training_files || []).length;
+
+                    clinicalBanner.innerHTML = `
+                        <div style="background:#F0F9FF; border:1.5px solid #BAE6FD; border-radius:8px; padding:12px; margin-top:6px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px; border-bottom:1px solid #E0F2FE; padding-bottom:6px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:16px;">🧬</span>
+                                    <strong style="color:#0369A1; font-size:12.5px;">Composición Corporal & Ficha Clínica (Dietowin / Tanita MC-580)</strong>
+                                </div>
+                                <span style="font-size:11px; color:#0284C7; font-weight:700;">${t.measurement_date ? 'Último pesaje: ' + t.measurement_date : 'Datos clínicos del deportista'}</span>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin-bottom:8px;">
+                                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                                    <div style="font-size:10px; color:#64748B; font-weight:700; text-transform:uppercase;">Peso Total</div>
+                                    <div style="font-size:14px; font-weight:800; color:#0F172A;">${t.weight ? t.weight + ' kg' : document.getElementById('p-weight').value + ' kg'}</div>
+                                </div>
+                                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                                    <div style="font-size:10px; color:#047857; font-weight:700; text-transform:uppercase;">FFM (Masa Magra)</div>
+                                    <div style="font-size:14px; font-weight:800; color:#065F46;">${t.ffm ? t.ffm + ' kg' : document.getElementById('p-ffm').value + ' kg'}</div>
+                                </div>
+                                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                                    <div style="font-size:10px; color:#9A3412; font-weight:700; text-transform:uppercase;">Grasa %</div>
+                                    <div style="font-size:14px; font-weight:800; color:#C2410C;">${t.fat_percent ? t.fat_percent + '%' : (t.fat_mass ? t.fat_mass + ' kg' : '--')}</div>
+                                </div>
+                                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                                    <div style="font-size:10px; color:#1D4ED8; font-weight:700; text-transform:uppercase;">Masa Muscular</div>
+                                    <div style="font-size:14px; font-weight:800; color:#1E40AF;">${t.muscle_mass ? t.muscle_mass + ' kg' : '--'}</div>
+                                </div>
+                                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                                    <div style="font-size:10px; color:#6D28D9; font-weight:700; text-transform:uppercase;">BMR Cunningham</div>
+                                    <div style="font-size:14px; font-weight:800; color:#5B21B6;">${t.bmr_cunningham ? t.bmr_cunningham + ' kcal' : Math.round(500 + 22 * (parseFloat(document.getElementById('p-ffm').value) || 60)) + ' kcal'}</div>
+                                </div>
+                                <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                                    <div style="font-size:10px; color:#475569; font-weight:700; text-transform:uppercase;">Disciplina</div>
+                                    <div style="font-size:12px; font-weight:700; color:#1E293B; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.sport_discipline || 'Deportista'}">${p.sport_discipline || 'Deportista'}</div>
+                                </div>
+                            </div>
+
+                            ${p.digestive_issues || p.allergies ? `
+                                <div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:6px; padding:6px 10px; font-size:11px; color:#991B1B; margin-bottom:8px;">
+                                    ⚠️ <strong>Alerta de Digestibilidad / Alergias:</strong> ${p.digestive_issues || ''} ${p.allergies ? '· Alergias: ' + p.allergies : ''}
+                                </div>
+                            ` : ''}
+
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                ${filesCount > 0 ? `
+                                    <button type="button" onclick="openAthleteDriveTrainingModal()" class="btn-anyd" style="background:#EA580C; font-size:11px; padding:4px 10px;">
+                                        🏃 ${filesCount} documentos de entrenamiento en Drive (Cargar ACSM)
+                                    </button>
+                                ` : `
+                                    <span style="font-size:11px; color:#64748B;">Sin archivos de entrenamiento detectados automáticamente en Drive</span>
+                                `}
+                                <span style="font-size:11px; color:#475569;">
+                                    ${data.client && data.client.email ? '✉️ ' + data.client.email : ''} ${data.client && data.client.phone ? '· 📞 ' + data.client.phone : ''}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (statusChip) statusChip.style.display = 'none';
 
                 // Chequear planes previos
                 checkClientPastPlans(clientName);
             } catch (e) {
-                console.error("Error comprobando Tanita:", e);
+                console.error("Error comprobando parámetros clínicos:", e);
             }
         }
 
@@ -2384,22 +2601,256 @@
         }
 
         // ============================================================
-        // --- CRUD & MANTENIMIENTO DE RECETAS ---
+        // --- CONSTRUCTOR INTERACTIVO & MANTENIMIENTO DE RECETAS ---
         // ============================================================
-        async function openRecipeEditModal(recipeId = null) {
+        let builderIngredients = [];
+        let builderSearchTimer = null;
+        let currentBuilderMode = 'builder';
+
+        function switchRecipeEditTab(tab) {
+            currentBuilderMode = tab;
+            const btnB = document.getElementById('rec-tab-btn-builder');
+            const btnM = document.getElementById('rec-tab-btn-manual');
+            const viewB = document.getElementById('recipe-view-builder');
+            const viewM = document.getElementById('recipe-view-manual');
+            const wrapI = document.getElementById('recipe-builder-instructions-wrap');
+
+            if (tab === 'builder') {
+                btnB.style.color = '#0086cd';
+                btnB.style.borderBottom = '3px solid #0086cd';
+                btnM.style.color = '#64748B';
+                btnM.style.borderBottom = '3px solid transparent';
+                viewB.classList.remove('hidden');
+                viewM.classList.add('hidden');
+                wrapI.style.display = 'block';
+            } else {
+                btnM.style.color = '#0086cd';
+                btnM.style.borderBottom = '3px solid #0086cd';
+                btnB.style.color = '#64748B';
+                btnB.style.borderBottom = '3px solid transparent';
+                viewM.classList.remove('hidden');
+                viewB.classList.add('hidden');
+                wrapI.style.display = 'none';
+            }
+        }
+
+        function setBuilderGrams(g) {
+            document.getElementById('builder-ingredient-grams').value = g;
+        }
+
+        function syncInstructions(val) {
+            document.getElementById('rec-form-instructions').value = val;
+        }
+
+        function handleBuilderIngredientSearch(val) {
+            clearTimeout(builderSearchTimer);
+            const dropdown = document.getElementById('builder-ingredient-dropdown');
+            const q = val.trim();
+            if (q.length < 2) {
+                dropdown.style.display = 'none';
+                dropdown.innerHTML = '';
+                return;
+            }
+
+            builderSearchTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/diet/foods?q=${encodeURIComponent(q)}&limit=8`);
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const foods = data.foods || [];
+
+                    if (foods.length === 0) {
+                        dropdown.innerHTML = '<div style="padding:10px; color:#64748B; font-size:12px;">No se encontraron alimentos en las bases.</div>';
+                    } else {
+                        dropdown.innerHTML = foods.map((f, idx) => `
+                            <div class="search-result-item" style="cursor:pointer;" onclick="selectBuilderSearchFood(${idx})">
+                                <div>
+                                    <div style="font-weight:700; color:#0F172A; font-size:12.5px;">${f.nombre}</div>
+                                    <div style="font-size:11px; color:#64748B;">
+                                        <span class="badge" style="background:#E0F2FE; color:#0369A1; font-size:9.5px;">${f.fuente_datos || 'Base Oficial'}</span>
+                                        ${f.kcal} kcal/100g · P: ${f.proteina_g}g · C: ${f.carbohidratos_g}g · G: ${f.grasa_g}g
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-anyd" style="padding:4px 10px; font-size:11px;">➕ Añadir</button>
+                            </div>
+                        `).join('');
+                        window.tempBuilderSearchResults = foods;
+                    }
+                    dropdown.style.display = 'block';
+                } catch (e) {
+                    console.error("Error buscando ingredientes:", e);
+                }
+            }, 250);
+        }
+
+        function selectBuilderSearchFood(idx) {
+            const food = window.tempBuilderSearchResults && window.tempBuilderSearchResults[idx];
+            if (!food) return;
+
+            const gramsInput = document.getElementById('builder-ingredient-grams');
+            const grams = parseFloat(gramsInput.value) || 100;
+
+            addBuilderIngredient(food, grams);
+
+            document.getElementById('builder-ingredient-search').value = '';
+            document.getElementById('builder-ingredient-dropdown').style.display = 'none';
+        }
+
+        function addBuilderIngredient(food, grams) {
+            builderIngredients.push({
+                nombre: food.nombre,
+                fuente: food.fuente_datos || 'BEDCA',
+                grams: grams,
+                kcal_100: parseFloat(food.kcal) || 0,
+                prot_100: parseFloat(food.proteina_g) || 0,
+                carbs_100: parseFloat(food.carbohidratos_g) || 0,
+                fat_100: parseFloat(food.grasa_g) || 0,
+                fiber_100: parseFloat(food.fibra_g) || 0
+            });
+
+            renderBuilderIngredients();
+        }
+
+        function removeBuilderIngredient(idx) {
+            builderIngredients.splice(idx, 1);
+            renderBuilderIngredients();
+        }
+
+        function updateBuilderIngredientGrams(idx, newGrams) {
+            const g = Math.max(1, parseFloat(newGrams) || 0);
+            if (builderIngredients[idx]) {
+                builderIngredients[idx].grams = g;
+                renderBuilderIngredients();
+            }
+        }
+
+        function renderBuilderIngredients() {
+            const tbody = document.getElementById('builder-ingredients-tbody');
+            document.getElementById('builder-ing-count').textContent = builderIngredients.length;
+
+            if (builderIngredients.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="padding:20px; text-align:center; color:#94A3B8;">
+                            No hay ingredientes en esta receta. Utiliza el buscador superior para añadir ingredientes con sus tablas nutricionales.
+                        </td>
+                    </tr>
+                `;
+                updateBuilderCalculations(0, 0, 0, 0, 0, 0);
+                return;
+            }
+
+            let totalWeight = 0, totalKcal = 0, totalProt = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0;
+            let textIngredients = [];
+
+            tbody.innerHTML = builderIngredients.map((item, idx) => {
+                const factor = item.grams / 100.0;
+                const k = Math.round(item.kcal_100 * factor);
+                const p = Math.round(item.prot_100 * factor * 10) / 10;
+                const c = Math.round(item.carbs_100 * factor * 10) / 10;
+                const f = Math.round(item.fat_100 * factor * 10) / 10;
+                const fib = Math.round(item.fiber_100 * factor * 10) / 10;
+
+                totalWeight += item.grams;
+                totalKcal += k;
+                totalProt += p;
+                totalCarbs += c;
+                totalFat += f;
+                totalFiber += fib;
+
+                textIngredients.push(`${item.grams}g ${item.nombre}`);
+
+                return `
+                    <tr style="border-bottom:1px solid #F1F5F9;">
+                        <td style="padding:8px 12px;">
+                            <div style="font-weight:700; color:#0F172A;">${item.nombre}</div>
+                            <span style="font-size:10px; color:#64748B;">${item.fuente}</span>
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <input type="number" 
+                                       value="${item.grams}" 
+                                       min="1" 
+                                       max="2000" 
+                                       step="5" 
+                                       class="form-control" 
+                                       style="padding:3px 6px; font-size:12px; font-weight:700; width:70px;" 
+                                       onchange="updateBuilderIngredientGrams(${idx}, this.value)">
+                                <span style="font-size:11px; color:#64748B;">g</span>
+                            </div>
+                        </td>
+                        <td style="padding:8px 12px; font-weight:700; color:#D97706;">${k}</td>
+                        <td style="padding:8px 12px; font-weight:600; color:#059669;">${p}g</td>
+                        <td style="padding:8px 12px; font-weight:600; color:#0284C7;">${c}g</td>
+                        <td style="padding:8px 12px; font-weight:600; color:#DB2777;">${f}g</td>
+                        <td style="padding:8px 12px; text-align:center;">
+                            <button type="button" onclick="removeBuilderIngredient(${idx})" style="background:none; border:none; color:#EF4444; font-size:14px; cursor:pointer;" title="Eliminar">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            totalProt = Math.round(totalProt * 10) / 10;
+            totalCarbs = Math.round(totalCarbs * 10) / 10;
+            totalFat = Math.round(totalFat * 10) / 10;
+            totalFiber = Math.round(totalFiber * 10) / 10;
+
+            document.getElementById('rec-form-ingredients').value = textIngredients.join(', ');
+            updateBuilderCalculations(totalWeight, totalKcal, totalProt, totalCarbs, totalFat, totalFiber);
+        }
+
+        function updateBuilderCalculations(weight, kcal, prot, carbs, fat, fiber) {
+            document.getElementById('builder-total-weight').textContent = `Peso total: ${weight} g`;
+            document.getElementById('builder-res-kcal').textContent = `${kcal} kcal`;
+            document.getElementById('builder-res-prot').textContent = `${prot} g`;
+            document.getElementById('builder-res-carbs').textContent = `${carbs} g`;
+            document.getElementById('builder-res-fat').textContent = `${fat} g`;
+            document.getElementById('builder-res-fiber').textContent = `${fiber} g`;
+
+            const totalMacroKcal = (prot * 4) + (carbs * 4) + (fat * 9);
+            if (totalMacroKcal > 0) {
+                document.getElementById('builder-pct-prot').textContent = `${Math.round((prot * 4 / totalMacroKcal) * 100)}% VCT`;
+                document.getElementById('builder-pct-carbs').textContent = `${Math.round((carbs * 4 / totalMacroKcal) * 100)}% VCT`;
+                document.getElementById('builder-pct-fat').textContent = `${Math.round((fat * 9 / totalMacroKcal) * 100)}% VCT`;
+            } else {
+                document.getElementById('builder-pct-prot').textContent = '0% VCT';
+                document.getElementById('builder-pct-carbs').textContent = '0% VCT';
+                document.getElementById('builder-pct-fat').textContent = '0% VCT';
+            }
+
+            document.getElementById('rec-form-kcal').value = kcal;
+            document.getElementById('rec-form-prot').value = prot;
+            document.getElementById('rec-form-carbs').value = carbs;
+            document.getElementById('rec-form-fat').value = fat;
+            document.getElementById('rec-form-fiber').value = fiber;
+        }
+
+        async function openRecipeEditModal(recipeId = null, assignAfter = false) {
             const modal = document.getElementById('recipe-edit-modal');
             const titleEl = document.getElementById('recipe-modal-title');
+            const slotIndicator = document.getElementById('recipe-target-slot-indicator');
+            const assignBtn = document.getElementById('btn-save-and-assign');
             
+            builderIngredients = [];
+            switchRecipeEditTab('builder');
+
             document.getElementById('rec-form-id').value = '';
             document.getElementById('rec-form-name').value = '';
             document.getElementById('rec-form-group').value = '01. Desayunos, Meriendas & Snacks';
+            document.getElementById('rec-form-time').value = '15';
             document.getElementById('rec-form-ingredients').value = '';
             document.getElementById('rec-form-instructions').value = '';
-            document.getElementById('rec-form-kcal').value = '';
-            document.getElementById('rec-form-prot').value = '';
-            document.getElementById('rec-form-carbs').value = '';
-            document.getElementById('rec-form-fat').value = '';
-            document.getElementById('rec-form-fiber').value = '';
+            document.getElementById('rec-form-instructions-builder').value = '';
+            document.getElementById('builder-ingredient-search').value = '';
+            document.getElementById('builder-ingredient-dropdown').style.display = 'none';
+
+            if (activeTargetDay && activeTargetSlot) {
+                slotIndicator.textContent = `Asignando a: ${activeTargetDay} (${activeTargetSlot.replace('_', ' ')})`;
+                assignBtn.style.display = 'inline-flex';
+            } else {
+                slotIndicator.textContent = '';
+                assignBtn.style.display = 'none';
+            }
 
             if (recipeId) {
                 titleEl.textContent = '✏️ Modificar Receta';
@@ -2410,19 +2861,39 @@
                     document.getElementById('rec-form-id').value = r.id;
                     document.getElementById('rec-form-name').value = r.nombre || '';
                     document.getElementById('rec-form-group').value = r.grupo_canonico || '01. Desayunos, Meriendas & Snacks';
+                    document.getElementById('rec-form-time').value = r.tiempo_minutos || 15;
                     document.getElementById('rec-form-ingredients').value = r.ingredientes || '';
                     document.getElementById('rec-form-instructions').value = r.elaboracion || '';
-                    document.getElementById('rec-form-kcal').value = Math.round(r.kcal || 0);
-                    document.getElementById('rec-form-prot').value = r.proteina_g || 0;
-                    document.getElementById('rec-form-carbs').value = r.carbohidratos_g || 0;
-                    document.getElementById('rec-form-fat').value = r.grasa_g || 0;
-                    document.getElementById('rec-form-fiber').value = r.fibra_g || 0;
+                    document.getElementById('rec-form-instructions-builder').value = r.elaboracion || '';
+
+                    const k = Math.round(r.kcal || 0);
+                    const p = r.proteina_g || 0;
+                    const c = r.carbohidratos_g || 0;
+                    const f = r.grasa_g || 0;
+                    const fib = r.fibra_g || 0;
+
+                    updateBuilderCalculations(100, k, p, c, f, fib);
+
+                    if (r.ingredientes) {
+                        builderIngredients = [{
+                            nombre: r.nombre,
+                            fuente: "Recetario Maestro",
+                            grams: 100,
+                            kcal_100: k,
+                            prot_100: p,
+                            carbs_100: c,
+                            fat_100: f,
+                            fiber_100: fib
+                        }];
+                        renderBuilderIngredients();
+                    }
                 } catch (e) {
                     alert("Error cargando receta: " + e.message);
                     return;
                 }
             } else {
-                titleEl.textContent = '➕ Crear Nueva Receta';
+                titleEl.textContent = '🍳 Constructor de Recetas & Platos Maestros';
+                renderBuilderIngredients();
             }
             modal.classList.remove('hidden');
         }
@@ -2437,9 +2908,10 @@
             const g = parseFloat(document.getElementById('rec-form-fat').value) || 0;
             const kcal = Math.round((p * 4) + (c * 4) + (g * 9));
             document.getElementById('rec-form-kcal').value = kcal;
+            document.getElementById('builder-res-kcal').textContent = `${kcal} kcal`;
         }
 
-        async function saveRecipeFromModal() {
+        async function saveRecipeFromModal(assignToSlot = false) {
             const id = document.getElementById('rec-form-id').value;
             const nombre = document.getElementById('rec-form-name').value.trim();
             if (!nombre) {
@@ -2450,6 +2922,7 @@
             const payload = {
                 nombre: nombre,
                 grupo_canonico: document.getElementById('rec-form-group').value,
+                tiempo_minutos: parseInt(document.getElementById('rec-form-time').value) || 15,
                 ingredientes: document.getElementById('rec-form-ingredients').value.trim(),
                 elaboracion: document.getElementById('rec-form-instructions').value.trim(),
                 kcal: parseFloat(document.getElementById('rec-form-kcal').value) || 0,
@@ -2469,7 +2942,27 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert(id ? "¡Receta actualizada con éxito!" : "¡Nueva receta creada con éxito!");
+                    const savedRecipe = {
+                        id: data.id || id,
+                        nombre: payload.nombre,
+                        grupo_canonico: payload.grupo_canonico,
+                        tiempo_minutos: payload.tiempo_minutos,
+                        kcal: payload.kcal,
+                        proteina_g: payload.proteina_g,
+                        carbohidratos_g: payload.carbohidratos_g,
+                        grasa_g: payload.grasa_g,
+                        fibra_g: payload.fibra_g,
+                        multiplier: 1.0
+                    };
+
+                    if (assignToSlot && activeTargetDay && activeTargetSlot) {
+                        currentWeekState[activeTargetDay][activeTargetSlot] = savedRecipe;
+                        renderWeekGrid();
+                        showToast(`¡Receta guardada y asignada a ${activeTargetDay} (${activeTargetSlot.replace('_', ' ')})!`);
+                    } else {
+                        alert(id ? "¡Receta actualizada con éxito!" : "¡Nueva receta creada y guardada en el catálogo maestro!");
+                    }
+
                     closeRecipeEditModal();
                     loadRecipesCatalog();
                 } else {
@@ -2820,20 +3313,127 @@
         }
 
         function switchTrainingTab(tab) {
-            if (tab === 'upload') {
-                document.getElementById('train-tab-upload').classList.remove('hidden');
-                document.getElementById('train-tab-manual').classList.add('hidden');
-                document.getElementById('train-tab-btn-upload').style.color = '#EA580C';
-                document.getElementById('train-tab-btn-upload').style.borderBottomColor = '#EA580C';
-                document.getElementById('train-tab-btn-manual').style.color = '#64748B';
-                document.getElementById('train-tab-btn-manual').style.borderBottomColor = 'transparent';
-            } else {
-                document.getElementById('train-tab-upload').classList.add('hidden');
-                document.getElementById('train-tab-manual').classList.remove('hidden');
-                document.getElementById('train-tab-btn-manual').style.color = '#059669';
-                document.getElementById('train-tab-btn-manual').style.borderBottomColor = '#059669';
-                document.getElementById('train-tab-btn-upload').style.color = '#64748B';
-                document.getElementById('train-tab-btn-upload').style.borderBottomColor = 'transparent';
+            const tabs = ['drive', 'upload', 'manual'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`train-tab-${t}`);
+                const btn = document.getElementById(`train-tab-btn-${t}`);
+                if (el) {
+                    if (t === tab) el.classList.remove('hidden');
+                    else el.classList.add('hidden');
+                }
+                if (btn) {
+                    if (t === tab) {
+                        btn.style.color = '#EA580C';
+                        btn.style.borderBottomColor = '#EA580C';
+                    } else {
+                        btn.style.color = '#64748B';
+                        btn.style.borderBottomColor = 'transparent';
+                    }
+                }
+            });
+        }
+
+        async function openAthleteDriveTrainingModal() {
+            const clientName = document.getElementById('p-client-name').value.trim();
+            if (!clientName) {
+                alert("Por favor, selecciona primero un deportista.");
+                return;
+            }
+            const labelEl = document.getElementById('train-drive-client-label');
+            if (labelEl) labelEl.innerText = clientName;
+            openTrainingModal();
+            switchTrainingTab('drive');
+            await refreshAthleteTrainingFiles();
+        }
+
+        async function refreshAthleteTrainingFiles() {
+            const clientName = document.getElementById('p-client-name').value.trim();
+            const container = document.getElementById('train-drive-files-container');
+            if (!container) return;
+
+            container.innerHTML = '<p style="color:#0284C7; font-size:12px;">⏳ Buscando cuadrantes y documentos en Google Drive...</p>';
+
+            try {
+                const res = await fetch(`/api/diet/athlete-training-files?name=${encodeURIComponent(clientName)}`);
+                const data = await res.json();
+                const files = data.files || [];
+
+                if (files.length === 0) {
+                    container.innerHTML = `
+                        <div style="border:1px dashed #CBD5E1; border-radius:8px; padding:18px; text-align:center; background:#FAFAFA;">
+                            <span style="font-size:24px;">📁</span>
+                            <div style="color:#64748B; font-size:12px; margin-top:4px;">No se encontraron archivos de entrenamiento (.xlsx, .csv, .ods) en la carpeta de Drive de <strong>${clientName}</strong>.</div>
+                            <div style="margin-top:10px;">
+                                <button type="button" onclick="switchTrainingTab('upload')" class="btn-anyd" style="background:#EA580C; font-size:11px; padding:5px 12px;">
+                                    Subir archivo desde el equipo
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${files.map(f => `
+                            <div style="background:#FFFFFF; border:1.5px solid ${f.is_cuadrante ? '#EA580C' : '#E2E8F0'}; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                                <div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="font-size:16px;">📊</span>
+                                        <strong style="color:#0F172A; font-size:12.5px;">${f.filename}</strong>
+                                        ${f.is_cuadrante ? '<span class="chip-badge" style="background:#FFEDD5; color:#9A3412; font-size:9.5px;">⭐ Cuadrante ANyD</span>' : ''}
+                                    </div>
+                                    <div style="font-size:11px; color:#64748B; margin-top:2px;">
+                                        Modificado: <b>${f.modified}</b> · Tamaño: <b>${f.size_kb} KB</b>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="loadDriveTrainingFile('${f.full_path.replace(/\\/g, '\\\\')}')" class="btn-anyd btn-success" style="font-size:11.5px; padding:7px 14px; white-space:nowrap;">
+                                    📥 Cargar Cuadrante (ACSM)
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (err) {
+                container.innerHTML = `<p style="color:#DC2626; font-size:12px;">Error buscando archivos: ${err.message}</p>`;
+            }
+        }
+
+        async function loadDriveTrainingFile(filePath) {
+            const clientName = document.getElementById('p-client-name').value.trim();
+            const weight = parseFloat(document.getElementById('p-weight').value) || 75.0;
+
+            const container = document.getElementById('train-drive-files-container');
+            if (container) {
+                container.innerHTML = '<p style="color:#0284C7; font-size:13px; font-weight:700;">⏳ Analizando cuadrante y mapeando con el Compendio de Actividad Física ACSM...</p>';
+            }
+
+            try {
+                const res = await fetch('/api/diet/load-athlete-training-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: filePath, weight_kg: weight })
+                });
+                const data = await res.json();
+
+                if (data.success && data.workouts_by_day) {
+                    let count = 0;
+                    DAYS.forEach(day => {
+                        if (data.workouts_by_day[day]) {
+                            currentWeekState[day].workouts = data.workouts_by_day[day];
+                            count += data.workouts_by_day[day].length;
+                        }
+                    });
+                    renderWeekGrid();
+                    closeTrainingModal();
+                    alert(`✓ ¡Éxito!\n\nSe han cargado ${count} sesiones de entrenamiento desde '${data.filename}'.\n\nTodas las disciplinas han sido relacionadas con la evidencia oficial ACSM (METs, pre-entreno, intra-entreno, post-entreno y reposición de agua y electrolitos).`);
+                } else {
+                    alert("Error cargando documento: " + (data.error || "Formato no compatible"));
+                    await refreshAthleteTrainingFiles();
+                }
+            } catch (err) {
+                alert("Error de conexión: " + err.message);
+                await refreshAthleteTrainingFiles();
             }
         }
 
@@ -2939,9 +3539,48 @@
 
             const n = w.nutrition || {};
             const d = w.digestibility || {};
+            const acsm = w.acsm_data;
+
+            const acsmCard = acsm ? `
+                <div style="background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color:white; border-radius:10px; padding:14px 18px; margin-bottom:16px; box-shadow:0 4px 12px rgba(15,23,42,0.15);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:10px;">
+                        <div>
+                            <span style="font-size:10.5px; font-weight:800; color:#38BDF8; text-transform:uppercase; letter-spacing:0.5px;">🏛️ Compendio ACSM (American College of Sports Medicine)</span>
+                            <div style="font-family:'Montserrat', sans-serif; font-size:14px; font-weight:800; color:#FFFFFF; margin-top:2px;">
+                                ${acsm.acsm_code}: ${acsm.name_es}
+                            </div>
+                        </div>
+                        <span class="chip-badge" style="background:#0284C7; color:white; font-size:11px; padding:4px 10px;">METs: ${acsm.mets}</span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; font-size:12px;">
+                        <div>
+                            <span style="color:#94A3B8; font-size:10.5px; display:block;">Gasto Estimado:</span>
+                            <strong style="color:#38BDF8; font-size:16px;">${acsm.energy_kcal} kcal</strong>
+                        </div>
+                        <div>
+                            <span style="color:#94A3B8; font-size:10.5px; display:block;">Ingesta Diaria ACSM:</span>
+                            <strong style="color:#A7F3D0; font-size:12.5px;">${acsm.daily_cho_target}</strong>
+                        </div>
+                        <div>
+                            <span style="color:#94A3B8; font-size:10.5px; display:block;">Sodio Recomendado:</span>
+                            <strong style="color:#FDE68A; font-size:12.5px;">${acsm.electrolyte_recommendations ? acsm.electrolyte_recommendations.sodium_concentration : '500-800 mg/L'}</strong>
+                        </div>
+                        <div>
+                            <span style="color:#94A3B8; font-size:10.5px; display:block;">Tasa Sudoración:</span>
+                            <strong style="color:#BAE6FD; font-size:12.5px;">~${acsm.electrolyte_recommendations ? acsm.electrolyte_recommendations.sweat_rate_est : '600-900 ml/h'}</strong>
+                        </div>
+                    </div>
+
+                    <div style="font-size:11px; color:#94A3B8; margin-top:10px; font-style:italic;">
+                        📚 Evidencia: ${acsm.evidence}
+                    </div>
+                </div>
+            ` : '';
 
             const body = document.getElementById('peri-modal-body');
             body.innerHTML = `
+                ${acsmCard}
                 <!-- RESUMEN EN CIFRAS -->
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:16px;">
                     <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:10px; text-align:center;">

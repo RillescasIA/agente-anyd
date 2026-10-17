@@ -5,6 +5,8 @@ import random
 import io
 import csv
 from datetime import datetime, timedelta, time
+import re
+import unicodedata
 from typing import Optional, List, Dict, Any
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -783,6 +785,338 @@ def generate_shopping_list(week_data: Dict[str, Any]) -> Dict[str, Any]:
 # --- (EVIDENCIA CIENTÍFICA ACSM, IOC, ISSN, AIS GRUPO A) ---
 # ============================================================
 
+ACSM_ACTIVITIES = [
+    {
+        "code": "ACSM-12020",
+        "category": "Carrera / Atletismo",
+        "name_es": "Carrera en Pista / Series / Intervalos Alta Intensidad (VO2max)",
+        "acsm_name": "Running, track, interval training (Z4-Z5, VO2max)",
+        "mets": 11.5,
+        "intensity_level": "Muy Alta",
+        "keywords": ["pista", "series", "interval", "intervalos", "farlek", "fartlek", "1000m", "400m", "200m", "atletismo", "vo2max", "velocidad", "vma"],
+        "cho_target_g_kg": 1.3,
+        "intra_cho_g_h": 60,
+        "intra_fluid_ml_h": 650,
+        "intra_sodium_mg_h": 550,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.2,
+        "post_pro_g_kg": 0.35,
+        "evidence": "ACSM / IOC Consensus on Carbohydrate Intake for High-Intensity Exercise"
+    },
+    {
+        "code": "ACSM-12050",
+        "category": "Carrera / Atletismo",
+        "name_es": "Rodaje Ritmo Medio / Carrera Continua (Z2-Z3)",
+        "acsm_name": "Running, 6 mph (10 min/mile) / moderate endurance",
+        "mets": 9.8,
+        "intensity_level": "Mod-Alta",
+        "keywords": ["rodaje", "ritmo medio", "carrera continua", "tirada", "tempo", "fondo", "aerobico", "running", "correr"],
+        "cho_target_g_kg": 1.1,
+        "intra_cho_g_h": 45,
+        "intra_fluid_ml_h": 550,
+        "intra_sodium_mg_h": 450,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.0,
+        "post_pro_g_kg": 0.3,
+        "evidence": "ACSM Position Stand: Nutrition and Athletic Performance (Endurance)"
+    },
+    {
+        "code": "ACSM-12030",
+        "category": "Carrera / Atletismo",
+        "name_es": "Rodaje Suave / Regenerativo / Z1",
+        "acsm_name": "Running, 5 mph (12 min/mile) / active recovery",
+        "mets": 7.0,
+        "intensity_level": "Baja",
+        "keywords": ["rodaje suave", "regenerativo", "recuperacion", "suave", "trote", "z1"],
+        "cho_target_g_kg": 0.8,
+        "intra_cho_g_h": 0,
+        "intra_fluid_ml_h": 350,
+        "intra_sodium_mg_h": 200,
+        "post_ratio": "2:1",
+        "post_cho_g_kg": 0.8,
+        "post_pro_g_kg": 0.25,
+        "evidence": "ACSM Exercise and Fluid Replacement Guidelines"
+    },
+    {
+        "code": "ACSM-12150",
+        "category": "Carrera de Montaña",
+        "name_es": "Trail Running / Carrera por Montaña con Desnivel",
+        "acsm_name": "Trail running, uphill/downhill terrain with elevation gain",
+        "mets": 11.0,
+        "intensity_level": "Alta",
+        "keywords": ["trail", "montana", "montaña", "desnivel", "senderismo rapido", "ultra trail"],
+        "cho_target_g_kg": 1.3,
+        "intra_cho_g_h": 60,
+        "intra_fluid_ml_h": 700,
+        "intra_sodium_mg_h": 600,
+        "post_ratio": "4:1",
+        "post_cho_g_kg": 1.2,
+        "post_pro_g_kg": 0.35,
+        "evidence": "ACSM / International Society of Sports Nutrition (ISSN) Mountain Sports"
+    },
+    {
+        "code": "ACSM-02020",
+        "category": "Ciclismo",
+        "name_es": "Ciclismo Carretera / Tirada Larga / Puertos (Z3-Z4)",
+        "acsm_name": "Bicycling, 16-19 mph, racing or vigorous effort",
+        "mets": 10.0,
+        "intensity_level": "Alta",
+        "keywords": ["bici", "ciclismo", "carretera", "puertos", "tirada larga bici", "bike", "fondo carretera"],
+        "cho_target_g_kg": 1.2,
+        "intra_cho_g_h": 60,
+        "intra_fluid_ml_h": 650,
+        "intra_sodium_mg_h": 500,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.1,
+        "post_pro_g_kg": 0.3,
+        "evidence": "ACSM Guidelines for Prolonged Cycling and Glycogen Resynthesis"
+    },
+    {
+        "code": "ACSM-02030",
+        "category": "Ciclismo",
+        "name_es": "Mountain Bike / BTT / Ciclismo de Montaña",
+        "acsm_name": "Bicycling, mountain, all-terrain vigorous",
+        "mets": 8.5,
+        "intensity_level": "Mod-Alta",
+        "keywords": ["btt", "mountain bike", "mtb", "bici montana", "bici montaña", "gravel"],
+        "cho_target_g_kg": 1.1,
+        "intra_cho_g_h": 50,
+        "intra_fluid_ml_h": 600,
+        "intra_sodium_mg_h": 450,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.0,
+        "post_pro_g_kg": 0.3,
+        "evidence": "ACSM Compendium & Endurance Hydration Protocol"
+    },
+    {
+        "code": "ACSM-02050",
+        "category": "Ciclismo",
+        "name_es": "Ciclismo Rodillo / Bici Estática / Spinning",
+        "acsm_name": "Bicycling, stationary, moderate to vigorous effort",
+        "mets": 7.5,
+        "intensity_level": "Moderada",
+        "keywords": ["rodillo", "spinning", "ciclo indoor", "estatica", "bici estatica", "zwift"],
+        "cho_target_g_kg": 1.0,
+        "intra_cho_g_h": 40,
+        "intra_fluid_ml_h": 650,
+        "intra_sodium_mg_h": 500,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.0,
+        "post_pro_g_kg": 0.3,
+        "evidence": "ACSM Indoor High Sweat Rate Hydration Protocols"
+    },
+    {
+        "code": "ACSM-18300",
+        "category": "Natación",
+        "name_es": "Natación Crol / Series en Piscina / Intensa",
+        "acsm_name": "Swimming laps, freestyle, vigorous effort",
+        "mets": 9.8,
+        "intensity_level": "Alta",
+        "keywords": ["natacion", "natación", "nadar", "piscina", "crol", "series natacion", "estilos", "aguas abiertas"],
+        "cho_target_g_kg": 1.2,
+        "intra_cho_g_h": 45,
+        "intra_fluid_ml_h": 450,
+        "intra_sodium_mg_h": 350,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.1,
+        "post_pro_g_kg": 0.35,
+        "evidence": "ACSM Aquatic Exercise Metabolic Guidelines"
+    },
+    {
+        "code": "ACSM-02052",
+        "category": "Fuerza / Musculación",
+        "name_es": "Entrenamiento de Fuerza / Hipertrofia / Sobrecarga",
+        "acsm_name": "Resistance training, multiple sets, bodybuilding/hypertrophy (RPE 7-9)",
+        "mets": 6.0,
+        "intensity_level": "Alta",
+        "keywords": ["fuerza", "hipertrofia", "musculacion", "musculación", "gimnasio", "pesas", "torso", "pierna", "empuje", "traccion", "sentadilla", "banca"],
+        "cho_target_g_kg": 1.0,
+        "intra_cho_g_h": 25,
+        "intra_fluid_ml_h": 450,
+        "intra_sodium_mg_h": 300,
+        "post_ratio": "2:1",
+        "post_cho_g_kg": 0.8,
+        "post_pro_g_kg": 0.4,
+        "evidence": "ACSM / ISSN Position Stand: Nutrient Timing and Muscle Protein Synthesis"
+    },
+    {
+        "code": "ACSM-02060",
+        "category": "Táctico / Oposiciones",
+        "name_es": "Entreno Academia / Pruebas Físicas Bomberos / Cuerdas, Torres y Lastre",
+        "acsm_name": "Tactical firefighter/police agility training, rope climbs, tower carries, loaded agility",
+        "mets": 8.5,
+        "intensity_level": "Muy Alta",
+        "keywords": ["academia", "bombero", "bomberos", "cuerda", "cuerdas", "torres", "lastre", "oposicion", "oposición", "tactico", "táctico", "habilidades funcionales"],
+        "cho_target_g_kg": 1.3,
+        "intra_cho_g_h": 50,
+        "intra_fluid_ml_h": 600,
+        "intra_sodium_mg_h": 500,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.1,
+        "post_pro_g_kg": 0.38,
+        "evidence": "ACSM Tactical Athlete Nutrition and High Heat Tolerance Standards"
+    },
+    {
+        "code": "ACSM-02065",
+        "category": "CrossFit / Funcional",
+        "name_es": "CrossFit / HYROX / Circuit Training de Alta Intensidad",
+        "acsm_name": "High-intensity functional fitness, WOD, metabolic conditioning",
+        "mets": 10.5,
+        "intensity_level": "Muy Alta",
+        "keywords": ["crossfit", "hyrox", "wod", "metcon", "amrap", "emom", "catedral", "funcional"],
+        "cho_target_g_kg": 1.3,
+        "intra_cho_g_h": 50,
+        "intra_fluid_ml_h": 650,
+        "intra_sodium_mg_h": 550,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.1,
+        "post_pro_g_kg": 0.35,
+        "evidence": "ACSM Metabolic Conditioning and Acidosis Buffering Recommendations"
+    },
+    {
+        "code": "ACSM-15150",
+        "category": "Combate / Artes Marciales",
+        "name_es": "Taekwondo / Boxeo / Sparring / Deportes de Contacto",
+        "acsm_name": "Combat sports, taekwondo, boxing sparring, martial arts vigorous",
+        "mets": 10.0,
+        "intensity_level": "Muy Alta",
+        "keywords": ["tkd", "taekwondo", "boxeo", "sparring", "combate", "artes marciales", "judo", "bjj", "mma", "lucha"],
+        "cho_target_g_kg": 1.3,
+        "intra_cho_g_h": 40,
+        "intra_fluid_ml_h": 600,
+        "intra_sodium_mg_h": 500,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.1,
+        "post_pro_g_kg": 0.35,
+        "evidence": "ACSM / IOC Combat Sports Nutrition and Rapid Recovery"
+    },
+    {
+        "code": "ACSM-15610",
+        "category": "Deportes de Equipo",
+        "name_es": "Fútbol / Partido / Competición Intermitente",
+        "acsm_name": "Soccer, competitive match, intermittent sprinting",
+        "mets": 9.0,
+        "intensity_level": "Alta",
+        "keywords": ["futbol", "fútbol", "partido futbol", "soccer", "futbol sala", "partido"],
+        "cho_target_g_kg": 1.2,
+        "intra_cho_g_h": 45,
+        "intra_fluid_ml_h": 600,
+        "intra_sodium_mg_h": 450,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.1,
+        "post_pro_g_kg": 0.32,
+        "evidence": "FIFA / ACSM Nutrition for Football Consensus"
+    },
+    {
+        "code": "ACSM-15700",
+        "category": "Raqueta",
+        "name_es": "Pádel / Tenis / Deporte de Raqueta",
+        "acsm_name": "Tennis / Padel, moderate to vigorous match play",
+        "mets": 7.3,
+        "intensity_level": "Moderada",
+        "keywords": ["padel", "pádel", "tenis", "fronton", "squash"],
+        "cho_target_g_kg": 1.0,
+        "intra_cho_g_h": 35,
+        "intra_fluid_ml_h": 550,
+        "intra_sodium_mg_h": 400,
+        "post_ratio": "3:1",
+        "post_cho_g_kg": 1.0,
+        "post_pro_g_kg": 0.3,
+        "evidence": "ACSM Racket Sports Energy Expenditure and Hydration"
+    },
+    {
+        "code": "ACSM-02070",
+        "category": "Recuperación",
+        "name_es": "Movilidad Articular / Estiramientos / Recuperación Activa",
+        "acsm_name": "Stretching, hatha yoga, mobility, light active recovery",
+        "mets": 2.8,
+        "intensity_level": "Baja",
+        "keywords": ["movilidad", "estiramientos", "foam roller", "recuperacion activa", "yoga", "pilates"],
+        "cho_target_g_kg": 0.7,
+        "intra_cho_g_h": 0,
+        "intra_fluid_ml_h": 300,
+        "intra_sodium_mg_h": 150,
+        "post_ratio": "1:1",
+        "post_cho_g_kg": 0.6,
+        "post_pro_g_kg": 0.25,
+        "evidence": "ACSM Physical Activity Guidelines for Rest Days"
+    }
+]
+
+def clean_text_simple(t: str) -> str:
+    if not t:
+        return ""
+    nfkd = unicodedata.normalize('NFD', t.lower())
+    clean = ''.join(c for c in nfkd if unicodedata.category(c) != 'Mn')
+    return re.sub(r'[^a-z0-9\s]', ' ', clean).strip()
+
+def match_acsm_activity(sport_text: str, intensity_raw: Any = None, duration_min: int = 60, weight_kg: float = 75.0) -> Dict[str, Any]:
+    norm = clean_text_simple(sport_text)
+    best_entry = None
+    best_score = -1
+
+    borg = None
+    try:
+        if intensity_raw is not None:
+            borg = float(str(intensity_raw).replace(',', '.'))
+    except Exception:
+        pass
+
+    for entry in ACSM_ACTIVITIES:
+        score = 0
+        for kw in entry["keywords"]:
+            clean_kw = clean_text_simple(kw)
+            if clean_kw in norm:
+                score += len(clean_kw) * 2
+                if norm.startswith(clean_kw) or clean_kw in norm.split():
+                    score += 5
+
+        if borg is not None:
+            if borg >= 8 and entry["intensity_level"] in ["Alta", "Muy Alta"]:
+                score += 3
+            elif 5 <= borg < 8 and entry["intensity_level"] in ["Moderada", "Mod-Alta"]:
+                score += 3
+            elif borg < 5 and entry["intensity_level"] == "Baja":
+                score += 3
+
+        if score > best_score:
+            best_score = score
+            best_entry = entry
+
+    if not best_entry or best_score <= 0:
+        if any(w in norm for w in ["fuerza", "pesas", "gym", "muscul", "hipertrofia"]):
+            best_entry = ACSM_ACTIVITIES[8]
+        else:
+            best_entry = ACSM_ACTIVITIES[1]
+
+    mets = best_entry["mets"]
+    kcal = round((mets * 3.5 * weight_kg * duration_min) / 200.0)
+
+    return {
+        "acsm_code": best_entry["code"],
+        "acsm_category": best_entry["category"],
+        "acsm_name": best_entry["acsm_name"],
+        "name_es": best_entry["name_es"],
+        "mets": mets,
+        "energy_kcal": kcal,
+        "intensity_level": best_entry["intensity_level"],
+        "evidence": best_entry["evidence"],
+        "daily_cho_target": f"{best_entry['cho_target_g_kg'] * 5:.0f} - {best_entry['cho_target_g_kg'] * 7:.0f} g/kg/día",
+        "pre_cho_g_kg": best_entry["cho_target_g_kg"],
+        "intra_cho_g_h": best_entry["intra_cho_g_h"],
+        "intra_fluid_ml_h": best_entry["intra_fluid_ml_h"],
+        "intra_sodium_mg_h": best_entry["intra_sodium_mg_h"],
+        "post_ratio": best_entry["post_ratio"],
+        "post_cho_g_kg": best_entry["post_cho_g_kg"],
+        "post_pro_g_kg": best_entry["post_pro_g_kg"],
+        "electrolyte_recommendations": {
+            "sodium_concentration": "500 - 800 mg Na+/L",
+            "sweat_rate_est": f"{round(best_entry['intra_fluid_ml_h'] * 1.2)} ml/h",
+            "hydration_protocol": "150-200 ml cada 15-20 min con electrolitos hipotónicos/isotónicos",
+            "post_rehydration": "150% del peso corporal perdido en las 2-4h posteriores con sodio"
+        }
+    }
+
 def compute_peri_workout_guidelines(
     sport: str,
     duration_min: int,
@@ -808,83 +1142,48 @@ def compute_peri_workout_guidelines(
     end_time = end_dt.strftime("%H:%M")
     clean_start_time = start_dt.strftime("%H:%M")
 
-    # Ventanas horarias clave
     pre_window_start = (start_dt - timedelta(hours=3)).strftime("%H:%M")
     pre_window_end = (start_dt - timedelta(hours=2)).strftime("%H:%M")
     pre_immediate_time = (start_dt - timedelta(minutes=45)).strftime("%H:%M")
     post_recovery_end = (end_dt + timedelta(hours=2)).strftime("%H:%M")
 
-    # 2. Normalizar intensidad y colores ANyD
-    t_int = (intensity or "").lower()
-    t_sport = (sport or "").lower()
+    # Mapeo oficial con el Compendio de Actividad Física ACSM
+    acsm = match_acsm_activity(sport, intensity, duration_min, weight_kg)
+    level = acsm["intensity_level"]
 
-    if any(w in t_int for w in ["muy alta", "vo2max", "z5", "umbral anaer", "rpe 9", "rpe 10", "máxima", "acidosis", "series"]) or any(w in t_sport for w in ["series", "crossfit", "hyrox", "combate", "sparring"]):
-        level = "Muy Alta"
+    if level == "Muy Alta":
         theme = {"border": "#ef4444", "bg": "#fff5f5", "text": "#991b1b", "badge_bg": "#fee2e2", "badge_text": "#b91c1c"}
-    elif any(w in t_int for w in ["alta", "z4", "rpe 8", "tempo", "sweetspot", "fuerza"]) or any(w in t_sport for w in ["fuerza", "hipertrofia", "powerlifting", "halterofilia", "partido"]):
-        level = "Alta"
+    elif level == "Alta":
         theme = {"border": "#f97316", "bg": "#fff7ed", "text": "#9a3412", "badge_bg": "#ffedd5", "badge_text": "#c2410c"}
-    elif any(w in t_int for w in ["mod-alta", "moderada-alta", "z3", "rpe 7"]):
-        level = "Mod-Alta"
+    elif level == "Mod-Alta":
         theme = {"border": "#f59e0b", "bg": "#fffbeb", "text": "#92400e", "badge_bg": "#fef3c7", "badge_text": "#b45309"}
-    elif any(w in t_int for w in ["baja", "z1", "recuperación", "suave", "rpe 3", "rpe 4", "movilidad"]):
-        level = "Baja"
+    elif level == "Baja":
         theme = {"border": "#10b981", "bg": "#ecfdf5", "text": "#065f46", "badge_bg": "#d1fae5", "badge_text": "#047857"}
     else:
-        level = "Moderada"
         theme = {"border": "#0284c7", "bg": "#f0f9ff", "text": "#075985", "badge_bg": "#e0f2fe", "badge_text": "#0369a1"}
 
-    # 3. Fisiología y Nutrición Pre-Entreno (2 a 3 horas antes)
-    if level in ["Muy Alta", "Alta"]:
-        pre_carbs_factor = 1.3
-    elif level == "Mod-Alta":
-        pre_carbs_factor = 1.1
-    elif level == "Moderada":
-        pre_carbs_factor = 1.0
-    else:
-        pre_carbs_factor = 0.8
-
-    pre_carbs_g = round(weight_kg * pre_carbs_factor)
-    pre_water_ml = round(weight_kg * 6.0) # 5 a 7 ml/kg ACSM
+    pre_carbs_g = round(weight_kg * acsm["pre_cho_g_kg"])
+    pre_water_ml = round(weight_kg * 6.0)
     pre_sodium_mg = 400 if level in ["Muy Alta", "Alta", "Mod-Alta"] else 300
 
-    # 4. Fisiología y Nutrición Pre-Inmediato (30-45 min antes)
     pre_imm_carbs_g = 25 if duration_min >= 45 else 15
     pre_imm_water_ml = 150
 
-    # 5. Fisiología Intra-Entreno (Fluidos, Electrolitos y Carbohidratos)
+    intra_carbs_h = acsm["intra_cho_g_h"]
+    intra_fluid_ml_h = acsm["intra_fluid_ml_h"]
+    intra_sodium_mg_h = acsm["intra_sodium_mg_h"]
     if duration_min < 45:
-        intra_carbs_h = 0
-        intra_fluid_ml_h = 250
-        intra_sodium_mg_h = 0
-        intra_format = "Agua sola a demanda (no requiere carbohidratos)"
-    elif 45 <= duration_min <= 75:
-        if level in ["Muy Alta", "Alta"]:
-            intra_carbs_h = 25
-            intra_fluid_ml_h = 450
-            intra_sodium_mg_h = 350
-            intra_format = "Bebida isotónica ligera o enjuague bucal con CHO"
-        else:
-            intra_carbs_h = 0
-            intra_fluid_ml_h = 350
-            intra_sodium_mg_h = 200
-            intra_format = "Agua a sorbos con pizca de sales minerales"
-    elif 75 < duration_min <= 150:
-        intra_carbs_h = 45 if level in ["Moderada", "Mod-Alta"] else 60
-        intra_fluid_ml_h = 600
-        intra_sodium_mg_h = 500
-        intra_format = "Geles energéticos AIS Grupo A con agua o isotónico (ratio glucosa:fructosa 2:1)"
-    else: # > 150 min (ultrafondo)
-        intra_carbs_h = 75
-        intra_fluid_ml_h = 750
-        intra_sodium_mg_h = 700
-        intra_format = "Mezcla múltiple transportador (Maltodextrina + Fructosa 1:0.8 / 2:1) + barritas blandas + sales"
+        intra_format = "Agua sola a demanda (no requiere carbohidratos intra-sesión)"
+    elif duration_min <= 75:
+        intra_format = "Bebida hipotónica/isotónica ligera (6-8% CHO) o agua con sales"
+    elif duration_min <= 150:
+        intra_format = "Geles energéticos AIS Grupo A con agua (ratio glucosa:fructosa 2:1) + sales minerales"
+    else:
+        intra_format = "Maltodextrina + Fructosa (ratio 1:0.8 o 2:1) hasta 90g/h + sales (500-700mg Na+/h)"
 
-    # 6. Fisiología Post-Entreno (Ventana de Recuperación y Resíntesis)
-    post_protein_g = round(weight_kg * 0.35) # 0.3 - 0.4 g/kg ISSN
-    post_carbs_g = round(weight_kg * 1.1)    # 1.0 - 1.2 g/kg ACSM
+    post_protein_g = round(weight_kg * acsm["post_pro_g_kg"])
+    post_carbs_g = round(weight_kg * acsm["post_cho_g_kg"])
 
-    # 7. Reglas Clínicas de Digestibilidad ANyD
     digestibility_protocol = {
         "pre_window_timing": f"{pre_window_start} - {pre_window_end}",
         "pre_immediate_timing": f"{pre_immediate_time} - {clean_start_time}",
@@ -898,7 +1197,7 @@ def compute_peri_workout_guidelines(
         "intra_digestibility_rules": [
             "Temperatura del líquido: fresca (12-15°C) para favorecer la motilidad gástrica y palatabilidad.",
             "Pauta de ingesta: pequeños sorbos regulares (120-150 ml cada 15-20 minutos), nunca tragos copiosos.",
-            "Osmolaridad controlada: disoluciones isotónicas al 6-8% para evitar arrastre osmótico de agua a la luz intestinal."
+            "Osmolaridad controlada: disoluciones hipotónicas/isotónicas (6-8%) para evitar arrastre osmótico de agua a la luz intestinal."
         ],
         "post_digestibility_rules": [
             "Isquemia esplácnica temporal: si la sesión fue extenuante (series de carrera, calor o FC >165 ppm), iniciar con batido de recuperación líquido/semisólido en los primeros 20-30 min.",
@@ -914,6 +1213,7 @@ def compute_peri_workout_guidelines(
         "theme": theme,
         "start_time": clean_start_time,
         "end_time": end_time,
+        "acsm_data": acsm,
         "pre_window": f"{pre_window_start} - {pre_window_end}",
         "pre_immediate": pre_immediate_time,
         "post_window": f"{end_time} - {post_recovery_end}",
@@ -938,7 +1238,8 @@ def compute_peri_workout_guidelines(
             "post": {
                 "protein_g": post_protein_g,
                 "carbs_g": post_carbs_g,
-                "rehydration_note": "125-150% del peso corporal perdido en sudor con electrolitos",
+                "ratio": acsm["post_ratio"],
+                "rehydration_note": "125-150% del peso corporal perdido en sudor con electrolitos (ACSM)",
                 "recommended_foods": "Batido proteína aislada (Whey/Soja) + plátano maduro / Pechuga de pollo con patata asada"
             }
         },
@@ -946,11 +1247,130 @@ def compute_peri_workout_guidelines(
         "notes": notes
     }
 
+def parse_time_slot_string(val: str) -> tuple:
+    s = str(val or '').strip().lower()
+    m = re.search(r'(\d{1,2}):(\d{2})\s*(am|pm)?\s*(?:a|-)\s*(\d{1,2}):(\d{2})\s*(am|pm)?', s)
+    if m:
+        h1, m1, p1, h2, m2, p2 = m.groups()
+        h1, m1, h2, m2 = int(h1), int(m1), int(h2), int(m2)
+        p1 = p1 or p2
+        p2 = p2 or p1
+        if p1 == 'pm' and h1 < 12: h1 += 12
+        if p1 == 'am' and h1 == 12: h1 = 0
+        if p2 == 'pm' and h2 < 12: h2 += 12
+        if p2 == 'am' and h2 == 12: h2 = 0
+        if h1 == 11 and h2 == 0: h2 = 12
+        if h1 == 0 and h2 == 13: h1 = 12
+        dur = (h2 * 60 + m2) - (h1 * 60 + m1)
+        if dur <= 0: dur = 60
+        return f"{h1:02d}:{m1:02d}", f"{h2:02d}:{m2:02d}", dur
+    return "18:00", "19:00", 60
+
+def parse_cuadrante_anyd_grid(ws, weight_kg: float = 75.0) -> Dict[str, Any]:
+    DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    header_row = -1
+    day_cols = {}
+
+    for r in range(1, 25):
+        for c in range(1, 20):
+            val = str(ws.cell(row=r, column=c).value or '').strip().lower()
+            if 'lunes' in val:
+                header_row = r
+                break
+        if header_row != -1:
+            break
+
+    if header_row == -1:
+        return None
+
+    for c in range(1, 30):
+        val = str(ws.cell(row=header_row, column=c).value or '').strip().lower()
+        for d in DAYS:
+            if d.lower() in val and d not in day_cols:
+                day_cols[d] = c
+                break
+
+    if not day_cols:
+        return None
+
+    raw_by_day = {d: [] for d in DAYS}
+
+    for r in range(header_row + 1, header_row + 25):
+        t_val = str(ws.cell(row=r, column=2).value or '').strip()
+        if not t_val or 'volumen' in t_val.lower() or 'semana 2' in t_val.lower():
+            if 'semana 2' in t_val.lower() or 'volumen' in t_val.lower():
+                break
+            continue
+
+        st, et, dur = parse_time_slot_string(t_val)
+
+        for d, c in day_cols.items():
+            act = str(ws.cell(row=r, column=c).value or '').strip()
+            intensity = ws.cell(row=r, column=c + 1).value
+            if act and act.lower() not in ['none', '']:
+                m_dur = re.search(r'(\d{2,3})\s*(?:min|m)', act.lower())
+                final_dur = int(m_dur.group(1)) if m_dur else dur
+                clean_act = act.replace('\n', ' ').strip()
+                raw_by_day[d].append({
+                    'start': st,
+                    'end': et,
+                    'dur': final_dur,
+                    'act': clean_act,
+                    'intensity': intensity
+                })
+
+    workouts_by_day = {d: [] for d in DAYS}
+    total_count = 0
+
+    for d in DAYS:
+        items = raw_by_day[d]
+        if not items:
+            continue
+
+        merged_items = []
+        i = 0
+        while i < len(items):
+            cur = items[i]
+            if i + 1 < len(items):
+                nxt = items[i + 1]
+                if nxt['start'] == cur['end'] or nxt['start'] == cur['start']:
+                    merged_act = f"{cur['act']} - {nxt['act']}".replace('  ', ' ')
+                    merged_dur = cur['dur'] + nxt['dur']
+                    merged_int = nxt['intensity'] if nxt['intensity'] is not None else cur['intensity']
+                    merged_items.append({
+                        'start': cur['start'],
+                        'dur': merged_dur,
+                        'act': merged_act,
+                        'intensity': merged_int
+                    })
+                    i += 2
+                    continue
+            merged_items.append(cur)
+            i += 1
+
+        for it in merged_items:
+            int_str = f"Borg {it['intensity']}" if it['intensity'] is not None else "Moderada"
+            guidelines = compute_peri_workout_guidelines(
+                sport=it['act'],
+                duration_min=it['dur'],
+                intensity=int_str,
+                weight_kg=weight_kg,
+                start_time=it['start'],
+                notes=f"Cuadrante oficial ANyD (Borg: {it['intensity'] or 'Estándar'})"
+            )
+            workouts_by_day[d].append(guidelines)
+            total_count += 1
+
+    return {
+        "workouts_by_day": workouts_by_day,
+        "total_sessions": total_count,
+        "is_cuadrante_anyd": True
+    }
+
 def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: float = 75.0) -> Dict[str, Any]:
     """
     Parsea hojas de cálculo Excel (.xlsx, .xls) o CSV con el microciclo semanal de entrenamientos.
-    Detecta automáticamente días, horas, disciplinas, duración e intensidad, generando
-    el protocolo científico peri-entreno.
+    Detecta automáticamente si es el Cuadrante Oficial ANyD o una tabla plana.
     """
     DAYS_MAP = {
         "lunes": "Lunes", "lun": "Lunes", "mon": "Lunes", "monday": "Lunes",
@@ -962,12 +1382,15 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
         "domingo": "Domingo", "dom": "Domingo", "sun": "Domingo", "sunday": "Domingo"
     }
 
-    raw_rows = []
-
-    if filename.lower().endswith((".xlsx", ".xlsm", ".xltx")):
+    if filename.lower().endswith((".xlsx", ".xlsm", ".xltx", ".ods")):
         import openpyxl
         wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
         ws = wb.active
+        # 1. Intentar parser de Cuadrante Oficial ANyD
+        cuadrante_res = parse_cuadrante_anyd_grid(ws, weight_kg)
+        if cuadrante_res and cuadrante_res.get("total_sessions", 0) > 0:
+            return cuadrante_res
+
         raw_rows = list(ws.iter_rows(values_only=True))
     else:
         # CSV
@@ -997,7 +1420,7 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
                 sport_col = c_idx
             elif any(k in cell for k in ["duración", "duracion", "tiempo", "minutos", "mins", "duration"]):
                 dur_col = c_idx
-            elif any(k in cell for k in ["intensidad", "rpe", "zona", "intensity", "zone"]):
+            elif any(k in cell for k in ["intensidad", "rpe", "zona", "intensity", "zone", "borg"]):
                 int_col = c_idx
             elif any(k in cell for k in ["notas", "observaciones", "descripcion", "descripción", "notes"]):
                 notes_col = c_idx
@@ -1029,7 +1452,6 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
         if not canonical_day:
             continue
 
-        # Hora
         raw_time = row[time_col] if time_col < len(row) else "18:00"
         clean_time = "18:00"
         if isinstance(raw_time, (datetime, time)):
@@ -1051,10 +1473,8 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
                 except Exception:
                     clean_time = "18:00"
 
-        # Deporte
         sport = str(row[sport_col] or "Entrenamiento Deportivo").strip() if sport_col < len(row) else "Entrenamiento"
 
-        # Duración
         raw_dur = row[dur_col] if dur_col < len(row) else 60
         clean_dur = 60
         if isinstance(raw_dur, (int, float)):
@@ -1071,10 +1491,7 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
                 if digits:
                     clean_dur = int(digits)
 
-        # Intensidad
         intensity = str(row[int_col] or "Moderada").strip() if int_col < len(row) else "Moderada"
-
-        # Notas
         notes = str(row[notes_col] or "").strip() if notes_col != -1 and notes_col < len(row) else ""
 
         guidelines = compute_peri_workout_guidelines(
@@ -1094,7 +1511,117 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
 
     return {
         "workouts_by_day": workouts_by_day,
-        "total_sessions": total_count
+        "total_sessions": total_count,
+        "is_cuadrante_anyd": False
+    }
+
+def get_athlete_training_files_from_drive(client_name: str) -> List[Dict[str, Any]]:
+    import drive_manager
+    folder = drive_manager.find_athlete_folder(client_name)
+    if not folder or not os.path.exists(folder):
+        return []
+
+    results = []
+    for root, dirs, files in os.walk(folder):
+        for f in files:
+            if f.startswith("~$") or f.startswith("."):
+                continue
+            ext = os.path.splitext(f)[1].lower()
+            if ext in ['.xlsx', '.xls', '.csv', '.ods', '.xlsm']:
+                full_path = os.path.join(root, f)
+                stat = os.stat(full_path)
+                mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M")
+                size_kb = round(stat.st_size / 1024, 1)
+
+                f_lower = f.lower()
+                is_cuadrante = any(k in f_lower for k in ['cuadrante', 'entren', 'training', 'plani', 'rutina', 'sesion', 'volum', 'micro'])
+
+                results.append({
+                    "filename": f,
+                    "full_path": full_path,
+                    "rel_path": os.path.relpath(full_path, folder),
+                    "size_kb": size_kb,
+                    "modified": mtime,
+                    "is_cuadrante": is_cuadrante,
+                    "ext": ext
+                })
+
+    results.sort(key=lambda x: (x["is_cuadrante"], x["size_kb"] > 1), reverse=True)
+    return results
+
+def load_training_file_by_path(file_path: str, weight_kg: float = 75.0) -> Dict[str, Any]:
+    if not os.path.exists(file_path):
+        return {"success": False, "error": f"Archivo no encontrado: {file_path}"}
+
+    try:
+        with open(file_path, "rb") as f:
+            content = f.read()
+        res = parse_training_excel_or_csv(content, os.path.basename(file_path), weight_kg)
+        return {"success": True, "filename": os.path.basename(file_path), **res}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def get_athlete_clinical_parameters(client_name: str) -> Dict[str, Any]:
+    conn = get_db()
+    cursor = conn.cursor()
+
+    name_clean = client_name.strip().lower()
+
+    cursor.execute("""
+    SELECT id, firstname, lastname, fullname, email, phone, note FROM clients
+    WHERE LOWER(fullname) LIKE ? OR LOWER(fullname) = ?
+    ORDER BY CASE WHEN LOWER(fullname) = ? THEN 1 ELSE 2 END, id DESC LIMIT 1
+    """, (f"%{name_clean}%", name_clean, name_clean))
+    client = cursor.fetchone()
+
+    c_id = client["id"] if client else None
+    c_fullname = client["fullname"] if client else client_name
+
+    # 1. Medición Tanita más reciente
+    cursor.execute("""
+    SELECT weight, ffm, fat_percent, fat_mass, muscle_mass, water_percent, bone_mass, visceral_fat, bmr_cunningham, measurement_date
+    FROM tanita_measurements
+    WHERE (client_id = ? OR LOWER(client_name) LIKE ?)
+    ORDER BY measurement_date DESC, id DESC LIMIT 1
+    """, (c_id, f"%{name_clean}%"))
+    tanita_row = cursor.fetchone()
+    tanita_data = dict(tanita_row) if tanita_row else None
+
+    # 2. Perfil clínico
+    profile_data = None
+    if c_id:
+        cursor.execute("SELECT * FROM athlete_profiles WHERE client_id = ?", (c_id,))
+        p_row = cursor.fetchone()
+        if p_row:
+            profile_data = dict(p_row)
+            if profile_data.get("birth_date"):
+                try:
+                    b_dt = datetime.strptime(str(profile_data["birth_date"])[:10], "%Y-%m-%d")
+                    profile_data["age"] = int((datetime.now() - b_dt).days / 365.25)
+                except Exception:
+                    profile_data["age"] = None
+
+    # 3. Planes previos
+    cursor.execute("""
+    SELECT id, plan_name, weight, ffm, target_kcal, target_protein_g, created_at
+    FROM diet_plans
+    WHERE (client_id = ? OR LOWER(client_name) LIKE ?)
+    ORDER BY id DESC LIMIT 1
+    """, (c_id, f"%{name_clean}%"))
+    last_plan = cursor.fetchone()
+    last_plan_data = dict(last_plan) if last_plan else None
+
+    conn.close()
+
+    training_files = get_athlete_training_files_from_drive(c_fullname)
+
+    return {
+        "found": bool(client or tanita_data or profile_data or last_plan_data or training_files),
+        "client": dict(client) if client else {"fullname": c_fullname, "email": "", "phone": ""},
+        "tanita": tanita_data,
+        "profile": profile_data,
+        "latest_plan": last_plan_data,
+        "training_files": training_files
     }
 
 def generate_training_excel_template() -> bytes:

@@ -871,101 +871,139 @@
         {% endif %}
     </div>
 
-    <!-- MODAL DETALLE DE CITA AL HACER CLIC EN UN EVENTO -->
+    <!-- MODAL DETALLE DE CITA AL HACER CLIC EN UN EVENTO (DISEÑO PREMIUM CLÍNICO) -->
     <div id="event-detail-modal" class="modal-overlay hidden">
-        <div class="modal-box">
-            <button class="modal-close" onclick="closeEventModal()">&times;</button>
-            <h2 class="modal-title" id="d-client-name">Detalle de la Consulta</h2>
+        <div class="modal-box" style="max-width: 600px; padding: 24px; border-radius: 14px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); border: 1px solid #E2E8F0;">
+            <button class="modal-close" onclick="closeEventModal()" style="top: 18px; right: 20px; font-size: 26px;">&times;</button>
+            
+            <!-- CABECERA CON AVATAR E IDENTIFICACIÓN DEL DEPORTISTA -->
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
+                <div id="d-client-avatar" style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; box-shadow: 0 4px 10px rgba(0, 134, 205, 0.25); flex-shrink: 0;">
+                    👤
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <h2 class="modal-title" id="d-client-name" style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.2;">Detalle de la Consulta</h2>
+                        <span id="d-modality-badge" style="background: #E0F2FE; color: #0369A1; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #BAE6FD;">Presencial</span>
+                        <span style="background: #DEF7EC; color: #03543F; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">⚡ Reservio</span>
+                    </div>
+                    <div style="font-size: 12px; color: #64748B; margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+                        <span>📋 Consulta Registrada en Agenda</span>
+                    </div>
+                </div>
+            </div>
 
-            <div class="details-info-box">
-                <div class="details-row" style="align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600; color: #475569;">Tipo de Consulta:</span>
-                    <select id="d-service-select" class="modal-select" style="max-width: 250px; padding: 4px 8px; font-size: 13px; font-weight: 700; border: 1.5px solid #CBD5E1; border-radius: 6px; color: #1E293B; background: #FFFFFF;" onchange="onModalServiceChange()">
-                        <option value="Anyd Nutrición Deportiva">Anyd Nutrición Deportiva (Presencial)</option>
-                        <option value="Anyd Consulta OnLine">Anyd Consulta OnLine (Videollamada)</option>
-                        <option value="Anyd Nutrición Clínica">Anyd Nutrición Clínica</option>
-                        <option value="CF Catedral Nutrición">CF Catedral Nutrición</option>
-                        <option value="Tracius Nutrición Deportiva">Tracius Nutrición Deportiva</option>
-                        <option value="Sesión informativa">Sesión informativa (15 min)</option>
-                    </select>
-                    <strong id="d-service" style="display:none;">Anyd Nutrición Deportiva</strong>
+            <!-- BARRA DE ACCESO CLÍNICO DIRECTO 1-CLIC -->
+            <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                    <span>⚡ Acceso Clínico Rápido:</span>
                 </div>
-                <div class="details-row" style="align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600; color: #475569;">Modalidad:</span>
-                    <select id="d-modality-select" class="modal-select" style="max-width: 160px; padding: 4px 8px; font-size: 13px; font-weight: 600; border: 1px solid #CBD5E1; border-radius: 6px; color: #1E293B; background: #FFFFFF;">
-                        <option value="Presencial">Presencial</option>
-                        <option value="Online">Online</option>
-                    </select>
-                    <strong id="d-modality" style="display:none;">Presencial</strong>
-                </div>
-                <div class="details-row" style="align-items: center; margin-top: 6px;">
-                    <span style="font-weight: 600; color: #475569;">Fecha:</span>
-                    <input type="date" id="d-date-input" class="modal-input" style="width: 140px; padding: 4px 8px; font-size: 13px;">
-                </div>
-                <div class="details-row" style="align-items: center;">
-                    <span style="font-weight: 600; color: #475569;">Hora:</span>
-                    <input type="time" id="d-time-input" class="modal-input" style="width: 110px; padding: 4px 8px; font-size: 13px;">
-                </div>
-                <!-- CONTROL RÁPIDO DE DURACIÓN (1 CLIC O PERSONALIZADA) -->
-                <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 10px; margin: 10px 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 12px; font-weight: 700; color: #1E293B;">⏱️ Duración de la Sesión:</span>
-                        <span id="d-duration-badge" style="background: #0284C7; color: white; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 10px;">30 min</span>
-                    </div>
-                    <!-- Botonera de 1 clic -->
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
-                        <button type="button" onclick="quickSetDuration(15)" class="btn-duration-chip" id="chip-15">15 min</button>
-                        <button type="button" onclick="quickSetDuration(30)" class="btn-duration-chip active" id="chip-30">30 min (Estándar)</button>
-                        <button type="button" onclick="quickSetDuration(45)" class="btn-duration-chip" id="chip-45">45 min</button>
-                        <button type="button" onclick="quickSetDuration(60)" class="btn-duration-chip" id="chip-60">60 min</button>
-                        <button type="button" onclick="quickSetDuration(90)" class="btn-duration-chip" id="chip-90">90 min</button>
-                    </div>
-                    <!-- Duración personalizada libre -->
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 11px; color: #64748B;">O al tiempo que consideres:</span>
-                        <input type="number" id="d-custom-duration-input" min="5" max="240" step="5" placeholder="min" style="width: 70px; padding: 4px 6px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 12px;">
-                        <button type="button" onclick="applyCustomDuration()" class="btn-anyd" style="padding: 4px 10px; font-size: 11px; background: #0086cd;">Fijar</button>
-                    </div>
-                    <input type="hidden" id="d-duration-select" value="30">
-                </div>
-                <div class="details-row">
-                    <span style="font-weight: 600; color: #475569;">Contacto:</span>
-                    <span id="d-contact">--</span>
-                </div>
-                <div class="details-row" id="d-notes-row">
-                    <span style="font-weight: 600; color: #475569;">Observaciones:</span>
-                    <span id="d-notes" style="font-style: italic;">--</span>
-                </div>
-                <div style="margin-top: 10px; text-align: right;">
-                    <button onclick="saveModalScheduleChanges()" class="btn-anyd" style="padding: 7px 16px; font-size: 12.5px; font-weight: 700; background: #2563EB;">
-                        💾 Guardar cambios de consulta
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" onclick="actionConsulta()" class="btn-anyd" style="padding: 5px 10px; font-size: 11.5px; background: #0086cd; border-color: #0086cd; flex: 1; min-width: 110px;">
+                        🩺 Consulta
                     </button>
+                    <button type="button" onclick="actionDietowin()" class="btn-anyd" style="padding: 5px 10px; font-size: 11.5px; background: #EA580C; border-color: #EA580C; flex: 1.2; min-width: 130px;" title="Diseñar Patrón Nutricional ACSM en Dietowin">
+                        🥗 Patrón ACSM
+                    </button>
+                    <button type="button" onclick="actionTanita()" class="btn-anyd" style="padding: 5px 10px; font-size: 11.5px; background: #0284c7; border-color: #0284c7; flex: 1; min-width: 110px;">
+                        ⚖️ Tanita MC-580
+                    </button>
+                    <button type="button" onclick="actionOpenDriveFromModal()" class="btn-anyd" style="padding: 5px 10px; font-size: 11.5px; background: #059669; border-color: #059669; flex: 1; min-width: 110px;">
+                        📁 Drive
+                    </button>
+                    <button type="button" onclick="actionViewHistory()" class="btn-anyd" style="padding: 5px 10px; font-size: 11.5px; background: #4F46E5; border-color: #4F46E5; flex: 0.8; min-width: 90px;">
+                        👤 Historial
+                    </button>
+                </div>
+            </div>
+
+            <!-- DETALLES DE CITA: GRID DE 2 COLUMNAS -->
+            <div style="background: white; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">Tipo de Consulta:</label>
+                        <select id="d-service-select" class="modal-select" style="width: 100%; padding: 6px 10px; font-size: 12.5px; font-weight: 700; border: 1.5px solid #CBD5E1; border-radius: 6px; color: #1E293B; background: #FFFFFF;" onchange="onModalServiceChange()">
+                            <option value="Anyd Nutrición Deportiva">Anyd Nutrición Deportiva (Presencial)</option>
+                            <option value="Anyd Consulta OnLine">Anyd Consulta OnLine (Videollamada)</option>
+                            <option value="Anyd Nutrición Clínica">Anyd Nutrición Clínica</option>
+                            <option value="CF Catedral Nutrición">CF Catedral Nutrición</option>
+                            <option value="Tracius Nutrición Deportiva">Tracius Nutrición Deportiva</option>
+                            <option value="Sesión informativa">Sesión informativa (15 min)</option>
+                        </select>
+                        <strong id="d-service" style="display:none;">Anyd Nutrición Deportiva</strong>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">Modalidad:</label>
+                        <select id="d-modality-select" class="modal-select" style="width: 100%; padding: 6px 10px; font-size: 12.5px; font-weight: 600; border: 1.5px solid #CBD5E1; border-radius: 6px; color: #1E293B; background: #FFFFFF;">
+                            <option value="Presencial">Presencial</option>
+                            <option value="Online">Online</option>
+                        </select>
+                        <strong id="d-modality" style="display:none;">Presencial</strong>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">📅 Fecha:</label>
+                        <input type="date" id="d-date-input" class="modal-input" style="width: 100%; padding: 6px 10px; font-size: 12.5px; font-weight: 600; border: 1.5px solid #CBD5E1; border-radius: 6px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">⏰ Hora:</label>
+                        <input type="time" id="d-time-input" class="modal-input" style="width: 100%; padding: 6px 10px; font-size: 12.5px; font-weight: 600; border: 1.5px solid #CBD5E1; border-radius: 6px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTROL RÁPIDO DE DURACIÓN (1 CLIC O PERSONALIZADA) -->
+            <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #1E293B;">⏱️ Duración de la Sesión:</span>
+                    <span id="d-duration-badge" style="background: #0284C7; color: white; font-weight: 800; font-size: 12px; padding: 2px 10px; border-radius: 12px;">30 min</span>
+                </div>
+                <!-- Botonera de 1 clic -->
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <button type="button" onclick="quickSetDuration(15)" class="btn-duration-chip" id="chip-15">15 min</button>
+                    <button type="button" onclick="quickSetDuration(30)" class="btn-duration-chip active" id="chip-30">30 min (Estándar)</button>
+                    <button type="button" onclick="quickSetDuration(45)" class="btn-duration-chip" id="chip-45">45 min</button>
+                    <button type="button" onclick="quickSetDuration(60)" class="btn-duration-chip" id="chip-60">60 min</button>
+                    <button type="button" onclick="quickSetDuration(90)" class="btn-duration-chip" id="chip-90">90 min</button>
+                </div>
+                <!-- Duración personalizada libre -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 11px; color: #64748B;">O personalizar minutos:</span>
+                    <input type="number" id="d-custom-duration-input" min="5" max="240" step="5" placeholder="min" style="width: 70px; padding: 4px 8px; border: 1.5px solid #CBD5E1; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                    <button type="button" onclick="applyCustomDuration()" class="btn-anyd" style="padding: 4px 10px; font-size: 11px; background: #0086cd;">Fijar</button>
+                </div>
+                <input type="hidden" id="d-duration-select" value="30">
+            </div>
+
+            <!-- CONTACTO Y OBSERVACIONES -->
+            <div style="background: white; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <span style="font-weight: 700; color: #475569;">📞 Contacto:</span>
+                    <span id="d-contact" style="color: #1E293B; font-weight: 500;">--</span>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 8px;" id="d-notes-row">
+                    <span style="font-weight: 700; color: #475569;">📝 Observaciones:</span>
+                    <span id="d-notes" style="font-style: italic; color: #475569; flex: 1;">--</span>
                 </div>
             </div>
 
             <input type="hidden" id="d-appt-id">
 
-            <!-- BOTONES DE ACCIÓN RÁPIDA -->
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
-                <button onclick="actionComplete()" class="btn-anyd btn-success" style="flex: 1.2;">
-                    ✓ Marcar Asistida (Excel)
-                </button>
-                <button onclick="actionTanita()" class="btn-anyd" style="background:#0284c7; border-color:#0284c7; flex: 1;">
-                    ⚖️ Pesar en Tanita MC-580
-                </button>
-                <button onclick="actionCancel()" class="btn-anyd btn-danger">
-                    ✕ Cancelar
-                </button>
-            </div>
+            <!-- BOTONERA DE ACCIÓN INFERIOR -->
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button onclick="actionWhatsApp()" class="btn-anyd" style="background:#25D366; border-color:#25D366; color:white; flex:1;">
-                    💬 Enviar WhatsApp
+                <button onclick="saveModalScheduleChanges()" class="btn-anyd" style="flex: 1.3; padding: 9px 16px; font-size: 12.5px; font-weight: 700; background: #2563EB; border-color: #2563EB;">
+                    💾 Guardar Cambios
                 </button>
-                <button onclick="actionViewHistory()" class="btn-anyd" style="background:#4F46E5; border-color:#4F46E5; color:white; flex:1;">
-                    👤 Ver Historial
+                <button onclick="actionComplete()" class="btn-anyd btn-success" style="flex: 1.2; padding: 9px 14px; font-size: 12.5px; font-weight: 700;">
+                    ✓ Marcar Asistida
                 </button>
-                <button onclick="actionOpenDriveFromModal()" class="btn-anyd" style="background:#059669; border-color:#059669; color:white; flex:1;">
-                    📁 Carpeta Drive
+                <button onclick="actionWhatsApp()" class="btn-anyd" style="background:#25D366; border-color:#25D366; color:white; padding: 9px 14px; font-size: 12.5px; font-weight: 700;">
+                    💬 WhatsApp
+                </button>
+                <button onclick="actionCancel()" class="btn-anyd" style="background: white; border: 1.5px solid #EF4444; color: #EF4444; padding: 9px 12px; font-size: 12px; font-weight: 700;">
+                    ✕ Cancelar
                 </button>
             </div>
         </div>
@@ -1605,6 +1643,22 @@
             document.getElementById('d-notes').innerText = props.notes || 'Ninguna observación';
             document.getElementById('d-appt-id').value = event.id;
 
+            // Avatar con iniciales
+            const cName = props.client_name || '';
+            const initials = cName.split(' ').filter(x => x.length > 0).map(x => x[0]).slice(0, 2).join('').toUpperCase() || '👤';
+            const avEl = document.getElementById('d-client-avatar');
+            if (avEl) avEl.innerText = initials;
+
+            // Badge visual de modalidad
+            const modBadge = document.getElementById('d-modality-badge');
+            if (modBadge) {
+                const isOnline = (props.modality || rawService).toLowerCase().includes('online');
+                modBadge.innerText = isOnline ? '🌐 Online' : '📍 Presencial';
+                modBadge.style.background = isOnline ? '#F3E8FF' : '#E0F2FE';
+                modBadge.style.color = isOnline ? '#6B21A8' : '#0369A1';
+                modBadge.style.borderColor = isOnline ? '#D8B4FE' : '#BAE6FD';
+            }
+
             document.getElementById('event-detail-modal').classList.remove('hidden');
         }
 
@@ -1696,6 +1750,16 @@
         function actionTanita() {
             const name = document.getElementById('d-client-name').innerText;
             window.location.href = `/tanita?client=${encodeURIComponent(name)}`;
+        }
+
+        function actionDietowin() {
+            const name = document.getElementById('d-client-name').innerText;
+            window.location.href = `/dietas?client=${encodeURIComponent(name)}`;
+        }
+
+        function actionConsulta() {
+            const name = document.getElementById('d-client-name').innerText;
+            window.location.href = `/consulta?client=${encodeURIComponent(name)}`;
         }
 
         async function actionCancel() {

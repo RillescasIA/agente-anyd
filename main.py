@@ -418,6 +418,7 @@ def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None):
             "borderColor": border_color,
             "textColor": text_color,
             "extendedProps": {
+                "client_id": r["client_id"],
                 "client_name": r["client_name"],
                 "email": r["client_email"] or "",
                 "phone": r["client_phone"] or "",
@@ -1551,6 +1552,23 @@ def api_download_training_template():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=plantilla_entrenamientos_anyd.xlsx"}
     )
+
+@app.get("/api/diet/athlete-details/{client_name}")
+def api_get_athlete_details(client_name: str):
+    return diet_manager.get_athlete_clinical_parameters(client_name)
+
+@app.get("/api/diet/athlete-training-files")
+def api_get_athlete_training_files(name: str):
+    return {"files": diet_manager.get_athlete_training_files_from_drive(name)}
+
+class LoadTrainingFileRequest(BaseModel):
+    file_path: str
+    weight_kg: Optional[float] = 75.0
+
+@app.post("/api/diet/load-athlete-training-file")
+def api_load_athlete_training_file(req: LoadTrainingFileRequest):
+    return diet_manager.load_training_file_by_path(req.file_path, req.weight_kg or 75.0)
+
 
 # ==========================================
 # RUTAS DE LA ESTACIÓN CLÍNICA & DEPORTIVA (CONSULTA 360°)

@@ -3,22 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ANyD Nutricionistas | Plataforma Central de Gestión</title>
+    <title>ANyD Nutricionistas | Centro de Mando Integral</title>
     <!-- Fuentes oficiales de anyd.es -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --anyd-blue: #0086cd;
             --anyd-blue-hover: #0284c7;
             --anyd-blue-light: #e0f2fe;
             --anyd-dark: #0f172a;
+            --anyd-slate: #1e293b;
             --anyd-gray-text: #475569;
             --anyd-bg-light: #f8fafc;
             --anyd-white: #ffffff;
             --anyd-border: #e2e8f0;
             --anyd-success: #10b981;
+            --anyd-warning: #f59e0b;
+            --anyd-danger: #ef4444;
+            --anyd-purple: #8b5cf6;
             --anyd-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
             --anyd-shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
             --anyd-shadow-hover: 0 20px 30px -10px rgba(0, 134, 205, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
@@ -42,20 +46,24 @@
             flex-direction: column;
         }
 
-        /* BARRA SUPERIOR / HEADER */
+        /* BARRA SUPERIOR UNIFICADA */
         .site-header {
             background: var(--anyd-white);
             border-bottom: 1px solid var(--anyd-border);
-            padding: 16px 24px;
+            padding: 12px 28px;
             box-shadow: var(--anyd-shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header-container {
-            max-width: 1160px;
+            max-width: 1400px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 16px;
         }
 
         .logo-wrap {
@@ -66,9 +74,46 @@
         }
 
         .logo-img {
-            max-height: 48px;
+            max-height: 42px;
             width: auto;
             object-fit: contain;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .nav-item a {
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748B;
+            padding: 7px 14px;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-item a:hover {
+            color: var(--anyd-blue);
+            background: #F1F5F9;
+        }
+
+        .nav-item.active a {
+            color: white;
+            background: var(--anyd-blue);
+            font-weight: 700;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
         }
 
         .header-badge {
@@ -99,12 +144,42 @@
             100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
 
-        /* HERO INTRO */
+        .profile-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .avatar-circle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--anyd-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        /* HERO & BUSCADOR GLOBAL DE DEPORTISTAS */
         .hero {
-            max-width: 1160px;
-            margin: 40px auto 30px;
-            padding: 0 20px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+            border-bottom: 1px solid var(--anyd-border);
+            padding: 40px 24px 34px;
             text-align: center;
+            position: relative;
+        }
+
+        .hero-inner {
+            max-width: 860px;
+            margin: 0 auto;
         }
 
         .hero-tag {
@@ -113,12 +188,12 @@
             color: var(--anyd-blue);
             font-family: 'Montserrat', sans-serif;
             font-weight: 700;
-            font-size: 12px;
+            font-size: 11.5px;
             letter-spacing: 0.8px;
             text-transform: uppercase;
             padding: 4px 14px;
             border-radius: 30px;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
 
         .hero h1 {
@@ -126,83 +201,253 @@
             font-size: 32px;
             font-weight: 800;
             color: var(--anyd-dark);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             line-height: 1.25;
         }
 
         .hero p {
-            font-size: 16px;
+            font-size: 15px;
             color: var(--anyd-gray-text);
             max-width: 680px;
+            margin: 0 auto 24px;
+        }
+
+        /* BUSCADOR UNIVERSAL */
+        .search-box-wrap {
+            position: relative;
+            max-width: 650px;
             margin: 0 auto;
         }
 
-        /* GRID DE MÓDULOS / MENÚ */
+        .search-input-field {
+            width: 100%;
+            padding: 14px 20px 14px 48px;
+            font-size: 15px;
+            font-family: 'Lato', sans-serif;
+            border: 2px solid #CBD5E1;
+            border-radius: 30px;
+            background: white;
+            color: var(--anyd-dark);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease;
+        }
+
+        .search-input-field:focus {
+            outline: none;
+            border-color: var(--anyd-blue);
+            box-shadow: 0 0 0 4px rgba(0, 134, 205, 0.15), 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: #94A3B8;
+            pointer-events: none;
+        }
+
+        .search-results-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(15, 23, 42, 0.15), 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid var(--anyd-border);
+            max-height: 420px;
+            overflow-y: auto;
+            z-index: 500;
+            display: none;
+            text-align: left;
+        }
+
+        .search-result-item {
+            padding: 12px 18px;
+            border-bottom: 1px solid #F1F5F9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.15s ease;
+        }
+
+        .search-result-item:hover {
+            background: #F8FAFC;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .athlete-info-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0F172A;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .athlete-info-sub {
+            font-size: 11.5px;
+            color: #64748B;
+            margin-top: 2px;
+        }
+
+        .athlete-actions-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-pill-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .pill-soap { background: #E0F2FE; color: #0369A1; }
+        .pill-soap:hover { background: #BAE6FD; color: #0284C7; }
+
+        .pill-diet { background: #ECFDF5; color: #065F46; }
+        .pill-diet:hover { background: #D1FAE5; color: #047857; }
+
+        .pill-tanita { background: #FEF3C7; color: #92400E; }
+        .pill-tanita:hover { background: #FDE68A; color: #78350F; }
+
+        .pill-admin { background: #F1F5F9; color: #334155; }
+        .pill-admin:hover { background: #E2E8F0; color: #0F172A; }
+
+        /* LIVE METRICS KPI STRIP */
+        .kpi-container {
+            max-width: 1400px;
+            margin: -20px auto 25px;
+            padding: 0 24px;
+            width: 100%;
+            position: relative;
+            z-index: 10;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .kpi-card {
+            background: white;
+            border: 1px solid var(--anyd-border);
+            border-radius: var(--anyd-radius);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--anyd-shadow-sm);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+        }
+
+        .kpi-icon-wrap {
+            width: 46px;
+            height: 46px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .kpi-content {
+            flex: 1;
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748B;
+        }
+
+        .kpi-val {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: #0F172A;
+            line-height: 1.2;
+            margin-top: 2px;
+        }
+
+        .kpi-sub {
+            font-size: 11px;
+            color: #94A3B8;
+        }
+
+        /* GRID PRINCIPAL DE MÓDULOS */
         .modules-container {
-            max-width: 1160px;
-            margin: 10px auto 50px;
-            padding: 0 20px;
+            max-width: 1400px;
+            margin: 0 auto 50px;
+            padding: 0 24px;
             width: 100%;
             flex: 1;
         }
 
         .modules-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 22px;
         }
 
         .module-card {
             background: var(--anyd-white);
             border: 1.5px solid var(--anyd-border);
             border-radius: var(--anyd-radius);
-            padding: 28px 24px 24px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             box-shadow: var(--anyd-shadow-sm);
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
-            text-decoration: none;
             color: inherit;
             overflow: hidden;
         }
 
-        .module-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--anyd-blue);
-            opacity: 0;
-            transition: opacity 0.25s ease;
-        }
-
         .module-card:hover {
-            transform: translateY(-5px);
-            border-color: #93C5FD;
+            transform: translateY(-4px);
             box-shadow: var(--anyd-shadow-hover);
         }
 
-        .module-card:hover::before {
-            opacity: 1;
-        }
-
-        .card-header {
-            margin-bottom: 16px;
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
         }
 
         .card-icon {
-            width: 52px;
-            height: 52px;
+            width: 50px;
+            height: 50px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 26px;
-            margin-bottom: 16px;
+            font-size: 25px;
             transition: transform 0.2s ease;
         }
 
@@ -210,148 +455,91 @@
             transform: scale(1.08);
         }
 
-        .icon-admin { background: #EFF6FF; }
-        .icon-reservar { background: #ECFDF5; }
-        .icon-tanita { background: #F0F9FF; }
-        .icon-docs { background: #FAF5FF; }
-
         .card-tag {
-            display: inline-block;
-            font-size: 11px;
+            font-size: 10.5px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             padding: 3px 8px;
             border-radius: 6px;
-            margin-bottom: 8px;
         }
-
-        .tag-admin { background: #DBEAFE; color: #1E40AF; }
-        .tag-reservar { background: #DEF7EC; color: #03543F; }
-        .tag-tanita { background: #E0F2FE; color: #0369A1; }
-        .tag-docs { background: #F3E8FF; color: #6B21A8; }
 
         .card-title {
             font-family: 'Montserrat', sans-serif;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: var(--anyd-dark);
             margin-bottom: 8px;
         }
 
         .card-desc {
-            font-size: 13.5px;
+            font-size: 13px;
             color: var(--anyd-gray-text);
-            line-height: 1.55;
-            margin-bottom: 20px;
+            line-height: 1.5;
+            margin-bottom: 16px;
         }
 
-        .card-features {
-            list-style: none;
-            margin-bottom: 22px;
-            padding-top: 14px;
-            border-top: 1px dashed var(--anyd-border);
-        }
-
-        .card-features li {
-            font-size: 12.5px;
-            color: #64748B;
-            margin-bottom: 8px;
+        .quick-actions-bar {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            padding: 10px 12px;
+            background: #F8FAFC;
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
         }
 
-        .card-features li strong {
+        .quick-action-link {
+            font-size: 11.5px;
+            font-weight: 700;
             color: #334155;
+            text-decoration: none;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #CBD5E1;
+            transition: all 0.15s;
         }
 
-        .card-btn {
+        .quick-action-link:hover {
+            background: var(--anyd-blue-light);
+            color: var(--anyd-blue);
+            border-color: #93C5FD;
+        }
+
+        .card-main-btn {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 10px 16px;
             background: #F8FAFC;
-            border: 1px solid var(--anyd-border);
+            border: 1.5px solid var(--anyd-border);
             border-radius: 8px;
             font-family: 'Montserrat', sans-serif;
             font-size: 13px;
             font-weight: 700;
             color: var(--anyd-blue);
+            text-decoration: none;
             transition: all 0.2s ease;
+            margin-top: auto;
         }
 
-        .module-card:hover .card-btn {
+        .module-card:hover .card-main-btn {
             background: var(--anyd-blue);
             color: white;
             border-color: var(--anyd-blue);
         }
 
-        .card-btn span.arrow {
+        .card-main-btn span.arrow {
             transition: transform 0.2s ease;
         }
 
-        .module-card:hover .card-btn span.arrow {
+        .module-card:hover .card-main-btn span.arrow {
             transform: translateX(4px);
         }
 
-        /* ACCESOS RÁPIDOS */
-        .quick-strip {
-            max-width: 1160px;
-            margin: 0 auto 50px;
-            padding: 0 20px;
-            width: 100%;
-        }
-
-        .strip-card {
-            background: white;
-            border: 1px solid var(--anyd-border);
-            border-radius: var(--anyd-radius);
-            padding: 18px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 15px;
-            box-shadow: var(--anyd-shadow-sm);
-        }
-
-        .strip-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .strip-icon {
-            font-size: 24px;
-        }
-
-        .strip-links {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .btn-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 14px;
-            background: #F1F5F9;
-            color: #334155;
-            text-decoration: none;
-            font-size: 12.5px;
-            font-weight: 600;
-            border-radius: 6px;
-            transition: background 0.2s;
-        }
-
-        .btn-link:hover {
-            background: #E2E8F0;
-            color: #0F172A;
-        }
-
-        /* FOOTER */
+        /* FOOTER UNIFICADO */
         .site-footer {
             background: var(--anyd-white);
             border-top: 1px solid var(--anyd-border);
@@ -372,189 +560,367 @@
             text-decoration: underline;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
+            .nav-links { display: none; }
             .hero h1 { font-size: 26px; }
-            .hero p { font-size: 14.5px; }
-            .strip-card { flex-direction: column; align-items: flex-start; }
+            .kpi-container { margin-top: 15px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- CABECERA -->
+    <!-- CABECERA PRINCIPAL UNIFICADA -->
     <header class="site-header">
         <div class="header-container">
-            <a href="/" class="logo-wrap">
+            <a href="/" class="logo-wrap" title="Centro de Mando ANyD">
                 <img src="/static/logo.png" alt="ANyD Nutricionistas" class="logo-img" onerror="this.onerror=null; this.src='/static/logo_oficial.png';">
             </a>
-            <div class="header-badge">
-                <div class="pulse-dot"></div>
-                <span>Servidor en Directo (Render)</span>
+            
+            <ul class="nav-links">
+                <li class="nav-item active"><a href="/">🏠 Inicio</a></li>
+                <li class="nav-item"><a href="/consulta">🩺 Estación 360°</a></li>
+                <li class="nav-item"><a href="/dietas">🥗 Dietowin 2.0</a></li>
+                <li class="nav-item"><a href="/admin">📅 Agenda</a></li>
+                <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
+                <li class="nav-item"><a href="/reservar" target="_blank">🌐 Reservas Web</a></li>
+            </ul>
+
+            <div class="header-right">
+                <div class="header-badge" id="live-server-badge">
+                    <div class="pulse-dot"></div>
+                    <span id="server-status-text">Servidor Online</span>
+                </div>
+                <div class="profile-chip">
+                    <div class="avatar-circle">R</div>
+                    <div>
+                        <strong>Román Illescas</strong>
+                        <span style="color:#64748B; font-size:11px;">Col. MAD00274</span>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- HERO PRESENTACIÓN -->
+    <!-- HERO Y BUSCADOR UNIVERSAL DE ATLETAS -->
     <section class="hero">
-        <div class="hero-tag">Ecosistema Clínico & Deportivo</div>
-        <h1>Plataforma de Gestión Integral</h1>
-        <p>Selecciona el módulo al que deseas acceder para gestionar tu agenda, atender a deportistas o monitorizar la composición corporal.</p>
-    </section>
-
-    <!-- MENÚ PRINCIPAL EN TARJETAS -->
-    <main class="modules-container">
-        <div class="modules-grid">
-
-            <!-- 0. ESTACIÓN CLÍNICA & CONSULTA 360° (NUEVO) -->
-            <a href="/consulta" class="module-card" style="border-top: 4px solid #0086CD;">
-                <div>
-                    <div class="card-icon" style="background:#E0F2FE;">🩺</div>
-                    <span class="card-tag" style="background:#BAE6FD; color:#0369A1;">Consulta 360° & Atletas</span>
-                    <h2 class="card-title">Estación Clínica & Deportiva</h2>
-                    <p class="card-desc">Historia clínica SOAP, Tanita MC-580, necesidades fisiológicas (Cunningham), analíticas y patrones nutricionales.</p>
-                    <ul class="card-features">
-                        <li><span>✓</span> <strong>Ficha única 360°</strong> del deportista</li>
-                        <li><span>✓</span> <strong>Consultas SOAP</strong> cronológicas</li>
-                        <li><span>✓</span> <strong>Curva Tanita MC-580</strong> y deltas evolutivos</li>
-                        <li><span>✓</span> <strong>Semáforos de analíticas</strong> sanguíneas</li>
-                        <li><span>✓</span> <strong>Cunningham & macros</strong> periodizados</li>
-                    </ul>
-                </div>
-                <div class="card-btn">
-                    <span>Abrir Estación Clínica</span>
-                    <span class="arrow">→</span>
-                </div>
-            </a>
-
-            <!-- 1. PANEL DE ADMINISTRACIÓN -->
-            <a href="/admin" class="module-card">
-                <div>
-                    <div class="card-icon icon-admin">📅</div>
-                    <span class="card-tag tag-admin">Cuadrante Semanal</span>
-                    <h2 class="card-title">Panel de Control</h2>
-                    <p class="card-desc">Calendario interactivo estilo Reservio, gestión de citas, ficha clínica y modificación de servicios.</p>
-                    <ul class="card-features">
-                        <li><span>✓</span> <strong>Cuadrante semanal</strong> con Drag & Drop</li>
-                        <li><span>✓</span> <strong>Duraciones flexibles</strong> (15 a 90 min)</li>
-                        <li><span>✓</span> <strong>Sincronización con Excel</strong> en Drive</li>
-                        <li><span>✓</span> <strong>Cambio de tipo de consulta</strong> en 1 clic</li>
-                    </ul>
-                </div>
-                <div class="card-btn">
-                    <span>Entrar al Panel Admin</span>
-                    <span class="arrow">→</span>
-                </div>
-            </a>
-
-            <!-- 2. PORTAL DE RESERVAS -->
-            <a href="/reservar" class="module-card">
-                <div>
-                    <div class="card-icon icon-reservar">🌐</div>
-                    <span class="card-tag tag-reservar">Para Deportistas</span>
-                    <h2 class="card-title">Portal de Reservas</h2>
-                    <p class="card-desc">Portal público donde los atletas seleccionan su modalidad, franja horaria y agendan su cita.</p>
-                    <ul class="card-features">
-                        <li><span>✓</span> <strong>Diseño corporativo</strong> anyd.es</li>
-                        <li><span>✓</span> <strong>Presencial / Online</strong> (Alcorcón y Meet)</li>
-                        <li><span>✓</span> <strong>Añadir a Google Calendar</strong> automático</li>
-                        <li><span>✓</span> <strong>Recordatorio previo a 48h</strong> por email</li>
-                    </ul>
-                </div>
-                <div class="card-btn">
-                    <span>Abrir Portal de Reservas</span>
-                    <span class="arrow">→</span>
-                </div>
-            </a>
-
-            <!-- 3. BÁSCULA TANITA MC-580 -->
-            <a href="/tanita" class="module-card">
-                <div>
-                    <div class="card-icon icon-tanita">⚖️</div>
-                    <span class="card-tag tag-tanita">Bioimpedancia Médica</span>
-                    <h2 class="card-title">Tanita MC-580</h2>
-                    <p class="card-desc">Monitor en vivo para captura por cable USB COM o carga de volcados CSV desde la tarjeta SD.</p>
-                    <ul class="card-features">
-                        <li><span>✓</span> <strong>Captura en directo</strong> a 9600 baudios</li>
-                        <li><span>✓</span> <strong>Fórmula de Cunningham</strong> (1980/1991)</li>
-                        <li><span>✓</span> <strong>Masa libre de grasa (FFM)</strong> y % graso</li>
-                        <li><span>✓</span> <strong>Asignación automática</strong> al deportista</li>
-                    </ul>
-                </div>
-                <div class="card-btn">
-                    <span>Abrir Monitor Tanita</span>
-                    <span class="arrow">→</span>
-                </div>
-            </a>
-
-            <!-- 4. DIETOWIN 2.0 (PLANIFICADOR NUTRICIONAL) -->
-            <a href="/dietas" class="module-card">
-                <div>
-                    <div class="card-icon" style="background:#ECFDF5;">🥗</div>
-                    <span class="card-tag" style="background:#D1FAE5; color:#065F46;">Dietas & Recetario</span>
-                    <h2 class="card-title">Dietowin 2.0 (Planificador)</h2>
-                    <p class="card-desc">Planificador semanal de 7 días, recetario maestro de 1.340 platos y cálculo de necesidades energéticas.</p>
-                    <ul class="card-features">
-                        <li><span>✓</span> <strong>1.340 recetas</strong> y bases <strong>BEDCA / CESNID / FEN / OFF</strong></li>
-                        <li><span>✓</span> <strong>Mantenimiento ágil</strong> (Crear, Editar, Copiar, Borrar)</li>
-                        <li><span>✓</span> <strong>Cálculo Cunningham</strong> con FFM de Tanita MC-580</li>
-                        <li><span>✓</span> <strong>Dossier oficial (PDF)</strong> y lista de compra</li>
-                    </ul>
-                </div>
-                <div class="card-btn">
-                    <span>Abrir Planificador Dietas</span>
-                    <span class="arrow">→</span>
-                </div>
-            </a>
-
-            <!-- 4. DOCUMENTACIÓN API -->
-            <a href="/docs" class="module-card">
-                <div>
-                    <div class="card-icon icon-docs">⚡</div>
-                    <span class="card-tag tag-docs">Integraciones REST</span>
-                    <h2 class="card-title">Documentación API</h2>
-                    <p class="card-desc">Especificación OpenAPI interactiva Swagger para conectar automatizaciones y webhooks.</p>
-                    <ul class="card-features">
-                        <li><span>✓</span> <strong>40 endpoints REST</strong> documentados</li>
-                        <li><span>✓</span> <strong>Webhook WooCommerce</strong> para bonos</li>
-                        <li><span>✓</span> <strong>Exportación de calendario</strong> .ics</li>
-                        <li><span>✓</span> <strong>Test interactivo</strong> en navegador</li>
-                    </ul>
-                </div>
-                <div class="card-btn">
-                    <span>Ver Documentación Swagger</span>
-                    <span class="arrow">→</span>
-                </div>
-            </a>
-
-        </div>
-    </main>
-
-    <!-- BARRA INFERIOR DE ACCESOS RÁPIDOS -->
-    <div class="quick-strip">
-        <div class="strip-card">
-            <div class="strip-info">
-                <span class="strip-icon">🔗</span>
-                <div>
-                    <strong style="color: #1E293B; font-size: 13.5px;">Enlaces rápidos y suscripciones externas</strong>
-                    <p style="font-size: 12px; color: #64748B;">Accede a tu web oficial o suscríbete al feed de calendario.</p>
+        <div class="hero-inner">
+            <div class="hero-tag">Ecosistema Clínico & Alto Rendimiento</div>
+            <h1>Centro de Mando Integral</h1>
+            <p>Accede con 1 clic a la historia clínica 360°, la báscula Tanita MC-580 por USB o el planificador dietético con 1.316 recetas y bases españolas.</p>
+            
+            <!-- BUSCADOR INTERACTIVO EN TIEMPO REAL -->
+            <div class="search-box-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" 
+                       id="universal-athlete-search" 
+                       class="search-input-field" 
+                       placeholder="Buscar deportista por nombre, teléfono o email..." 
+                       autocomplete="off"
+                       oninput="handleUniversalSearch(this.value)">
+                
+                <div id="universal-search-dropdown" class="search-results-dropdown">
+                    <!-- Rellenado dinámicamente con JS -->
                 </div>
             </div>
-            <div class="strip-links">
-                <a href="https://anyd.es" target="_blank" class="btn-link">
-                    🌐 Web Oficial anyd.es
-                </a>
-                <a href="/calendar.ics" class="btn-link" title="Suscripción en Google Calendar / iCal">
-                    📅 Suscripción .ICS
-                </a>
+        </div>
+    </section>
+
+    <!-- BARRA DE TELEMETRÍA Y MÉTRICAS EN VIVO -->
+    <div class="kpi-container">
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background:#E0F2FE; color:#0369A1;">👥</div>
+                <div class="kpi-content">
+                    <div class="kpi-label">Deportistas</div>
+                    <div class="kpi-val" id="stat-clients">390</div>
+                    <div class="kpi-sub">Atletas en seguimiento</div>
+                </div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background:#ECFDF5; color:#065F46;">🥗</div>
+                <div class="kpi-content">
+                    <div class="kpi-label">Catálogo Dietowin</div>
+                    <div class="kpi-val" id="stat-recipes">1.316 Recetas</div>
+                    <div class="kpi-sub" id="stat-foods-sub">643 Alimentos BEDCA/OFF</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background:#EFF6FF; color:#1D4ED8;">📅</div>
+                <div class="kpi-content">
+                    <div class="kpi-label">Agenda de Hoy</div>
+                    <div class="kpi-val" id="stat-today-appts">0 Citas</div>
+                    <div class="kpi-sub"><a href="/admin" style="color:var(--anyd-blue); text-decoration:none; font-weight:700;">Ver cuadrante →</a></div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon-wrap" style="background:#FAF5FF; color:#7E22CE;">⚖️</div>
+                <div class="kpi-content">
+                    <div class="kpi-label">Tanita MC-580 USB</div>
+                    <div class="kpi-val" id="stat-tanita-status" style="font-size:16px;">Esperando COM</div>
+                    <div class="kpi-sub" id="stat-tanita-sub">Telemetría en directo</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- MÓDULOS PRINCIPALES INTEGRADOS -->
+    <main class="modules-container">
+        <div class="modules-grid">
+
+            <!-- 1. ESTACIÓN CLÍNICA & CONSULTA 360° -->
+            <div class="module-card" style="border-top: 4px solid #0086CD;">
+                <div>
+                    <div class="card-header-row">
+                        <div class="card-icon" style="background:#E0F2FE;">🩺</div>
+                        <span class="card-tag" style="background:#BAE6FD; color:#0369A1;">Historia 360°</span>
+                    </div>
+                    <h2 class="card-title">Estación Clínica & Deportiva</h2>
+                    <p class="card-desc">Expediente integral del atleta: anamnesis médica, evolución SOAP cronológica, analíticas sanguíneas y deltas de composición corporal.</p>
+                    
+                    <div class="quick-actions-bar">
+                        <a href="/consulta" class="quick-action-link">📋 Nueva Consulta SOAP</a>
+                        <a href="/consulta" class="quick-action-link">🩸 Semáforos Analíticas</a>
+                        <a href="/consulta" class="quick-action-link">👤 Ficha de Atleta</a>
+                    </div>
+                </div>
+                <a href="/consulta" class="card-main-btn">
+                    <span>Abrir Estación Clínica</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+            <!-- 2. DIETOWIN 2.0 (PLANIFICADOR & RECETAS) -->
+            <div class="module-card" style="border-top: 4px solid #059669;">
+                <div>
+                    <div class="card-header-row">
+                        <div class="card-icon" style="background:#ECFDF5;">🥗</div>
+                        <span class="card-tag" style="background:#D1FAE5; color:#065F46;">Dietowin 2.0</span>
+                    </div>
+                    <h2 class="card-title">Planificador Nutricional & Recetario</h2>
+                    <p class="card-desc">Constructor de recetas con cálculo automático de macros, planificador semanal de 7 días, bases BEDCA/Moreiras/FEN/OFF y exportación de dossier.</p>
+                    
+                    <div class="quick-actions-bar">
+                        <a href="/dietas" class="quick-action-link">📅 Plan 7 Días</a>
+                        <a href="/dietas#recipes" class="quick-action-link">🍳 Constructor Recetas</a>
+                        <a href="/dietas#foods" class="quick-action-link">🥦 Bases Españolas</a>
+                    </div>
+                </div>
+                <a href="/dietas" class="card-main-btn" style="color:#059669; border-color:#A7F3D0;">
+                    <span>Abrir Planificador de Dietas</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+            <!-- 3. PANEL DE CONTROL & AGENDA -->
+            <div class="module-card" style="border-top: 4px solid #2563EB;">
+                <div>
+                    <div class="card-header-row">
+                        <div class="card-icon" style="background:#EFF6FF;">📅</div>
+                        <span class="card-tag" style="background:#DBEAFE; color:#1E40AF;">Agenda Reservio</span>
+                    </div>
+                    <h2 class="card-title">Panel de Control & Calendario</h2>
+                    <p class="card-desc">Cuadrante interactivo semanal, gestión de citas presenciales u online, duraciones flexibles (15 a 90 min) y sincronización con Excel en Drive.</p>
+                    
+                    <div class="quick-actions-bar">
+                        <a href="/admin" class="quick-action-link">📆 Cuadrante Semanal</a>
+                        <a href="/admin?tab=past" class="quick-action-link">🎟️ Histórico & Bonos</a>
+                        <a href="/calendar.ics" class="quick-action-link">📥 Feed .ICS</a>
+                    </div>
+                </div>
+                <a href="/admin" class="card-main-btn" style="color:#2563EB; border-color:#BFDBFE;">
+                    <span>Entrar a la Agenda</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+            <!-- 4. TANITA MC-580 -->
+            <div class="module-card" style="border-top: 4px solid #D97706;">
+                <div>
+                    <div class="card-header-row">
+                        <div class="card-icon" style="background:#FEF3C7;">⚖️</div>
+                        <span class="card-tag" style="background:#FDE68A; color:#92400E;">Bioimpedancia</span>
+                    </div>
+                    <h2 class="card-title">Monitor Tanita MC-580</h2>
+                    <p class="card-desc">Captura en tiempo real por cable USB a 9600 baudios, volcado desde tarjeta SD y estimación BMR Cunningham con masa libre de grasa (FFM).</p>
+                    
+                    <div class="quick-actions-bar">
+                        <a href="/tanita" class="quick-action-link">🔌 Conectar USB</a>
+                        <a href="/tanita" class="quick-action-link">📂 Cargar CSV SD</a>
+                        <a href="/tanita" class="quick-action-link">📊 Curva Evolutiva</a>
+                    </div>
+                </div>
+                <a href="/tanita" class="card-main-btn" style="color:#D97706; border-color:#FDE68A;">
+                    <span>Abrir Monitor Tanita</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+            <!-- 5. PORTAL PÚBLICO DE RESERVAS -->
+            <div class="module-card" style="border-top: 4px solid #0D9488;">
+                <div>
+                    <div class="card-header-row">
+                        <div class="card-icon" style="background:#F0FDFA;">🌐</div>
+                        <span class="card-tag" style="background:#CCFBF1; color:#115E59;">Para Atletas</span>
+                    </div>
+                    <h2 class="card-title">Portal de Reservas en Línea</h2>
+                    <p class="card-desc">Portal público responsive donde los deportistas seleccionan servicio, franja horaria disponible y confirman su cita con sincronización en Google Calendar.</p>
+                    
+                    <div class="quick-actions-bar">
+                        <a href="/reservar" target="_blank" class="quick-action-link">🔗 Ver Portal Web</a>
+                        <a href="https://anyd.es" target="_blank" class="quick-action-link">🌐 anyd.es</a>
+                        <a href="/admin" class="quick-action-link">⚙️ Disponibilidad</a>
+                    </div>
+                </div>
+                <a href="/reservar" target="_blank" class="card-main-btn" style="color:#0D9488; border-color:#99F6E4;">
+                    <span>Abrir Portal de Reservas</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+            <!-- 6. DOCUMENTACIÓN API & AUTOMATIZACIONES -->
+            <div class="module-card" style="border-top: 4px solid #7C3AED;">
+                <div>
+                    <div class="card-header-row">
+                        <div class="card-icon" style="background:#FAF5FF;">⚡</div>
+                        <span class="card-tag" style="background:#F3E8FF; color:#6B21A8;">REST API</span>
+                    </div>
+                    <h2 class="card-title">Integraciones & Automatización</h2>
+                    <p class="card-desc">Especificación interactiva OpenAPI/Swagger con más de 40 endpoints para conectar básculas, WooCommerce, Google Drive y bots clínicos.</p>
+                    
+                    <div class="quick-actions-bar">
+                        <a href="/docs" target="_blank" class="quick-action-link">📖 Swagger UI</a>
+                        <a href="/openapi.json" target="_blank" class="quick-action-link">📄 JSON Spec</a>
+                        <a href="/redoc" target="_blank" class="quick-action-link">📑 ReDoc</a>
+                    </div>
+                </div>
+                <a href="/docs" target="_blank" class="card-main-btn" style="color:#7C3AED; border-color:#DDD6FE;">
+                    <span>Explorar Documentación</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER UNIFICADO -->
     <footer class="site-footer">
         <p><strong>ANyD Nutricionistas</strong> · Román Illescas Quiroga (Col. MAD00274)</p>
         <p style="margin-top: 4px; font-size: 12px;">Nutrición Deportiva y Clínica de Alto Rendimiento · Alcorcón (Madrid) · <a href="https://anyd.es" target="_blank">anyd.es</a></p>
     </footer>
 
+    <!-- JAVASCRIPT DEL CENTRO DE MANDO -->
+    <script>
+        let searchDebounceTimer = null;
+
+        // Cargar estadísticas en vivo
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStats();
+        });
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/dashboard/stats');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('stat-clients').textContent = data.clients_count || '0';
+                    document.getElementById('stat-recipes').textContent = `${data.recipes_count || 0} Recetas`;
+                    document.getElementById('stat-foods-sub').textContent = `${data.foods_count || 0} Alimentos BEDCA/OFF`;
+                    document.getElementById('stat-today-appts').textContent = `${data.today_appointments_count || 0} Citas`;
+
+                    const tanita = data.tanita || {};
+                    const tanitaEl = document.getElementById('stat-tanita-status');
+                    const tanitaSub = document.getElementById('stat-tanita-sub');
+
+                    if (tanita.connected && tanita.active_port) {
+                        tanitaEl.innerHTML = `<span style="color:#10B981;">● ${tanita.active_port} Conectado</span>`;
+                        tanitaSub.textContent = "Puerto serie activo";
+                    } else if (tanita.latest_measurement) {
+                        const m = tanita.latest_measurement;
+                        tanitaEl.textContent = `${m.weight} kg (${m.ffm} kg FFM)`;
+                        tanitaSub.textContent = "Último pesaje recibido";
+                    } else {
+                        tanitaEl.textContent = "En Espera";
+                        tanitaSub.textContent = "Conexión USB disponible";
+                    }
+                }
+            } catch (e) {
+                console.log("Error cargando dashboard stats:", e);
+            }
+        }
+
+        // Buscador interactivo universal de deportistas
+        function handleUniversalSearch(query) {
+            clearTimeout(searchDebounceTimer);
+            const dropdown = document.getElementById('universal-search-dropdown');
+            const q = query.trim();
+
+            if (q.length < 2) {
+                dropdown.style.display = 'none';
+                dropdown.innerHTML = '';
+                return;
+            }
+
+            searchDebounceTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/clinica/athletes?q=${encodeURIComponent(q)}&limit=8`);
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const athletes = data.athletes || [];
+
+                    if (athletes.length === 0) {
+                        dropdown.innerHTML = `
+                            <div style="padding:16px; text-align:center; color:#64748B; font-size:13px;">
+                                No se encontraron atletas con "${q}".
+                            </div>
+                        `;
+                    } else {
+                        dropdown.innerHTML = athletes.map(a => `
+                            <div class="search-result-item">
+                                <div>
+                                    <div class="athlete-info-name">
+                                        <span>👤</span> ${a.fullname}
+                                    </div>
+                                    <div class="athlete-info-sub">
+                                        ${a.phone ? '📞 ' + a.phone : ''} 
+                                        ${a.sport_discipline ? '· 🏅 ' + a.sport_discipline : ''} 
+                                        · 📅 ${a.total_appointments || 0} citas
+                                    </div>
+                                </div>
+                                <div class="athlete-actions-group">
+                                    <a href="/consulta?client_id=${a.id}" class="btn-pill-action pill-soap" title="Historia Clínica">
+                                        🩺 Consulta 360°
+                                    </a>
+                                    <a href="/dietas?client=${encodeURIComponent(a.fullname)}" class="btn-pill-action pill-diet" title="Plan Nutricional">
+                                        🥗 Dieta
+                                    </a>
+                                    <a href="/tanita?client=${encodeURIComponent(a.fullname)}" class="btn-pill-action pill-tanita" title="Tanita MC-580">
+                                        ⚖️ Tanita
+                                    </a>
+                                    <a href="/admin?client=${encodeURIComponent(a.fullname)}" class="btn-pill-action pill-admin" title="Ver Citas">
+                                        📅 Citas
+                                    </a>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    dropdown.style.display = 'block';
+                } catch (err) {
+                    console.error("Error en búsqueda universal:", err);
+                }
+            }, 250);
+        }
+
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('universal-search-dropdown');
+            const searchInput = document.getElementById('universal-athlete-search');
+            if (!dropdown.contains(e.target) && e.target !== searchInput) {
+                dropdown.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
