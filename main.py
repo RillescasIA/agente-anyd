@@ -1518,6 +1518,40 @@ def api_get_latest_tanita(client_name: str):
         return {"found": True, "data": dict(row)}
     return {"found": False}
 
+@app.post("/api/diet/upload-training-schedule")
+async def api_upload_training_schedule(file: UploadFile = File(...), weight_kg: float = 75.0):
+    try:
+        content = await file.read()
+        res = diet_manager.parse_training_excel_or_csv(
+            file_bytes=content,
+            filename=file.filename or "entrenamientos.xlsx",
+            weight_kg=weight_kg
+        )
+        return {"success": True, **res}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/diet/calculate-peri-workout")
+def api_calculate_peri_workout(payload: Dict[str, Any] = Body(...)):
+    guidelines = diet_manager.compute_peri_workout_guidelines(
+        sport=payload.get("sport", "Entrenamiento"),
+        duration_min=int(payload.get("duration_min", 60)),
+        intensity=payload.get("intensity", "Moderada"),
+        weight_kg=float(payload.get("weight_kg", 75.0)),
+        start_time=payload.get("start_time", "18:00"),
+        notes=payload.get("notes", "")
+    )
+    return {"success": True, "guidelines": guidelines}
+
+@app.get("/api/diet/download-training-template")
+def api_download_training_template():
+    excel_bytes = diet_manager.generate_training_excel_template()
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_entrenamientos_anyd.xlsx"}
+    )
+
 # ==========================================
 # RUTAS DE LA ESTACIÓN CLÍNICA & DEPORTIVA (CONSULTA 360°)
 # ==========================================

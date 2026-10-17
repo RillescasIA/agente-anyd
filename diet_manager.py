@@ -778,3 +778,351 @@ def generate_shopping_list(week_data: Dict[str, Any]) -> Dict[str, Any]:
         "total_items": total_distinct
     }
 
+# ============================================================
+# --- MÓDULO DE ENTRENAMIENTOS, HIDRATACIÓN & DIGESTIBILIDAD ---
+# --- (EVIDENCIA CIENTÍFICA ACSM, IOC, ISSN, AIS GRUPO A) ---
+# ============================================================
+
+def compute_peri_workout_guidelines(
+    sport: str,
+    duration_min: int,
+    intensity: str,
+    weight_kg: float = 75.0,
+    start_time: str = "18:00",
+    notes: str = ""
+) -> Dict[str, Any]:
+    """
+    Calcula de forma individualizada las recomendaciones de hidratación,
+    electrolitos, vaciamiento gástrico y digestibilidad peri-esfuerzo
+    siguiendo los consensos de ACSM/IOC/ISSN y el protocolo clínico ANyD.
+    """
+    try:
+        parts = str(start_time).strip().split(":")
+        sh = int(parts[0])
+        sm = int(parts[1]) if len(parts) > 1 else 0
+    except Exception:
+        sh, sm = 18, 0
+
+    start_dt = datetime(2026, 1, 1, sh, sm)
+    end_dt = start_dt + timedelta(minutes=duration_min)
+    end_time = end_dt.strftime("%H:%M")
+    clean_start_time = start_dt.strftime("%H:%M")
+
+    # Ventanas horarias clave
+    pre_window_start = (start_dt - timedelta(hours=3)).strftime("%H:%M")
+    pre_window_end = (start_dt - timedelta(hours=2)).strftime("%H:%M")
+    pre_immediate_time = (start_dt - timedelta(minutes=45)).strftime("%H:%M")
+    post_recovery_end = (end_dt + timedelta(hours=2)).strftime("%H:%M")
+
+    # 2. Normalizar intensidad y colores ANyD
+    t_int = (intensity or "").lower()
+    t_sport = (sport or "").lower()
+
+    if any(w in t_int for w in ["muy alta", "vo2max", "z5", "umbral anaer", "rpe 9", "rpe 10", "máxima", "acidosis", "series"]) or any(w in t_sport for w in ["series", "crossfit", "hyrox", "combate", "sparring"]):
+        level = "Muy Alta"
+        theme = {"border": "#ef4444", "bg": "#fff5f5", "text": "#991b1b", "badge_bg": "#fee2e2", "badge_text": "#b91c1c"}
+    elif any(w in t_int for w in ["alta", "z4", "rpe 8", "tempo", "sweetspot", "fuerza"]) or any(w in t_sport for w in ["fuerza", "hipertrofia", "powerlifting", "halterofilia", "partido"]):
+        level = "Alta"
+        theme = {"border": "#f97316", "bg": "#fff7ed", "text": "#9a3412", "badge_bg": "#ffedd5", "badge_text": "#c2410c"}
+    elif any(w in t_int for w in ["mod-alta", "moderada-alta", "z3", "rpe 7"]):
+        level = "Mod-Alta"
+        theme = {"border": "#f59e0b", "bg": "#fffbeb", "text": "#92400e", "badge_bg": "#fef3c7", "badge_text": "#b45309"}
+    elif any(w in t_int for w in ["baja", "z1", "recuperación", "suave", "rpe 3", "rpe 4", "movilidad"]):
+        level = "Baja"
+        theme = {"border": "#10b981", "bg": "#ecfdf5", "text": "#065f46", "badge_bg": "#d1fae5", "badge_text": "#047857"}
+    else:
+        level = "Moderada"
+        theme = {"border": "#0284c7", "bg": "#f0f9ff", "text": "#075985", "badge_bg": "#e0f2fe", "badge_text": "#0369a1"}
+
+    # 3. Fisiología y Nutrición Pre-Entreno (2 a 3 horas antes)
+    if level in ["Muy Alta", "Alta"]:
+        pre_carbs_factor = 1.3
+    elif level == "Mod-Alta":
+        pre_carbs_factor = 1.1
+    elif level == "Moderada":
+        pre_carbs_factor = 1.0
+    else:
+        pre_carbs_factor = 0.8
+
+    pre_carbs_g = round(weight_kg * pre_carbs_factor)
+    pre_water_ml = round(weight_kg * 6.0) # 5 a 7 ml/kg ACSM
+    pre_sodium_mg = 400 if level in ["Muy Alta", "Alta", "Mod-Alta"] else 300
+
+    # 4. Fisiología y Nutrición Pre-Inmediato (30-45 min antes)
+    pre_imm_carbs_g = 25 if duration_min >= 45 else 15
+    pre_imm_water_ml = 150
+
+    # 5. Fisiología Intra-Entreno (Fluidos, Electrolitos y Carbohidratos)
+    if duration_min < 45:
+        intra_carbs_h = 0
+        intra_fluid_ml_h = 250
+        intra_sodium_mg_h = 0
+        intra_format = "Agua sola a demanda (no requiere carbohidratos)"
+    elif 45 <= duration_min <= 75:
+        if level in ["Muy Alta", "Alta"]:
+            intra_carbs_h = 25
+            intra_fluid_ml_h = 450
+            intra_sodium_mg_h = 350
+            intra_format = "Bebida isotónica ligera o enjuague bucal con CHO"
+        else:
+            intra_carbs_h = 0
+            intra_fluid_ml_h = 350
+            intra_sodium_mg_h = 200
+            intra_format = "Agua a sorbos con pizca de sales minerales"
+    elif 75 < duration_min <= 150:
+        intra_carbs_h = 45 if level in ["Moderada", "Mod-Alta"] else 60
+        intra_fluid_ml_h = 600
+        intra_sodium_mg_h = 500
+        intra_format = "Geles energéticos AIS Grupo A con agua o isotónico (ratio glucosa:fructosa 2:1)"
+    else: # > 150 min (ultrafondo)
+        intra_carbs_h = 75
+        intra_fluid_ml_h = 750
+        intra_sodium_mg_h = 700
+        intra_format = "Mezcla múltiple transportador (Maltodextrina + Fructosa 1:0.8 / 2:1) + barritas blandas + sales"
+
+    # 6. Fisiología Post-Entreno (Ventana de Recuperación y Resíntesis)
+    post_protein_g = round(weight_kg * 0.35) # 0.3 - 0.4 g/kg ISSN
+    post_carbs_g = round(weight_kg * 1.1)    # 1.0 - 1.2 g/kg ACSM
+
+    # 7. Reglas Clínicas de Digestibilidad ANyD
+    digestibility_protocol = {
+        "pre_window_timing": f"{pre_window_start} - {pre_window_end}",
+        "pre_immediate_timing": f"{pre_immediate_time} - {clean_start_time}",
+        "pre_digestibility_rules": [
+            "Cereales de bajo residuo: arroz blanco cocido, patata al vapor sin piel, pan blanco o copos finos de avena cocidos.",
+            "Proteína magra limpia (15-25g): pechuga de pavo/pollo, claras, requesón desnatado 0% o pescado blanco.",
+            "0% legumbres (lentejas, garbanzos, alubias) en las 3h previas: evitar fermentación y gas colónico durante el esfuerzo.",
+            "0% verduras flatulentas o crucíferas (brócoli, col, coliflor, cebolla cruda, pimiento crudo).",
+            "Grasas limitadas a <5g: evitar fritos, quesos grasos y frutos secos enteros >15g para garantizar rápido vaciamiento gástrico."
+        ],
+        "intra_digestibility_rules": [
+            "Temperatura del líquido: fresca (12-15°C) para favorecer la motilidad gástrica y palatabilidad.",
+            "Pauta de ingesta: pequeños sorbos regulares (120-150 ml cada 15-20 minutos), nunca tragos copiosos.",
+            "Osmolaridad controlada: disoluciones isotónicas al 6-8% para evitar arrastre osmótico de agua a la luz intestinal."
+        ],
+        "post_digestibility_rules": [
+            "Isquemia esplácnica temporal: si la sesión fue extenuante (series de carrera, calor o FC >165 ppm), iniciar con batido de recuperación líquido/semisólido en los primeros 20-30 min.",
+            "Posponer comida sólida copiosa o grasa 45-60 min hasta restaurar el flujo sanguíneo gastrointestinal normal."
+        ]
+    }
+
+    return {
+        "sport": sport,
+        "duration_min": duration_min,
+        "intensity": intensity,
+        "intensity_level": level,
+        "theme": theme,
+        "start_time": clean_start_time,
+        "end_time": end_time,
+        "pre_window": f"{pre_window_start} - {pre_window_end}",
+        "pre_immediate": pre_immediate_time,
+        "post_window": f"{end_time} - {post_recovery_end}",
+        "nutrition": {
+            "pre": {
+                "carbs_g": pre_carbs_g,
+                "water_ml": pre_water_ml,
+                "sodium_mg": pre_sodium_mg,
+                "recommended_foods": "Arroz blanco con pechuga de pavo / Copos finos avena cocida con requesón 0% / Tostadas pan blanco con claras"
+            },
+            "pre_immediate": {
+                "carbs_g": pre_imm_carbs_g,
+                "water_ml": pre_imm_water_ml,
+                "recommended_foods": "1 plátano maduro o 2 dátiles medjool (vaciamiento ultra-rápido sin fibra)"
+            },
+            "intra": {
+                "carbs_g_h": intra_carbs_h,
+                "fluid_ml_h": intra_fluid_ml_h,
+                "sodium_mg_h": intra_sodium_mg_h,
+                "format": intra_format
+            },
+            "post": {
+                "protein_g": post_protein_g,
+                "carbs_g": post_carbs_g,
+                "rehydration_note": "125-150% del peso corporal perdido en sudor con electrolitos",
+                "recommended_foods": "Batido proteína aislada (Whey/Soja) + plátano maduro / Pechuga de pollo con patata asada"
+            }
+        },
+        "digestibility": digestibility_protocol,
+        "notes": notes
+    }
+
+def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: float = 75.0) -> Dict[str, Any]:
+    """
+    Parsea hojas de cálculo Excel (.xlsx, .xls) o CSV con el microciclo semanal de entrenamientos.
+    Detecta automáticamente días, horas, disciplinas, duración e intensidad, generando
+    el protocolo científico peri-entreno.
+    """
+    DAYS_MAP = {
+        "lunes": "Lunes", "lun": "Lunes", "mon": "Lunes", "monday": "Lunes",
+        "martes": "Martes", "mar": "Martes", "tue": "Martes", "tuesday": "Martes",
+        "miércoles": "Miércoles", "miercoles": "Miércoles", "mie": "Miércoles", "wed": "Miércoles", "wednesday": "Miércoles",
+        "jueves": "Jueves", "jue": "Jueves", "thu": "Jueves", "thursday": "Jueves",
+        "viernes": "Viernes", "vie": "Viernes", "fri": "Viernes", "friday": "Viernes",
+        "sábado": "Sábado", "sabado": "Sábado", "sab": "Sábado", "sat": "Sábado", "saturday": "Sábado",
+        "domingo": "Domingo", "dom": "Domingo", "sun": "Domingo", "sunday": "Domingo"
+    }
+
+    raw_rows = []
+
+    if filename.lower().endswith((".xlsx", ".xlsm", ".xltx")):
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+        raw_rows = list(ws.iter_rows(values_only=True))
+    else:
+        # CSV
+        text_content = file_bytes.decode("utf-8", errors="replace")
+        delimiter = ";" if ";" in text_content[:500] else ","
+        raw_rows = list(csv.reader(io.StringIO(text_content), delimiter=delimiter))
+
+    if not raw_rows or len(raw_rows) < 2:
+        return {"workouts_by_day": {d: [] for d in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}, "total_sessions": 0}
+
+    header_idx = 0
+    day_col = -1
+    time_col = -1
+    sport_col = -1
+    dur_col = -1
+    int_col = -1
+    notes_col = -1
+
+    for idx, row in enumerate(raw_rows[:10]):
+        row_str = [str(c or "").lower().strip() for c in row]
+        for c_idx, cell in enumerate(row_str):
+            if any(k in cell for k in ["día", "dia", "day", "fecha"]):
+                day_col = c_idx
+            elif any(k in cell for k in ["hora", "horario", "inicio", "time", "start"]):
+                time_col = c_idx
+            elif any(k in cell for k in ["deporte", "sesión", "sesion", "disciplina", "actividad", "sport", "entreno"]):
+                sport_col = c_idx
+            elif any(k in cell for k in ["duración", "duracion", "tiempo", "minutos", "mins", "duration"]):
+                dur_col = c_idx
+            elif any(k in cell for k in ["intensidad", "rpe", "zona", "intensity", "zone"]):
+                int_col = c_idx
+            elif any(k in cell for k in ["notas", "observaciones", "descripcion", "descripción", "notes"]):
+                notes_col = c_idx
+
+        if day_col != -1 and (time_col != -1 or sport_col != -1):
+            header_idx = idx
+            break
+
+    if day_col == -1: day_col = 0
+    if time_col == -1: time_col = 1
+    if sport_col == -1: sport_col = 2
+    if dur_col == -1: dur_col = 3
+    if int_col == -1: int_col = 4
+
+    workouts_by_day = {d: [] for d in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}
+    total_count = 0
+
+    for row in raw_rows[header_idx + 1:]:
+        if not row or not any(row):
+            continue
+
+        raw_day = str(row[day_col] or "").strip().lower() if day_col < len(row) else ""
+        canonical_day = None
+        for k, v in DAYS_MAP.items():
+            if k in raw_day:
+                canonical_day = v
+                break
+
+        if not canonical_day:
+            continue
+
+        # Hora
+        raw_time = row[time_col] if time_col < len(row) else "18:00"
+        clean_time = "18:00"
+        if isinstance(raw_time, (datetime, time)):
+            clean_time = raw_time.strftime("%H:%M")
+        elif isinstance(raw_time, (float, int)) and 0 <= raw_time <= 1:
+            total_sec = round(raw_time * 86400)
+            clean_time = f"{(total_sec // 3600):02d}:{((total_sec % 3600) // 60):02d}"
+        elif raw_time:
+            t_s = str(raw_time).strip().replace(".", ":").replace("h", ":")
+            t_parts = [p for p in t_s.split(":") if p.strip()]
+            if len(t_parts) >= 2:
+                try:
+                    clean_time = f"{int(t_parts[0]):02d}:{int(t_parts[1][:2]):02d}"
+                except Exception:
+                    clean_time = "18:00"
+            elif len(t_parts) == 1:
+                try:
+                    clean_time = f"{int(t_parts[0]):02d}:00"
+                except Exception:
+                    clean_time = "18:00"
+
+        # Deporte
+        sport = str(row[sport_col] or "Entrenamiento Deportivo").strip() if sport_col < len(row) else "Entrenamiento"
+
+        # Duración
+        raw_dur = row[dur_col] if dur_col < len(row) else 60
+        clean_dur = 60
+        if isinstance(raw_dur, (int, float)):
+            clean_dur = int(raw_dur)
+        elif raw_dur:
+            s_dur = str(raw_dur).lower()
+            if "h" in s_dur:
+                parts = s_dur.split("h")
+                hours = float(parts[0].strip() or 1)
+                mins = float(parts[1].replace("m", "").replace("in", "").strip() or 0) if len(parts) > 1 else 0
+                clean_dur = int(hours * 60 + mins)
+            else:
+                digits = "".join([c for c in s_dur if c.isdigit()])
+                if digits:
+                    clean_dur = int(digits)
+
+        # Intensidad
+        intensity = str(row[int_col] or "Moderada").strip() if int_col < len(row) else "Moderada"
+
+        # Notas
+        notes = str(row[notes_col] or "").strip() if notes_col != -1 and notes_col < len(row) else ""
+
+        guidelines = compute_peri_workout_guidelines(
+            sport=sport,
+            duration_min=clean_dur,
+            intensity=intensity,
+            weight_kg=weight_kg,
+            start_time=clean_time,
+            notes=notes
+        )
+
+        workouts_by_day[canonical_day].append(guidelines)
+        total_count += 1
+
+    for d in workouts_by_day:
+        workouts_by_day[d].sort(key=lambda x: x.get("start_time", "00:00"))
+
+    return {
+        "workouts_by_day": workouts_by_day,
+        "total_sessions": total_count
+    }
+
+def generate_training_excel_template() -> bytes:
+    """
+    Genera plantilla Excel (.xlsx) estándar ANyD para el deportista.
+    """
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Microciclo Entrenamientos"
+    
+    headers = ["Día", "Hora Inicio (HH:MM)", "Deporte / Sesión", "Duración (min)", "Intensidad / Zona", "Notas / Objetivos"]
+    ws.append(headers)
+    
+    samples = [
+        ["Lunes", "18:30", "Series en Pista (8x400m Z4-Z5)", 75, "Muy Alta", "Pista Alcorcón - descanso 90s"],
+        ["Martes", "19:00", "Hipertrofia Muscular (Torso / Empujes)", 70, "Mod-Alta", "RPE 8, press banca y militar"],
+        ["Miércoles", "07:30", "Rodaje Z2 en Ayunas (Base Aeróbica)", 60, "Moderada", "135-145 ppm ritmo conversacional"],
+        ["Jueves", "18:30", "Fuerza Tren Inferior (Pierna / Sentadilla)", 75, "Alta", "RPE 8-9, sentadilla y peso muerto"],
+        ["Viernes", "19:00", "HYROX / WOD Funcional", 60, "Muy Alta", "Ergómetros y carrera continua"],
+        ["Sábado", "09:00", "Ciclismo de Fondo Carretera (Endurance Z2)", 150, "Moderada", "Tirada larga 70km"],
+        ["Domingo", "10:30", "Recuperación Activa & Movilidad Articular", 45, "Baja", "Z1 paseo o estiramientos"]
+    ]
+    for s in samples:
+        ws.append(s)
+        
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
