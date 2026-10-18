@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
     "sender_name": "Román Illescas - ANyD Nutricionistas",
     "clinic_name": "ANyD Nutricionistas",
     "website_url": "https://anyd.es",
-    "booking_url": "http://localhost:8080/reservar",
+    "booking_url": "https://agente.anyd.es/reservar",
     "enable_live_email": False
 }
 
