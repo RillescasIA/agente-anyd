@@ -47,7 +47,7 @@
         .subnav-tab.active { color: #059669; border-bottom-color: #059669; }
 
         /* CONTENEDOR PRINCIPAL */
-        .main-container { max-width: 1560px; margin: 20px auto; padding: 0 24px; }
+        .main-container { max-width: 1720px; width: 100%; margin: 20px auto; padding: 0 20px; box-sizing: border-box; }
 
         /* BOTONES COMUNES */
         .btn-anyd { background: var(--anyd-blue); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12.5px; font-weight: 700; font-family: 'Montserrat', sans-serif; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
@@ -83,12 +83,15 @@
             border: 1.5px solid #CBD5E1;
             border-radius: 12px;
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 4px 15px rgba(0,0,0,0.04);
             margin-bottom: 24px;
+            width: 100%;
+            box-sizing: border-box;
         }
         .dietowin-matrix-table {
             width: 100%;
-            min-width: 1400px;
+            min-width: 1280px;
             border-collapse: collapse;
             table-layout: fixed;
         }
@@ -255,8 +258,8 @@
             border-top: 2px solid #CBD5E1 !important;
         }
 
-        /* CUADRANTE SEMANAL DE 7 DÍAS */
-        .week-grid { display: grid; grid-template-columns: repeat(7, minmax(200px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 12px; }
+        /* CUADRANTE SEMANAL MATRICIAL */
+        .matrix-grid-container, .week-grid { display: block; width: 100%; overflow: visible; margin-top: 10px; margin-bottom: 24px; }
         .day-col { background: white; border: 1.5px solid var(--anyd-border); border-radius: 9px; display: flex; flex-direction: column; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: border-color 0.2s; }
         .day-col:hover { border-color: #94A3B8; }
         
@@ -527,7 +530,7 @@
             </div>
 
             <!-- CUADRANTE DE 7 DÍAS PATRÓN ANyD -->
-            <div class="week-grid" id="week-plan-grid">
+            <div class="matrix-grid-container" id="week-plan-grid">
                 <!-- Se rellena dinámicamente con JavaScript -->
             </div>
 
@@ -1583,6 +1586,16 @@
             let html = `
                 <div class="dietowin-matrix-wrapper">
                     <table class="dietowin-matrix-table">
+                        <colgroup>
+                            <col style="width: 140px; min-width: 140px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                            <col style="width: calc((100% - 140px) / 7); min-width: 160px;">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th class="matrix-toma-col matrix-toma-header-cell">
