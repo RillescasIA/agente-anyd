@@ -12,9 +12,149 @@ from typing import Optional, List, Dict, Any
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
 
+_schema_initialized = False
+
+def ensure_diet_schema(conn: sqlite3.Connection):
+    global _schema_initialized
+    if _schema_initialized:
+        return
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS diet_foods (
+        id INTEGER PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        familia TEXT,
+        kcal REAL DEFAULT 0,
+        energia_kj REAL DEFAULT 0,
+        proteina_g REAL DEFAULT 0,
+        carbohidratos_g REAL DEFAULT 0,
+        grasa_g REAL DEFAULT 0,
+        fibra_g REAL DEFAULT 0,
+        agua_g REAL DEFAULT 0,
+        grasa_sat_g REAL DEFAULT 0,
+        grasa_mono_g REAL DEFAULT 0,
+        grasa_poli_g REAL DEFAULT 0,
+        colesterol_mg REAL DEFAULT 0,
+        calcio_mg REAL DEFAULT 0,
+        hierro_mg REAL DEFAULT 0,
+        magnesio_mg REAL DEFAULT 0,
+        potasio_mg REAL DEFAULT 0,
+        sodio_mg REAL DEFAULT 0,
+        fosforo_mg REAL DEFAULT 0,
+        zinc_mg REAL DEFAULT 0,
+        selenio_ug REAL DEFAULT 0,
+        vitamina_a_ug REAL DEFAULT 0,
+        vitamina_d_ug REAL DEFAULT 0,
+        vitamina_e_mg REAL DEFAULT 0,
+        vitamina_c_mg REAL DEFAULT 0,
+        vitamina_b1_mg REAL DEFAULT 0,
+        vitamina_b2_mg REAL DEFAULT 0,
+        vitamina_b3_mg REAL DEFAULT 0,
+        vitamina_b6_mg REAL DEFAULT 0,
+        folatos_b9_ug REAL DEFAULT 0,
+        vitamina_b12_ug REAL DEFAULT 0,
+        fuente_datos TEXT DEFAULT 'Clínica ANyD',
+        marca TEXT DEFAULT 'Genérico',
+        codigo_barras TEXT DEFAULT '',
+        medida_casera TEXT DEFAULT '100g estándar',
+        nova_group INTEGER DEFAULT 1
+    )""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS diet_recipes (
+        id INTEGER PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        grupo_canonico TEXT,
+        tiempo_minutos INTEGER DEFAULT 10,
+        ingredientes TEXT,
+        elaboracion TEXT,
+        kcal REAL DEFAULT 0,
+        proteina_g REAL DEFAULT 0,
+        carbohidratos_g REAL DEFAULT 0,
+        grasa_g REAL DEFAULT 0,
+        fibra_g REAL DEFAULT 0
+    )""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS diet_plans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        client_name TEXT NOT NULL,
+        plan_name TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        weight REAL,
+        ffm REAL,
+        bmr REAL,
+        tdee REAL,
+        target_kcal REAL,
+        target_protein_g REAL,
+        target_carbs_g REAL,
+        target_fat_g REAL,
+        weekly_data_json TEXT,
+        notes TEXT,
+        FOREIGN KEY (client_id) REFERENCES clients (id)
+    )""")
+    cursor.execute("PRAGMA table_info(diet_foods)")
+    existing_cols = {c[1] for c in cursor.fetchall()}
+    needed_cols = [
+        ("energia_kj", "REAL DEFAULT 0"),
+        ("agua_g", "REAL DEFAULT 0"),
+        ("grasa_mono_g", "REAL DEFAULT 0"),
+        ("grasa_poli_g", "REAL DEFAULT 0"),
+        ("colesterol_mg", "REAL DEFAULT 0"),
+        ("calcio_mg", "REAL DEFAULT 0"),
+        ("hierro_mg", "REAL DEFAULT 0"),
+        ("magnesio_mg", "REAL DEFAULT 0"),
+        ("potasio_mg", "REAL DEFAULT 0"),
+        ("sodio_mg", "REAL DEFAULT 0"),
+        ("fosforo_mg", "REAL DEFAULT 0"),
+        ("zinc_mg", "REAL DEFAULT 0"),
+        ("selenio_ug", "REAL DEFAULT 0"),
+        ("vitamina_a_ug", "REAL DEFAULT 0"),
+        ("vitamina_d_ug", "REAL DEFAULT 0"),
+        ("vitamina_e_mg", "REAL DEFAULT 0"),
+        ("vitamina_c_mg", "REAL DEFAULT 0"),
+        ("vitamina_b1_mg", "REAL DEFAULT 0"),
+        ("vitamina_b2_mg", "REAL DEFAULT 0"),
+        ("vitamina_b3_mg", "REAL DEFAULT 0"),
+        ("vitamina_b6_mg", "REAL DEFAULT 0"),
+        ("folatos_b9_ug", "REAL DEFAULT 0"),
+        ("vitamina_b12_ug", "REAL DEFAULT 0"),
+        ("fuente_datos", "TEXT DEFAULT 'Clínica ANyD'"),
+        ("marca", "TEXT DEFAULT 'Genérico'"),
+        ("codigo_barras", "TEXT DEFAULT ''"),
+        ("medida_casera", "TEXT DEFAULT '100g estándar'"),
+        ("nova_group", "INTEGER DEFAULT 1")
+    ]
+    for col_name, col_def in needed_cols:
+        if col_name not in existing_cols:
+            try:
+                cursor.execute(f"ALTER TABLE diet_foods ADD COLUMN {col_name} {col_def}")
+            except Exception:
+                pass
+
+    cursor.execute("PRAGMA table_info(diet_recipes)")
+    existing_recipe_cols = {c[1] for c in cursor.fetchall()}
+    if "fibra_g" not in existing_recipe_cols:
+        try:
+            cursor.execute("ALTER TABLE diet_recipes ADD COLUMN fibra_g REAL DEFAULT 0")
+        except Exception:
+            pass
+
+    conn.commit()
+
+    try:
+        cursor.execute("SELECT COUNT(*) FROM diet_recipes")
+        if cursor.fetchone()[0] == 0:
+            import import_dietowin_data
+            import_dietowin_data.import_dietowin_to_db()
+    except Exception:
+        pass
+
+    _schema_initialized = True
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    ensure_diet_schema(conn)
     return conn
 
 def classify_recipe_meal_slots(nombre: str, grupo_canonico: str) -> List[str]:
