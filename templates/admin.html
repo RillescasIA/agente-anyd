@@ -571,7 +571,7 @@
                 <li class="nav-item {% if current_tab != 'past' %}active{% endif %}"><a href="/admin">📅 Calendario</a></li>
                 <li class="nav-item {% if current_tab == 'past' %}active{% endif %}"><a href="/admin?tab=past">🎟️ Histórico / Bonos (Excel)</a></li>
                 <li class="nav-item"><a href="/consulta" style="color:var(--anyd-blue); font-weight:700; background:rgba(0,134,205,0.08);">🩺 Estación Clínica</a></li>
-                <li class="nav-item"><a href="/dietas" style="color:#059669; font-weight:700;">🥗 Dietowin 2.0</a></li>
+                <li class="nav-item"><a href="/patrones-nutricionales" style="color:#059669; font-weight:700;">🥗 Patrones Nutricionales</a></li>
                 <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
                 <li class="nav-item"><a href="/reservar" target="_blank">🔗 Reservas en línea</a></li>
                 <li class="nav-item"><a href="javascript:void(0)" onclick="openGcalModal()" style="color:#0284c7; background:rgba(2, 132, 199, 0.08);">📲 Google Calendar (.ics)</a></li>
@@ -1754,7 +1754,7 @@
 
         function actionDietowin() {
             const name = document.getElementById('d-client-name').innerText;
-            window.location.href = `/dietas?client=${encodeURIComponent(name)}`;
+            window.location.href = `/patrones-nutricionales?client=${encodeURIComponent(name)}`;
         }
 
         function actionConsulta() {

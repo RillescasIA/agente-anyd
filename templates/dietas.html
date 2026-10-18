@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dietowin 2.0 (Planificador Nutricional) | ANyD Nutricionistas</title>
+    <title>Elaboración de Patrones Nutricionales | ANyD Nutricionistas</title>
     <!-- Fuentes oficiales de anyd.es -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -359,7 +359,7 @@
                 <li class="nav-item"><a href="/admin">📅 Calendario</a></li>
                 <li class="nav-item"><a href="/admin?tab=past">🎟️ Histórico / Bonos</a></li>
                 <li class="nav-item"><a href="/consulta" style="color:var(--anyd-blue); font-weight:700;">🩺 Estación Clínica</a></li>
-                <li class="nav-item active"><a href="/dietas">🥗 Dietowin 2.0 (Planificador)</a></li>
+                <li class="nav-item active"><a href="/patrones-nutricionales">🥗 Patrones Nutricionales</a></li>
                 <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
                 <li class="nav-item"><a href="/reservar" target="_blank">🔗 Reservas en línea</a></li>
             </ul>
@@ -375,19 +375,19 @@
         </div>
     </header>
 
-    <!-- SUBNAVEGACIÓN DIETOWIN 2.0 -->
+    <!-- SUBNAVEGACIÓN PATRONES NUTRICIONALES -->
     <div class="subnav-bar">
         <div class="subnav-tab active" onclick="switchDietTab('planner')" id="tab-btn-planner">
-            <span>📅</span> 1. Planificador Semanal (7 Días)
+            <span>📅</span> 1. Planificador de Patrón Semanal (7 Días)
         </div>
         <div class="subnav-tab" onclick="switchDietTab('recipes')" id="tab-btn-recipes">
-            <span>📖</span> 2. Recetario Maestro ({{ total_recipes }} Recetas)
+            <span>📖</span> 2. Recetario Maestro ANyD ({{ total_recipes }} Recetas)
         </div>
         <div class="subnav-tab" onclick="switchDietTab('foods')" id="tab-btn-foods">
             <span>🥦</span> 3. Base de Alimentos ({{ total_foods }} Alimentos)
         </div>
         <div class="subnav-tab" onclick="switchDietTab('history')" id="tab-btn-history">
-            <span>📁</span> 4. Planes Guardados & Expedientes
+            <span>📁</span> 4. Patrones Guardados & Expedientes
         </div>
     </div>
 
@@ -513,7 +513,7 @@
                         🛒 Lista de la Compra Semanal
                     </button>
                     <button type="button" onclick="saveCurrentPlan()" class="btn-anyd" style="padding: 10px 18px; font-size: 13px; background:#0284c7;">
-                        💾 Guardar Plan Nutricional
+                        💾 Guardar Patrón Nutricional
                     </button>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -526,7 +526,7 @@
                 </div>
             </div>
 
-            <!-- CUADRANTE DE 7 DÍAS DIETOWIN -->
+            <!-- CUADRANTE DE 7 DÍAS PATRÓN ANyD -->
             <div class="week-grid" id="week-plan-grid">
                 <!-- Se rellena dinámicamente con JavaScript -->
             </div>
@@ -538,7 +538,7 @@
             <div class="card">
                 <div class="card-header-flex">
                     <div>
-                        <h2 class="card-title">📖 Recetario Maestro de Dietowin ({{ total_recipes }} Recetas Calibradas)</h2>
+                        <h2 class="card-title">📖 Recetario Maestro ANyD ({{ total_recipes }} Recetas Calibradas)</h2>
                         <p style="font-size:12px; color:#64748B; margin-top:2px;">Platos con ingredientes al gramo, tiempos de elaboración concisos y macronutrientes.</p>
                     </div>
                     <div style="display:flex; gap:10px; flex:1; max-width:550px; align-items:center;">
@@ -559,7 +559,7 @@
 
                 <!-- CONTENEDOR DE TARJETAS -->
                 <div class="recipes-grid" id="recipes-catalog-grid">
-                    <p style="color:#64748B; font-size:13px;">Cargando recetas de Dietowin...</p>
+                    <p style="color:#64748B; font-size:13px;">Cargando recetas calibradas...</p>
                 </div>
             </div>
         </section>
@@ -629,7 +629,7 @@
         <section id="section-history" class="hidden">
             <div class="card">
                 <div class="card-header-flex">
-                    <h2 class="card-title">📁 Planes Nutricionales Guardados</h2>
+                    <h2 class="card-title">📁 Patrones Nutricionales Guardados</h2>
                     <input type="text" id="history-filter-input" class="form-control" style="max-width:300px;" placeholder="Filtrar por deportista..." oninput="loadSavedPlans()">
                 </div>
 
@@ -657,7 +657,7 @@
             <!-- TABS DEL MODAL: RECETAS VS ALIMENTOS -->
             <div style="display:flex; border-bottom:1px solid #E2E8F0; background:#F8FAFC; padding:0 20px;">
                 <button type="button" id="picker-tab-btn-recipes" onclick="switchPickerTab('recipes')" style="padding:12px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#0086cd; border-bottom:3px solid #0086cd;">
-                    📖 1. Recetario Dietowin (1.314 Platos)
+                    📖 1. Recetario ANyD (1.314 Platos)
                 </button>
                 <button type="button" id="picker-tab-btn-foods" onclick="switchPickerTab('foods')" style="padding:12px 18px; font-family:'Montserrat', sans-serif; font-size:12.5px; font-weight:700; border:none; background:none; cursor:pointer; color:#64748B; border-bottom:3px solid transparent;">
                     🥦 2. Alimentos & Ingredientes al Gramo (BEDCA / Moreiras / OFF)
@@ -1588,7 +1588,7 @@
                                 <th class="matrix-toma-col matrix-toma-header-cell">
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
                                         <span>Tomas \\ Días</span>
-                                        <span title="Distribución oficial Dietowin 2.0" style="cursor:help;">ℹ️</span>
+                                        <span title="Distribución oficial ANyD" style="cursor:help;">ℹ️</span>
                                     </div>
                                 </th>
             `;
@@ -2370,7 +2370,7 @@
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px; border-bottom:1px solid #E0F2FE; padding-bottom:6px;">
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <span style="font-size:16px;">🧬</span>
-                                    <strong style="color:#0369A1; font-size:12.5px;">Composición Corporal & Ficha Clínica (Dietowin / Tanita MC-580)</strong>
+                                    <strong style="color:#0369A1; font-size:12.5px;">Composición Corporal & Ficha Clínica (Tanita MC-580 / FFM)</strong>
                                 </div>
                                 <span style="font-size:11px; color:#0284C7; font-weight:700;">${t.measurement_date ? 'Último pesaje: ' + t.measurement_date : 'Datos clínicos del deportista'}</span>
                             </div>
@@ -2441,7 +2441,7 @@
                 if (container) {
                     if (data.plans && data.plans.length > 0) {
                         container.style.display = 'block';
-                        container.innerHTML = `📁 <strong>${data.plans.length}</strong> planes guardados para ${clientName} — <a href="javascript:void(0)" onclick="switchDietTab('history')" style="color:#0086cd; text-decoration:underline; font-weight:700;">Ver Historial</a>`;
+                        container.innerHTML = `📁 <strong>${data.plans.length}</strong> patrones guardados para ${clientName} — <a href="javascript:void(0)" onclick="switchDietTab('history')" style="color:#0086cd; text-decoration:underline; font-weight:700;">Ver Historial</a>`;
                     } else {
                         container.style.display = 'none';
                     }
@@ -2484,7 +2484,7 @@
             const targetProt = parseFloat(document.getElementById('res-target-prot').innerText) || 160;
 
             const btn = event.target;
-            btn.innerText = "⏳ Calibrando 1.314 recetas de Dietowin...";
+            btn.innerText = "⏳ Calibrando 1.314 recetas ANyD...";
             btn.disabled = true;
 
             try {
@@ -2508,7 +2508,7 @@
                         }
                     });
                     renderWeekGrid();
-                    alert(`¡Semana generada con éxito!\n✓ ${data.legumbres_count} tomas de legumbres incluidas.\n✓ Carne roja limitada a ${data.red_meat_count} tomas (OMS/IARC).`);
+                    alert(`¡Patrón semanal generado con éxito!\n✓ ${data.legumbres_count} tomas de legumbres incluidas.\n✓ Carne roja limitada a ${data.red_meat_count} tomas (OMS/IARC).`);
                 }
             } catch (e) {
                 alert("Error generando semana inteligente: " + e);
@@ -2519,16 +2519,16 @@
         }
 
         // ============================================================
-        // --- GUARDADO & CARGA DE PLANES (HISTORIAL) ---
+        // --- GUARDADO & CARGA DE PATRONES (HISTORIAL) ---
         // ============================================================
         async function saveCurrentPlan() {
             const clientName = document.getElementById('p-client-name').value.trim();
             if (!clientName) {
-                alert("Introduce el nombre del paciente para guardar el plan.");
+                alert("Introduce el nombre del paciente para guardar el patrón nutricional.");
                 return;
             }
 
-            const planName = prompt("Introduce un título para el plan:", `Plan Nutricional 7 Días - ${clientName}`);
+            const planName = prompt("Introduce un título para el patrón nutricional:", `Patrón Nutricional 7 Días - ${clientName}`);
             if (!planName) return;
 
             const payload = {
@@ -2553,10 +2553,10 @@
             });
             const data = await res.json();
             if (data.success) {
-                alert("¡Plan guardado con éxito en el historial!");
+                alert("¡Patrón nutricional guardado con éxito en el historial!");
                 loadSavedPlans();
             } else {
-                alert("Error guardando el plan: " + data.message);
+                alert("Error guardando el patrón: " + data.message);
             }
         }
 
@@ -2569,7 +2569,7 @@
             if (!container) return;
 
             if (!data.plans || data.plans.length === 0) {
-                container.innerHTML = '<p style="color:#64748B; font-size:13px;">No hay planes guardados aún.</p>';
+                container.innerHTML = '<p style="color:#64748B; font-size:13px;">No hay patrones guardados aún.</p>';
                 return;
             }
 
@@ -2582,7 +2582,7 @@
                         </div>
                     </div>
                     <div style="display:flex; gap:8px;">
-                        <button onclick="loadPlanIntoGrid(${p.id})" class="btn-anyd" style="font-size:11px; padding:6px 12px;">Cargar en Cuadrante</button>
+                        <button onclick="loadPlanIntoGrid(${p.id})" class="btn-anyd" style="font-size:11px; padding:6px 12px;">Cargar Patrón en Cuadrante</button>
                     </div>
                 </div>
             `).join('');
@@ -2610,7 +2610,7 @@
                 renderWeekGrid();
                 recalcMetabolism();
                 switchDietTab('planner');
-                alert(`¡Plan '${data.plan_name}' cargado con éxito en el cuadrante!`);
+                alert(`¡Patrón '${data.plan_name}' cargado con éxito en el cuadrante!`);
             }
         }
 

@@ -1355,8 +1355,10 @@ class SavePlanRequest(BaseModel):
     weekly_data: Optional[Dict[str, Any]] = None
     notes: Optional[str] = ""
 
+@app.get("/patrones-nutricionales", response_class=HTMLResponse)
+@app.get("/patron-nutricional", response_class=HTMLResponse)
 @app.get("/dietas", response_class=HTMLResponse)
-def page_dietas(request: Request, client: Optional[str] = None):
+def page_patrones_nutricionales(request: Request, client: Optional[str] = None):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id, fullname, phone, email FROM clients ORDER BY fullname ASC")
