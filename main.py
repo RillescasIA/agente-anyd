@@ -1683,6 +1683,36 @@ def api_view_dossier_html(client: str):
 
     return HTMLResponse(content=html_content)
 
+@app.get("/api/documents/anamnesis-html")
+def api_get_anamnesis_html():
+    """
+    Sirve el documento oficial de Anamnesis Clínico-Nutricional y Deportiva ANyD en HTML imprimible.
+    """
+    doc_path = r"G:\Mi unidad\1.- ANyD\1.- Deportistas\1.- Documentos\ANyD_Anamnesis_Clinico_Deportiva_Oficial.html"
+    if not os.path.exists(doc_path):
+        doc_path = os.path.join(BASE_DIR, "templates", "anamnesis.html")
+    if not os.path.exists(doc_path):
+        raise HTTPException(status_code=404, detail="Plantilla de anamnesis no encontrada")
+    with open(doc_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/api/documents/anamnesis-pdf")
+def api_get_anamnesis_pdf():
+    """
+    Descarga el documento oficial de Anamnesis Clínico-Nutricional y Deportiva ANyD en PDF vectorial.
+    """
+    pdf_path = r"G:\Mi unidad\1.- ANyD\1.- Deportistas\1.- Documentos\ANyD_Anamnesis_Clinico_Deportiva_Oficial.pdf"
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF de anamnesis no encontrado")
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline; filename=ANyD_Anamnesis_Clinico_Deportiva_Oficial.pdf"}
+    )
+
+
 @app.get("/api/diet/athlete-auto-parameters")
 def api_get_athlete_auto_parameters(name: str):
     """
