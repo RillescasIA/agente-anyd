@@ -571,11 +571,19 @@
                     body: JSON.stringify({ name: clientName })
                 });
                 const data = await res.json();
-                if (!data.success) {
-                    alert(data.message || "No se pudo abrir la carpeta.");
+                if (data.success) {
+                    if (data.opened_locally) {
+                        alert(data.message || "Carpeta abierta en el Explorador.");
+                    } else if (data.web_url) {
+                        window.open(data.web_url, '_blank');
+                    }
+                } else {
+                    const fallbackUrl = "https://drive.google.com/drive/search?q=" + encodeURIComponent(clientName);
+                    window.open(fallbackUrl, '_blank');
                 }
             } catch (e) {
-                alert("Error al intentar abrir la carpeta en Drive.");
+                const fallbackUrl = "https://drive.google.com/drive/search?q=" + encodeURIComponent(clientName);
+                window.open(fallbackUrl, '_blank');
             }
         }
 

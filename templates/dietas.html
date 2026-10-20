@@ -520,6 +520,9 @@
                     </button>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" onclick="generateAndSaveOfficialDossierPdf()" class="btn-anyd" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); font-size: 13px; font-weight:700; box-shadow: 0 2px 4px rgba(2,132,199,0.25);" id="btn-official-pdf">
+                        📄 Generar Patrón 20 Págs (PDF Drive)
+                    </button>
                     <button type="button" onclick="openDossierModal()" class="btn-anyd btn-outline" style="font-size: 13px;">
                         🖨️ Ver Dossier Oficial (20 Págs / Imprimir)
                     </button>
@@ -1016,7 +1019,8 @@
                 <!-- Se genera dinámicamente con JS -->
             </div>
             <div class="modal-footer">
-                <button onclick="printDossier()" class="btn-anyd btn-success">🖨️ Imprimir / Guardar en PDF</button>
+                <button onclick="generateAndSaveOfficialDossierPdf()" class="btn-anyd" style="background:#0284c7; font-weight:700;">📄 Compilar PDF Oficial Vectorial (Edge & Drive)</button>
+                <button onclick="printDossier()" class="btn-anyd btn-success">🖨️ Imprimir Pantalla</button>
                 <button onclick="closeDossierModal()" class="btn-anyd btn-outline">Cerrar</button>
             </div>
         </div>
@@ -2478,14 +2482,26 @@
                 alert("Por favor, selecciona primero el nombre del deportista.");
                 return;
             }
-            const res = await fetch('/api/drive/open-folder', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: clientName })
-            });
-            const data = await res.json();
-            if (!data.success) {
-                alert(data.message || "No se pudo abrir la carpeta en Drive.");
+            try {
+                const res = await fetch('/api/drive/open-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: clientName })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.opened_locally) {
+                        alert(data.message || "Carpeta abierta en el Explorador de Windows.");
+                    } else if (data.web_url) {
+                        window.open(data.web_url, '_blank');
+                    }
+                } else {
+                    const fallbackUrl = "https://drive.google.com/drive/search?q=" + encodeURIComponent(clientName);
+                    window.open(fallbackUrl, '_blank');
+                }
+            } catch (err) {
+                const fallbackUrl = "https://drive.google.com/drive/search?q=" + encodeURIComponent(clientName);
+                window.open(fallbackUrl, '_blank');
             }
         }
 
@@ -3646,6 +3662,64 @@
 
         function printDossier() {
             window.print();
+        }
+
+        async function generateAndSaveOfficialDossierPdf() {
+            const clientName = document.getElementById('p-client-name').value.trim();
+            if (!clientName) {
+                alert("Por favor, selecciona primero el nombre del deportista.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-official-pdf');
+            const origText = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '⏳ Generando PDF Oficial...';
+                btn.disabled = true;
+            }
+
+            try {
+                const payload = {
+                    client_name: clientName,
+                    weekly_plan: currentWeekState,
+                    overrides: {
+                        weight_kg: parseFloat(document.getElementById('p-weight').value) || undefined,
+                        ffm_kg: parseFloat(document.getElementById('p-ffm').value) || undefined
+                    }
+                };
+
+                const res = await fetch('/api/diet/generate-official-dossier-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    const msg = `✅ ¡Patrón Nutricional Oficial Generado!\n\n` +
+                                `• Deportista: ${data.athlete.name}\n` +
+                                `• Peso: ${data.athlete.weight_kg} kg | Masa Magra (FFM): ${data.athlete.ffm_kg} kg\n` +
+                                `• TMB Cunningham: ${data.athlete.bmr_cunningham} kcal\n` +
+                                `• Guardado en: Google Drive (${data.pdf_path ? data.pdf_path.split('\\').pop() : 'PDF Oficial'})\n\n` +
+                                `¿Deseas abrir el PDF oficial de 20 páginas ahora?`;
+
+                    if (confirm(msg)) {
+                        if (data.pdf_url) {
+                            window.open(data.pdf_url, '_blank');
+                        }
+                    }
+                } else {
+                    alert("No se pudo generar el PDF: " + (data.message || "Error desconocido"));
+                }
+            } catch (err) {
+                alert("Error de conexión al generar el dossier: " + err.message);
+            } finally {
+                if (btn) {
+                    btn.innerHTML = origText;
+                    btn.disabled = false;
+                }
+            }
         }
 
         // ============================================================

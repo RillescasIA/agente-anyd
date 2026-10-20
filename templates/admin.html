@@ -2129,12 +2129,18 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(`Carpeta abierta en Explorador: ${data.matched_folder || name}`, "success");
+                    if (data.opened_locally) {
+                        showToast(data.message || `Carpeta abierta en Explorador: ${name}`, "success");
+                    } else if (data.web_url) {
+                        window.open(data.web_url, '_blank');
+                    }
                 } else {
-                    alert(data.message || `No se encontró carpeta para "${name}" en Google Drive.`);
+                    const fallbackUrl = "https://drive.google.com/drive/search?q=" + encodeURIComponent(name);
+                    window.open(fallbackUrl, '_blank');
                 }
             } catch (e) {
-                alert("Error al intentar abrir la carpeta en Drive: " + e);
+                const fallbackUrl = "https://drive.google.com/drive/search?q=" + encodeURIComponent(name);
+                window.open(fallbackUrl, '_blank');
             }
         }
 

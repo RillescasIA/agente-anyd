@@ -1,6 +1,7 @@
 import os
 import re
 import unicodedata
+import urllib.parse
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
@@ -64,32 +65,47 @@ def find_athlete_folder(client_name: str) -> Optional[str]:
 
 def open_athlete_folder(client_name: str) -> Dict[str, Any]:
     """
-    Abre la carpeta del deportista en el Explorador de Windows.
-    Si no existe, la crea primero.
+    Abre la carpeta del deportista en el Explorador local (si está en Windows)
+    o retorna el enlace web directo a Google Drive para entornos cloud (Render/Linux).
     """
-    folder_path = find_athlete_folder(client_name)
+    clean_target = client_name.strip()
+    web_url = f"https://drive.google.com/drive/search?q={urllib.parse.quote(clean_target)}"
+    folder_path = find_athlete_folder(clean_target)
     created = False
 
-    if not folder_path:
-        # Crear la carpeta con el nombre formateado
-        clean_name = client_name.strip().title()
+    if not folder_path and os.path.exists(DRIVE_ATHLETES_DIR):
+        clean_name = clean_target.title()
         folder_path = os.path.join(DRIVE_ATHLETES_DIR, clean_name)
         try:
             os.makedirs(folder_path, exist_ok=True)
             created = True
-        except Exception as e:
-            return {"success": False, "message": f"No se pudo crear la carpeta: {e}"}
+        except Exception:
+            pass
 
-    try:
-        os.startfile(folder_path)
-        return {
-            "success": True,
-            "created": created,
-            "path": folder_path,
-            "message": f"Carpeta abierta en el Explorador de Windows: {os.path.basename(folder_path)}"
-        }
-    except Exception as e:
-        return {"success": False, "message": f"Error abriendo la carpeta: {e}"}
+    # Si estamos en entorno local con soporte nativo de Windows:
+    if folder_path and hasattr(os, "startfile") and os.path.exists(folder_path):
+        try:
+            os.startfile(folder_path)
+            return {
+                "success": True,
+                "created": created,
+                "opened_locally": True,
+                "web_url": web_url,
+                "path": folder_path,
+                "message": f"Carpeta abierta en el Explorador de Windows: {os.path.basename(folder_path)}"
+            }
+        except Exception as e:
+            print(f"[DRIVE] No se pudo abrir localmente: {e}")
+
+    # Fallback seguro para Render (Linux) o cuando no hay soporte local:
+    return {
+        "success": True,
+        "created": created,
+        "opened_locally": False,
+        "web_url": web_url,
+        "path": folder_path,
+        "message": f"Accediendo a Google Drive para {clean_target}"
+    }
 
 def get_athlete_folder_info(client_name: str) -> Dict[str, Any]:
     folder_path = find_athlete_folder(client_name)

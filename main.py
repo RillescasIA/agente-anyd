@@ -19,6 +19,7 @@ import sync_excel
 import sync_reservio_feed
 import diet_manager
 import clinical_manager
+import dossier_pdf_generator
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -1570,6 +1571,84 @@ class LoadTrainingFileRequest(BaseModel):
 @app.post("/api/diet/load-athlete-training-file")
 def api_load_athlete_training_file(req: LoadTrainingFileRequest):
     return diet_manager.load_training_file_by_path(req.file_path, req.weight_kg or 75.0)
+
+
+# ==========================================
+# RUTAS PATRÓN NUTRICIONAL OFICIAL (20 PÁGINAS PDF)
+# ==========================================
+
+class OfficialDossierRequest(BaseModel):
+    client_name: str
+    weekly_plan: Optional[Dict[str, Any]] = None
+    overrides: Optional[Dict[str, Any]] = None
+
+@app.post("/api/diet/generate-official-dossier-pdf")
+def api_generate_official_dossier_pdf(req: OfficialDossierRequest):
+    """
+    Automatización integral ANyD:
+    Extrae composición corporal Tanita MC-580 + Cuadrante de entrenamientos Drive + Plan de 7 días,
+    compila el PDF vectorial de 20 páginas mediante Microsoft Edge y lo guarda en Google Drive.
+    """
+    import urllib.parse
+    res = dossier_pdf_generator.auto_generate_official_dossier(
+        client_name=req.client_name,
+        user_plan=req.weekly_plan,
+        overrides=req.overrides
+    )
+    if res.get("success"):
+        res["pdf_url"] = f"/api/diet/download-dossier-pdf?client={urllib.parse.quote(req.client_name)}"
+    return res
+
+@app.get("/api/diet/download-dossier-pdf")
+def api_download_official_dossier_pdf(client: str):
+    """
+    Sirve el PDF oficial generado de 20 páginas para previsualización directa o descarga.
+    """
+    safe_name = dossier_pdf_generator.sanitize_filename(client.strip())
+    folder = dossier_pdf_generator.find_athlete_drive_folder(client.strip())
+    pdf_path = None
+
+    if folder and os.path.exists(folder):
+        for f in os.listdir(folder):
+            if f.endswith(".pdf") and "20_paginas" in f.lower():
+                pdf_path = os.path.join(folder, f)
+                break
+        if not pdf_path:
+            candidate = os.path.join(folder, f"Patron_Nutricional_20_Paginas_{safe_name}_Oficial.pdf")
+            if os.path.exists(candidate):
+                pdf_path = candidate
+
+    if not pdf_path or not os.path.exists(pdf_path):
+        candidate_scratch = os.path.join(dossier_pdf_generator.SCRATCH_DIR, f"temp_Patron_Nutricional_20_Paginas_{safe_name}_Oficial.pdf")
+        if os.path.exists(candidate_scratch):
+            pdf_path = candidate_scratch
+
+    if not pdf_path or not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF oficial no encontrado en la carpeta de Google Drive.")
+
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={os.path.basename(pdf_path)}"}
+    )
+
+@app.get("/api/diet/athlete-auto-parameters")
+def api_get_athlete_auto_parameters(name: str):
+    """
+    Devuelve los parámetros de bioimpedancia Tanita MC-580 y los archivos de entrenamiento
+    detectados en Google Drive para el deportista seleccionado.
+    """
+    athlete_data = dossier_pdf_generator.extract_tanita_body_composition(name)
+    folder = dossier_pdf_generator.find_athlete_drive_folder(name)
+    training_data = dossier_pdf_generator.extract_athlete_training_schedule(name, folder, athlete_data.get("weight_kg", 75.0))
+    return {
+        "athlete": athlete_data,
+        "training": training_data,
+        "drive_folder": folder
+    }
 
 
 # ==========================================
