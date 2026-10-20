@@ -2319,7 +2319,11 @@
                 document.getElementById('res-target-prot').innerText = `${Math.round(data.target_protein_g)} g`;
                 document.getElementById('res-target-carbs').innerText = `${Math.round(data.target_carbs_g)} g`;
                 document.getElementById('res-target-fat').innerText = `${Math.round(data.target_fat_g)} g`;
-                document.getElementById('res-prot-ratio').innerText = `${data.protein_g_kg} g/kg (ISSN)`;
+                if (data.protein_g_kg_ffm) {
+                    document.getElementById('res-prot-ratio').innerText = `${data.protein_g_kg} g/kg (${data.protein_g_kg_ffm} g/kg FFM · ISSN)`;
+                } else {
+                    document.getElementById('res-prot-ratio').innerText = `${data.protein_g_kg} g/kg (ISSN)`;
+                }
 
                 // Actualizar las barras del cuadrante
                 renderWeekGrid();

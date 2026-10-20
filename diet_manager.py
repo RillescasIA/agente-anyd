@@ -671,34 +671,83 @@ def calculate_metabolism(weight_kg: float, ffm_kg: float = 0.0, height_cm: float
 
     tdee = bmr * pal
 
-    # Ajuste por objetivo clínico/deportivo
+    # Ajuste por objetivo clínico/deportivo según Consensos Oficiales ISSN (2017)
+    has_ffm = ffm_kg and ffm_kg > 20
     if goal == "definicion":
         target_kcal = tdee - 400.0
-        prot_g_kg = 2.2  # ISSN para preservar masa magra en déficit
+        # ISSN Position Stand (Jäger et al., 2017 & Helms et al.): 2.3 a 3.1 g/kg FFM en déficit
+        if has_ffm:
+            target_prot_g = round(ffm_kg * 2.5, 1)
+            prot_g_kg = round(target_prot_g / weight_kg, 2)
+        else:
+            prot_g_kg = 2.2
+            target_prot_g = round(weight_kg * prot_g_kg, 1)
         carbs_ratio = 0.40
     elif goal == "hipertrofia":
         target_kcal = tdee + 350.0
-        prot_g_kg = 1.8
+        # ISSN: 1.6 a 2.2 g/kg peso corporal
+        prot_g_kg = 2.0
+        target_prot_g = round(weight_kg * prot_g_kg, 1)
         carbs_ratio = 0.50
     elif goal == "rendimiento":
         target_kcal = tdee
-        prot_g_kg = 1.9
+        # ISSN / ACSM / IOC: 1.4 a 2.0 g/kg
+        prot_g_kg = 1.85
+        target_prot_g = round(weight_kg * prot_g_kg, 1)
         carbs_ratio = 0.55
     else:  # mantenimiento
         target_kcal = tdee
-        prot_g_kg = 1.8
+        prot_g_kg = 1.75
+        target_prot_g = round(weight_kg * prot_g_kg, 1)
         carbs_ratio = 0.45
 
-    target_prot_g = round(weight_kg * prot_g_kg, 1)
     kcal_from_prot = target_prot_g * 4.0
 
     # Carbohidratos según ACSM/IOC
     target_carbs_g = round((target_kcal * carbs_ratio) / 4.0, 1)
     kcal_from_carbs = target_carbs_g * 4.0
 
-    # Grasas: el resto del VCT (mínimo 20% VCT para salud hormonal)
+    # Grasas: el resto del VCT (mínimo 20% VCT para salud hormonal y lípidos esenciales)
     remaining_kcal_fat = max(target_kcal - kcal_from_prot - kcal_from_carbs, target_kcal * 0.20)
     target_fat_g = round(remaining_kcal_fat / 9.0, 1)
+
+    # Métricas de Precisión ISSN (Timing, Dosis por toma, Leucina, Pre-sleep y Disponibilidad Energética)
+    meal_count = 5
+    dose_per_meal = round(target_prot_g / meal_count, 1)
+    dose_min = round(0.25 * weight_kg, 1)
+    dose_max = round(0.40 * weight_kg, 1)
+    
+    # Disponibilidad Energética (Energy Availability - EA)
+    ea_val = None
+    ea_status = "No calculada (requiere FFM Tanita)"
+    if has_ffm:
+        est_exercise_kcal = 500.0  # Gasto medio sesión estándar
+        ea_val = round((target_kcal - est_exercise_kcal) / ffm_kg, 1)
+        if ea_val >= 35.0:
+            ea_status = "Óptima (35-45 kcal/kg FFM/día)"
+        elif ea_val >= 30.0:
+            ea_status = "Subóptima pero segura (30-35 kcal/kg FFM/día)"
+        else:
+            ea_status = "Alerta Clínica REDs (<30 kcal/kg FFM/día)"
+
+    post_ratio = "3:1 a 4:1 (Carbohidratos:Proteína)" if goal in ["rendimiento", "mantenimiento"] else "1:1 a 2:1 (Carbohidratos:Proteína)"
+
+    issn_guidelines = {
+        "protein_total_g": target_prot_g,
+        "protein_g_kg": prot_g_kg,
+        "protein_g_kg_ffm": round(target_prot_g / ffm_kg, 2) if has_ffm else None,
+        "distribution_frequency": "Cada 3 a 4 horas (4 a 5 tomas)",
+        "dose_per_meal_g": dose_per_meal,
+        "dose_range_per_meal": f"{dose_min} - {dose_max} g",
+        "leucine_threshold_mg": 2700,
+        "pre_sleep_protein_g": 35.0,
+        "post_workout_ratio": post_ratio,
+        "creatine_monohydrate_g": 5.0,
+        "caffeine_pre_workout_mg": f"{round(3.0 * weight_kg)} - {round(6.0 * weight_kg)} mg",
+        "beta_alanine_daily_g": 3.2,
+        "energy_availability_kcal_ffm": ea_val,
+        "energy_availability_status": ea_status
+    }
 
     return {
         "formula": formula,
@@ -710,9 +759,11 @@ def calculate_metabolism(weight_kg: float, ffm_kg: float = 0.0, height_cm: float
         "target_carbs_g": target_carbs_g,
         "target_fat_g": target_fat_g,
         "protein_g_kg": prot_g_kg,
+        "protein_g_kg_ffm": round(target_prot_g / ffm_kg, 2) if has_ffm else None,
         "carbs_pct": round((target_carbs_g * 4.0 / target_kcal) * 100, 1),
         "fat_pct": round((target_fat_g * 9.0 / target_kcal) * 100, 1),
-        "protein_pct": round((target_prot_g * 4.0 / target_kcal) * 100, 1)
+        "protein_pct": round((target_prot_g * 4.0 / target_kcal) * 100, 1),
+        "issn_guidelines": issn_guidelines
     }
 
 def generate_smart_week(target_kcal: float = 2200.0, target_protein_g: float = 140.0) -> Dict[str, Any]:

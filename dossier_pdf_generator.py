@@ -395,6 +395,17 @@ def extract_tanita_body_composition(client_name: str, folder_path: Optional[str]
     if data["ffm_kg"]:
         data["bmr_cunningham"] = round(500 + 22 * data["ffm_kg"])
 
+    # Métricas de Prescripción Oficiales ISSN (2017)
+    w_calc = data.get("weight_kg", 75.0)
+    ffm_calc = data.get("ffm_kg", 65.0)
+    data["issn_protein_target_g"] = round(w_calc * 1.85, 1)
+    data["issn_protein_per_meal_g"] = round((w_calc * 1.85) / 5.0, 1)
+    data["issn_protein_per_meal_range"] = f"{round(0.25 * w_calc, 1)} - {round(0.40 * w_calc, 1)} g"
+    data["issn_leucine_threshold_mg"] = 2700
+    data["issn_pre_sleep_protein_g"] = 35.0
+    data["issn_creatine_g"] = 5.0
+    data["issn_beta_alanine_g"] = 3.2
+
     # E. Sincronizar en SQLite para persistencia clínica permanente
     _sync_athlete_in_db(data, client_id)
 
@@ -1489,6 +1500,9 @@ def generate_official_20page_html(athlete: Dict[str, Any], days_data: List[Dict[
       <div><strong>Masa Magra (FFM):</strong> {athlete.get('ffm_kg', 70.5):.1f} kg (Cunningham: {athlete.get('bmr_cunningham', 2051)} kcal)</div>
       <div><strong>Grasa Corporal:</strong> {athlete.get('fat_percent', 12.7):.1f}%</div>
       <div><strong>Fecha de Emisión:</strong> {athlete.get('date_str', 'Octubre 2026')}</div>
+      <div style="grid-column: span 2; border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 4px; font-size: 11.5px; color: #0369a1;">
+        <strong>Pauta Proteica ISSN:</strong> {athlete.get('issn_protein_target_g', round(athlete.get('weight_kg', 80.8)*1.85))} g/día (1.85 g/kg · 5 tomas de ~{athlete.get('issn_protein_per_meal_g', round((athlete.get('weight_kg', 80.8)*1.85)/5))} g)
+      </div>
     </div>
   </div>
 
@@ -1555,6 +1569,13 @@ def generate_official_20page_html(athlete: Dict[str, Any], days_data: List[Dict[
     <p style="font-size: 11.5px; color: #334155; margin: 0;">
       Ración de <strong>160–200 gramos en crudo y limpio</strong> sin grasa visible ni piel para garantizar 30–40 g de proteína neta por comida principal.
     </p>
+  </div>
+
+  <div class="card card-green" style="margin-top: 10px; font-size: 11px; line-height: 1.5; color: #166534;">
+    <strong>Directrices Clave de la ISSN (International Society of Sports Nutrition, 2017):</strong><br>
+    • <strong>Fraccionamiento Proteico:</strong> Reparto equitativo cada 3 a 4 horas (4 a 5 comidas) con <strong>0.25 a 0.40 g de proteína/kg por toma</strong> ({round(0.25 * athlete.get('weight_kg', 80.8), 1)} a {round(0.40 * athlete.get('weight_kg', 80.8), 1)} g neta/toma).<br>
+    • <strong>Umbral de Leucina:</strong> Cada ingesta principal asegura entre <strong>2.5 y 3.0 g de leucina</strong> para activar de forma óptima el complejo mTORC1 y la síntesis proteica muscular (MPS).<br>
+    • <strong>Proteína Pre-Sueño:</strong> Ingesta nocturna de <strong>30 a 40 g</strong> de proteína de absorción lenta (queso fresco batido 0%, requesón desnatado) 30 min antes de acostarse para sostener la MPS y la recuperación durante la noche.
   </div>
 
   <div class="page-footer">
@@ -1664,16 +1685,19 @@ def generate_official_20page_html(athlete: Dict[str, Any], days_data: List[Dict[
     <strong>Reposición intra-esfuerzo:</strong> En los entrenamientos de alta exigencia (>60 min) y en los partidos oficiales, añade a tu bidón entre <strong>500 y 700 mg de Sodio por hora</strong> de ejercicio para mantener la volemia, prevenir rampas musculares y mantener el rendimiento neuromuscular.
   </div>
 
-  <h3 style="font-size: 14px; color: #0284c7; margin: 14px 0 6px 0;">8. Suplementación Basada en Evidencia (AIS Grupo A)</h3>
+  <h3 style="font-size: 14px; color: #0284c7; margin: 14px 0 6px 0;">8. Suplementación Ergonutricional con Máxima Evidencia (AIS Grupo A & ISSN)</h3>
   <div class="card" style="margin-bottom: 10px;">
     <div style="margin-bottom: 8px;">
-      <strong style="color: #0284c7;">• Creatina Creapure:</strong> 5.0 g diarios fijos. Tomar en la cena o batido post-entreno con carbohidratos. Aumenta los niveles de fosfocreatina muscular, mejorando la fuerza explosiva en levantamientos y la capacidad de sprint repetido.
+      <strong style="color: #0284c7;">• Creatina Monohidrato Creapure (ISSN Kreider et al., 2017):</strong> 5.0 g diarios continuos. Tomar en la cena o colación post-entreno junto a carbohidratos para potenciar su transporte dependiente de insulina y sodio. Maximiza la fosfocreatina miofibrilar y la capacidad de sprint repetido.
     </div>
     <div style="margin-bottom: 8px;">
-      <strong style="color: #0284c7;">• Beta-Alanina:</strong> 3.2 g diarios divididos en 2 tomas de 1.6 g (merienda pre-WOD y cena post-WOD). Eleva la síntesis de carnosina intramuscular, amortiguando la acidosis láctica en esfuerzos intensos de 1 a 4 minutos.
+      <strong style="color: #0284c7;">• Cafeína Anhidra (ISSN Guest et al., 2021):</strong> Dosis ergogénica de 3 a 6 mg/kg ({round(3.0 * athlete.get('weight_kg', 80.8))} a {round(6.0 * athlete.get('weight_kg', 80.8))} mg) 45–60 min antes de la sesión o partido. Aumenta el reclutamiento motor y reduce la percepción de esfuerzo (RPE).
+    </div>
+    <div style="margin-bottom: 8px;">
+      <strong style="color: #0284c7;">• Beta-Alanina (ISSN Trexler et al., 2015):</strong> 3.2 g diarios divididos en 2 tomas de 1.6 g con las comidas. Eleva la carnosina intramuscular, amortiguando la acidosis láctica en esfuerzos de alta intensidad (1 a 4 min).
     </div>
     <div>
-      <strong style="color: #0284c7;">• Hidratación Isotónica:</strong> Sales minerales ricas en Sodio en partidos y entrenamientos superiores a 60 minutos.
+      <strong style="color: #0284c7;">• Ratio Peri-Entreno Post-Esfuerzo (ISSN Kerksick et al., 2017):</strong> Ratio 3:1 a 4:1 (Carbohidratos:Proteína) post-partido o entrenamiento extenuante para acelerar la resíntesis de glucógeno y la recuperación estructural.
     </div>
   </div>
 
