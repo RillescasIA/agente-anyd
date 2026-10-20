@@ -3697,20 +3697,23 @@
                 const data = await res.json();
 
                 if (data.success) {
+                    const isPdf = !!data.pdf_url;
+                    const destUrl = data.pdf_url || data.html_url;
+                    const modeLabel = isPdf ? 'PDF Oficial compilado' : 'Dossier Vectorial (Listo para imprimir / Guardar como PDF)';
                     const msg = `✅ ¡Patrón Nutricional Oficial Generado!\n\n` +
                                 `• Deportista: ${data.athlete.name}\n` +
                                 `• Peso: ${data.athlete.weight_kg} kg | Masa Magra (FFM): ${data.athlete.ffm_kg} kg\n` +
                                 `• TMB Cunningham: ${data.athlete.bmr_cunningham} kcal\n` +
-                                `• Guardado en: Google Drive (${data.pdf_path ? data.pdf_path.split('\\').pop() : 'PDF Oficial'})\n\n` +
-                                `¿Deseas abrir el PDF oficial de 20 páginas ahora?`;
+                                `• Formato: ${modeLabel}\n\n` +
+                                `¿Deseas abrir el Patrón Oficial de 20 páginas ahora?`;
 
                     if (confirm(msg)) {
-                        if (data.pdf_url) {
-                            window.open(data.pdf_url, '_blank');
+                        if (destUrl) {
+                            window.open(destUrl, '_blank');
                         }
                     }
                 } else {
-                    alert("No se pudo generar el PDF: " + (data.message || "Error desconocido"));
+                    alert("No se pudo generar el dossier: " + (data.message || "Error desconocido"));
                 }
             } catch (err) {
                 alert("Error de conexión al generar el dossier: " + err.message);

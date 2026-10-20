@@ -27,6 +27,7 @@ from typing import Dict, Any, List, Optional, Tuple
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
 DRIVE_ATHLETES_DIR = r"G:\Mi unidad\1.- ANyD\1.- Deportistas"
+DIETOWIN_DATOS_DIR = r"C:\SuiteBiológica11\Datos"
 LOGO_BASE64_PATH = r"G:\Mi unidad\1.- ANyD\assets\logo_base64.txt"
 SCRATCH_DIR = os.path.join(os.environ.get("USERPROFILE", r"C:\Users\Roman"), r".gemini\antigravity\scratch")
 
@@ -45,6 +46,55 @@ def normalize_text(text: str) -> str:
         return ""
     nfkd = unicodedata.normalize("NFKD", str(text))
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower().strip()
+
+
+def find_athlete_dietowin_files(client_name: str) -> List[Dict[str, Any]]:
+    """
+    Busca archivos del paciente en el directorio de Dietowin (C:\\SuiteBiológica11\\Datos).
+    Encuentra cuadrantes (.xlsx), recordatorios (.docx), analíticas (.pdf) y notas (.TXE2).
+    """
+    if not os.path.exists(DIETOWIN_DATOS_DIR):
+        return []
+
+    norm_target = normalize_text(client_name)
+    target_words = [w for w in norm_target.split() if len(w) > 2]
+    matched = []
+
+    try:
+        for fname in os.listdir(DIETOWIN_DATOS_DIR):
+            fpath = os.path.join(DIETOWIN_DATOS_DIR, fname)
+            if not os.path.isfile(fpath):
+                continue
+
+            fname_norm = normalize_text(fname)
+            is_match = False
+            if norm_target in fname_norm:
+                is_match = True
+            elif target_words and sum(1 for w in target_words if w in fname_norm) >= min(2, len(target_words)):
+                is_match = True
+
+            if is_match:
+                f_lower = fname.lower()
+                doc_type = "otro"
+                if f_lower.endswith((".xlsx", ".xls", ".ods")):
+                    doc_type = "cuadrante" if any(k in f_lower for k in ["cuadrante", "entren", "horario"]) else "excel"
+                elif f_lower.endswith(".docx"):
+                    doc_type = "recordatorio" if any(k in f_lower for k in ["recordatorio", "cuestionario", "ficha"]) else "word"
+                elif f_lower.endswith(".pdf"):
+                    doc_type = "informe_composicion" if any(k in f_lower for k in ["tanita", "composicion", "antropom"]) else "pdf"
+                elif f_lower.endswith((".dw11d", ".dw8d")):
+                    doc_type = "dieta_dietowin"
+
+                matched.append({
+                    "filename": fname,
+                    "path": fpath,
+                    "type": doc_type,
+                    "size_kb": round(os.path.getsize(fpath) / 1024, 1)
+                })
+    except Exception as e:
+        print(f"[DOSSIER] Error escaneando directorio de Dietowin: {e}")
+
+    return matched
 
 
 def sanitize_filename(name: str) -> str:
@@ -290,6 +340,30 @@ def extract_tanita_body_composition(client_name: str, folder_path: Optional[str]
                 except Exception as e:
                     print(f"[DOSSIER] Error extrayendo .docx {fname}: {e}")
 
+        # B2. Búsqueda complementaria en el directorio de Dietowin (C:\SuiteBiológica11\Datos)
+        dietowin_matches = find_athlete_dietowin_files(client_name)
+        for df in dietowin_matches:
+            if df["type"] == "recordatorio":
+                try:
+                    doc_text = _extract_text_from_docx(df["path"])
+                    if doc_text:
+                        m_peso = re.search(r'peso:\s*([\d,.]+)\s*kg', doc_text, re.IGNORECASE)
+                        if m_peso and (not data.get("weight_kg") or data["weight_kg"] == 75.0):
+                            data["weight_kg"] = float(m_peso.group(1).replace(",", "."))
+                        m_alt = re.search(r'altura:\s*([\d,.]+)', doc_text, re.IGNORECASE)
+                        if m_alt and (not data.get("height_cm") or data["height_cm"] == 175.0):
+                            alt_val = float(m_alt.group(1).replace(",", "."))
+                            data["height_cm"] = alt_val * 100 if alt_val < 3.0 else alt_val
+                        m_edad = re.search(r'edad:\s*(\d+)', doc_text, re.IGNORECASE)
+                        if m_edad and (not data.get("age") or data["age"] == 25):
+                            data["age"] = int(m_edad.group(1))
+                        m_dep = re.search(r'deporte:\s*([^\n\r]+?)(?:registro|instrucciones|$)', doc_text, re.IGNORECASE)
+                        if m_dep and "Fútbol / Rendimiento" in data.get("sports", ""):
+                            data["sports"] = m_dep.group(1).strip()
+                        data["source"] = f"Dietowin Suite11 ({df['filename']})"
+                except Exception as e:
+                    print(f"[DOSSIER] Error leyendo recordatorio Dietowin {df['filename']}: {e}")
+
     # C. Ajuste y validación especial si es Iván Cerezo Delgado
     if "ivan" in normalize_text(client_name) and "cerezo" in normalize_text(client_name):
         data["name"] = "Iván Cerezo Delgado"
@@ -448,6 +522,23 @@ def extract_athlete_training_schedule(client_name: str, folder_path: Optional[st
                 break
         except Exception as e:
             print(f"[DOSSIER] Error procesando archivo de entrenamiento {fname}: {e}")
+
+    # Si no se encontró en Drive, buscar en el directorio de Dietowin (C:\SuiteBiológica11\Datos)
+    if not res["found"]:
+        dietowin_matches = find_athlete_dietowin_files(client_name)
+        for df in dietowin_matches:
+            if df["type"] in ["cuadrante", "excel"]:
+                try:
+                    parsed = diet_manager.load_training_file_by_path(df["path"], weight_kg)
+                    if parsed.get("success") and parsed.get("total_sessions", 0) > 0:
+                        res["found"] = True
+                        res["filename"] = f"[Dietowin] {df['filename']}"
+                        res["file_path"] = df["path"]
+                        res["total_sessions"] = parsed.get("total_sessions", 0)
+                        res["workouts_by_day"] = parsed.get("workouts_by_day", {d: [] for d in DAYS})
+                        break
+                except Exception as e:
+                    print(f"[DOSSIER] Error procesando cuadrante Dietowin {df['filename']}: {e}")
 
     return res
 
@@ -1832,20 +1923,26 @@ def auto_generate_official_dossier(client_name: str, user_plan: Optional[Dict[st
     with open(scratch_html, "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    # 6. Compilar a PDF mediante Edge Headless
-    pdf_success = compile_html_to_pdf_edge(html_output_path, pdf_output_path)
+    import urllib.parse
 
+    # 6. Compilar a PDF mediante Edge Headless (si está disponible en el entorno)
+    pdf_success = compile_html_to_pdf_edge(html_output_path, pdf_output_path)
     elapsed_sec = round((datetime.now() - start_time).total_seconds(), 2)
+    safe_name_enc = urllib.parse.quote(athlete_data["name"])
 
     return {
-        "success": pdf_success,
+        "success": True,
+        "pdf_compiled": pdf_success,
+        "is_cloud_preview": not pdf_success,
         "athlete": athlete_data,
         "training_file": training_data.get("filename"),
         "total_sessions": training_data.get("total_sessions", 0),
         "html_path": html_output_path,
         "pdf_path": pdf_output_path if pdf_success else None,
         "pdf_size_bytes": os.path.getsize(pdf_output_path) if pdf_success and os.path.exists(pdf_output_path) else 0,
+        "html_url": f"/api/diet/view-dossier-html?client={safe_name_enc}",
+        "pdf_url": f"/api/diet/download-dossier-pdf?client={safe_name_enc}" if pdf_success else None,
         "drive_folder": drive_folder,
         "elapsed_seconds": elapsed_sec,
-        "message": f"Patrón Nutricional Oficial de 20 páginas generado y guardado en Google Drive en {elapsed_sec}s." if pdf_success else "Se generó el HTML pero ocurrió un error al compilar el PDF con Edge."
+        "message": f"Patrón Nutricional Oficial de 20 páginas compilado y guardado en Google Drive ({elapsed_sec}s)." if pdf_success else "Dossier Oficial de 20 páginas generado exitosamente. Listo para previsualizar o guardar en PDF desde el navegador."
     }

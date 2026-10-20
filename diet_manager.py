@@ -1776,33 +1776,63 @@ def parse_training_excel_or_csv(file_bytes: bytes, filename: str, weight_kg: flo
 def get_athlete_training_files_from_drive(client_name: str) -> List[Dict[str, Any]]:
     import drive_manager
     folder = drive_manager.find_athlete_folder(client_name)
-    if not folder or not os.path.exists(folder):
-        return []
-
     results = []
-    for root, dirs, files in os.walk(folder):
-        for f in files:
-            if f.startswith("~$") or f.startswith("."):
-                continue
-            ext = os.path.splitext(f)[1].lower()
-            if ext in ['.xlsx', '.xls', '.csv', '.ods', '.xlsm']:
-                full_path = os.path.join(root, f)
-                stat = os.stat(full_path)
-                mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M")
-                size_kb = round(stat.st_size / 1024, 1)
 
-                f_lower = f.lower()
-                is_cuadrante = any(k in f_lower for k in ['cuadrante', 'entren', 'training', 'plani', 'rutina', 'sesion', 'volum', 'micro'])
+    # 1. Buscar en carpeta de Google Drive
+    if folder and os.path.exists(folder):
+        for root, dirs, files in os.walk(folder):
+            for f in files:
+                if f.startswith("~$") or f.startswith("."):
+                    continue
+                ext = os.path.splitext(f)[1].lower()
+                if ext in ['.xlsx', '.xls', '.csv', '.ods', '.xlsm']:
+                    full_path = os.path.join(root, f)
+                    try:
+                        stat = os.stat(full_path)
+                        mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M")
+                        size_kb = round(stat.st_size / 1024, 1)
 
-                results.append({
-                    "filename": f,
-                    "full_path": full_path,
-                    "rel_path": os.path.relpath(full_path, folder),
-                    "size_kb": size_kb,
-                    "modified": mtime,
-                    "is_cuadrante": is_cuadrante,
-                    "ext": ext
-                })
+                        f_lower = f.lower()
+                        is_cuadrante = any(k in f_lower for k in ['cuadrante', 'entren', 'training', 'plani', 'rutina', 'sesion', 'volum', 'micro'])
+
+                        results.append({
+                            "filename": f,
+                            "full_path": full_path,
+                            "rel_path": os.path.relpath(full_path, folder),
+                            "size_kb": size_kb,
+                            "modified": mtime,
+                            "is_cuadrante": is_cuadrante,
+                            "ext": ext
+                        })
+                    except Exception:
+                        pass
+
+    # 2. Buscar en directorio de Dietowin (C:\SuiteBiológica11\Datos)
+    dietowin_dir = r"C:\SuiteBiológica11\Datos"
+    if os.path.exists(dietowin_dir):
+        try:
+            import dossier_pdf_generator
+            dw_files = dossier_pdf_generator.find_athlete_dietowin_files(client_name)
+            for df in dw_files:
+                ext = os.path.splitext(df["filename"])[1].lower()
+                if ext in ['.xlsx', '.xls', '.csv', '.ods', '.xlsm']:
+                    if any(r["full_path"] == df["path"] for r in results):
+                        continue
+                    stat = os.stat(df["path"])
+                    mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M")
+                    f_lower = df["filename"].lower()
+                    is_cuadrante = any(k in f_lower for k in ['cuadrante', 'entren', 'training', 'plani', 'rutina', 'sesion', 'volum', 'micro'])
+                    results.append({
+                        "filename": df["filename"],
+                        "full_path": df["path"],
+                        "rel_path": f"[Dietowin] {df['filename']}",
+                        "size_kb": df["size_kb"],
+                        "modified": mtime,
+                        "is_cuadrante": is_cuadrante,
+                        "ext": ext
+                    })
+        except Exception as e:
+            print(f"[DIET_MANAGER] Error comprobando archivos Dietowin: {e}")
 
     results.sort(key=lambda x: (x["is_cuadrante"], x["size_kb"] > 1), reverse=True)
     return results

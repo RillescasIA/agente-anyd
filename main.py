@@ -1635,6 +1635,54 @@ def api_download_official_dossier_pdf(client: str):
         headers={"Content-Disposition": f"inline; filename={os.path.basename(pdf_path)}"}
     )
 
+@app.get("/api/diet/view-dossier-html")
+def api_view_dossier_html(client: str):
+    """
+    Sirve la versión HTML completa del Patrón Nutricional Oficial de 20 páginas
+    para previsualización o impresión directa a PDF mediante el motor del navegador (Ctrl+P / Imprimir).
+    """
+    safe_name = dossier_pdf_generator.sanitize_filename(client.strip())
+    folder = dossier_pdf_generator.find_athlete_drive_folder(client.strip())
+    html_path = None
+
+    if folder and os.path.exists(folder):
+        candidate = os.path.join(folder, f"Patron_Nutricional_20_Paginas_{safe_name}.html")
+        if os.path.exists(candidate):
+            html_path = candidate
+
+    if not html_path or not os.path.exists(html_path):
+        candidate_scratch = os.path.join(dossier_pdf_generator.SCRATCH_DIR, f"Patron_Nutricional_20_Paginas_{safe_name}.html")
+        if os.path.exists(candidate_scratch):
+            html_path = candidate_scratch
+
+    # Si todavía no existe, generarlo al vuelo
+    if not html_path or not os.path.exists(html_path):
+        res = dossier_pdf_generator.auto_generate_official_dossier(client)
+        html_path = res.get("html_path")
+
+    if not html_path or not os.path.exists(html_path):
+        raise HTTPException(status_code=404, detail="Dossier HTML no encontrado.")
+
+    with open(html_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+
+    # Inyectar barra de herramientas flotante de impresión si no la tiene
+    if "btn-floating-print" not in html_content:
+        floating_toolbar = '''
+        <div style="position:fixed; top:16px; right:20px; z-index:99999; display:flex; gap:10px;" class="no-print">
+            <button onclick="window.print()" class="btn-floating-print" style="background:#0284c7; color:#ffffff; border:none; padding:12px 22px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 4px 12px rgba(2,132,199,0.35); display:flex; align-items:center; gap:8px;">
+                🖨️ Guardar como PDF / Imprimir
+            </button>
+            <button onclick="window.close()" style="background:#475569; color:#ffffff; border:none; padding:12px 18px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+                ✕ Cerrar
+            </button>
+        </div>
+        <style>@media print { .no-print { display: none !important; } }</style>
+        '''
+        html_content = html_content.replace("<body>", f"<body>\n{floating_toolbar}")
+
+    return HTMLResponse(content=html_content)
+
 @app.get("/api/diet/athlete-auto-parameters")
 def api_get_athlete_auto_parameters(name: str):
     """
