@@ -274,13 +274,16 @@ def page_login(request: Request, next: Optional[str] = "/admin", error: Optional
 
     logo_b64 = dossier_pdf_generator.get_logo_base64()
     stored_user, _ = auth_manager.get_stored_credentials()
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "next_url": next or "/admin",
-        "error": error,
-        "logo_base64": logo_b64,
-        "default_username": stored_user
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={
+            "next_url": next or "/admin",
+            "error": error,
+            "logo_base64": logo_b64,
+            "default_username": stored_user
+        }
+    )
 
 @app.post("/login")
 async def handle_login(request: Request):
@@ -308,13 +311,17 @@ async def handle_login(request: Request):
         return response
     else:
         logo_b64 = dossier_pdf_generator.get_logo_base64()
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-            "next_url": next_url,
-            "error": "Usuario o contraseña incorrectos. Por favor, verifica tus datos de acceso.",
-            "logo_base64": logo_b64,
-            "default_username": username
-        }, status_code=401)
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "next_url": next_url,
+                "error": "Usuario o contraseña incorrectos. Por favor, verifica tus datos de acceso.",
+                "logo_base64": logo_b64,
+                "default_username": username
+            },
+            status_code=401
+        )
 
 @app.get("/logout")
 def handle_logout():
