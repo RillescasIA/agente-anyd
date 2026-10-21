@@ -12,5 +12,7 @@
     "excel_path": "G:\\Mi unidad\\1.- ANyD\\Bonos activos_claude.xlsx",
     "backup_dir": "G:\\Mi unidad\\1.- IA\\IA Gemini\\Agente anyd\\backups",
     "tanita_default_baudrate": 9600,
-    "default_appointment_duration": 30
+    "default_appointment_duration": 30,
+    "admin_username": "admin",
+    "admin_password": "TuPasswordSeguro2026!"
 }

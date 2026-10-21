@@ -20,6 +20,7 @@ import sync_reservio_feed
 import diet_manager
 import clinical_manager
 import dossier_pdf_generator
+import auth_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -27,6 +28,63 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = FastAPI(title="ANyD Booking & Bono Manager")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+# ==========================================
+# MIDDLEWARE DE AUTENTICACIÓN Y SEGURIDAD
+# ==========================================
+
+PUBLIC_EXACT_PATHS = {
+    "/login",
+    "/logout",
+    "/reservar",
+    "/calendar.ics",
+    "/calendar/sync.ics",
+    "/favicon.ico"
+}
+
+PUBLIC_PREFIXES = (
+    "/static/",
+    "/api/available-slots",
+    "/api/book-appointment",
+    "/api/check-client",
+    "/api/webhook/woocommerce"
+)
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+
+    # Rutas públicas sin autenticación
+    if path in PUBLIC_EXACT_PATHS or path.startswith(PUBLIC_PREFIXES):
+        return await call_next(request)
+
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    # Comprobar token en cookie o header Authorization
+    session_token = request.cookies.get("anyd_session")
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:].strip()
+
+    user = auth_manager.verify_session_token(session_token)
+
+    if not user:
+        accept = request.headers.get("Accept", "")
+        # Si es llamada a la API o espera JSON, devolver 401
+        if path.startswith("/api/") or "application/json" in accept:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "No autenticado. Por favor, inicia sesión en /login"}
+            )
+        # Si es una página web, redirigir a /login
+        next_param = path if path not in ["/", "/login", "/logout"] else "/admin"
+        return RedirectResponse(url=f"/login?next={next_param}", status_code=303)
+
+    request.state.user = user
+    return await call_next(request)
+
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -202,6 +260,84 @@ def api_dashboard_stats():
         "today_appointments_count": today_appointments,
         "tanita": tanita_status
     }
+
+# ==========================================
+# RUTAS DE AUTENTICACIÓN Y ACCESO SEGURO
+# ==========================================
+
+@app.get("/login", response_class=HTMLResponse)
+def page_login(request: Request, next: Optional[str] = "/admin", error: Optional[str] = None):
+    # Si ya tiene sesión activa válida, redirigir directamente
+    session_token = request.cookies.get("anyd_session")
+    if auth_manager.verify_session_token(session_token):
+        return RedirectResponse(url=next or "/admin", status_code=303)
+
+    logo_b64 = dossier_pdf_generator.get_logo_base64()
+    stored_user, _ = auth_manager.get_stored_credentials()
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "next_url": next or "/admin",
+        "error": error,
+        "logo_base64": logo_b64,
+        "default_username": stored_user
+    })
+
+@app.post("/login")
+async def handle_login(request: Request):
+    form_data = await request.form()
+    username = str(form_data.get("username", "")).strip()
+    password = str(form_data.get("password", "")).strip()
+    next_url = str(form_data.get("next", "/admin") or "/admin")
+    remember = bool(form_data.get("remember"))
+
+    stored_user, stored_hash = auth_manager.get_stored_credentials()
+
+    if username.lower() == stored_user.lower() and auth_manager.verify_password(password, stored_hash):
+        token = auth_manager.create_session_token(username, remember_me=remember)
+        response = RedirectResponse(url=next_url, status_code=303)
+        max_age = 30 * 86400 if remember else 2 * 86400
+        is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+        response.set_cookie(
+            key="anyd_session",
+            value=token,
+            max_age=max_age,
+            httponly=True,
+            samesite="lax",
+            secure=is_https
+        )
+        return response
+    else:
+        logo_b64 = dossier_pdf_generator.get_logo_base64()
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "next_url": next_url,
+            "error": "Usuario o contraseña incorrectos. Por favor, verifica tus datos de acceso.",
+            "logo_base64": logo_b64,
+            "default_username": username
+        }, status_code=401)
+
+@app.get("/logout")
+def handle_logout():
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(key="anyd_session")
+    return response
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@app.post("/api/auth/change-password")
+def api_change_password(req: ChangePasswordRequest, request: Request):
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    stored_user, stored_hash = auth_manager.get_stored_credentials()
+    if not auth_manager.verify_password(req.current_password, stored_hash):
+        raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="La nueva contraseña debe tener al menos 6 caracteres")
+    auth_manager.set_admin_credentials(stored_user, req.new_password)
+    return {"success": True, "message": "Contraseña actualizada con éxito"}
 
 @app.get("/reservar", response_class=HTMLResponse)
 def page_reservar(request: Request):
@@ -1297,10 +1433,11 @@ def save_tanita_to_drive(req: DriveTanitaSaveRequest):
 
 class CopilotQueryRequest(BaseModel):
     prompt: str
+    active_athlete: Optional[str] = None
 
 @app.post("/api/ai/copilot")
 def query_ai_copilot(req: CopilotQueryRequest):
-    res = ai_copilot.process_copilot_query(req.prompt)
+    res = ai_copilot.process_copilot_query(req.prompt, req.active_athlete)
     return res
 
 # --- ENDPOINTS GESTIÓN DE FESTIVOS Y CIERRES (ALCORCÓN Y NACIONALES) ---

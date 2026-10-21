@@ -222,26 +222,59 @@ def get_clinical_guidelines_response() -> str:
 
 def markdown_to_html(md: str) -> str:
     html = md
+    html = re.sub(r'#### (.*)', r'<div style="font-weight:700; color:#0369a1; margin-top:6px; margin-bottom:2px; font-size:12px;">\1</div>', html)
     html = re.sub(r'### (.*)', r'<div style="font-weight:700; color:#0284C7; margin-top:8px; margin-bottom:4px; font-size:13px;">\1</div>', html)
     html = re.sub(r'## (.*)', r'<div style="font-weight:700; color:#1E293B; margin-top:10px; margin-bottom:6px; font-size:14px;">\1</div>', html)
     html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
     html = re.sub(r'\*(.*?)\*', r'<em>\1</em>', html)
+    html = re.sub(r'`(.*?)`', r'<code style="background:#f1f5f9; padding:2px 4px; border-radius:4px; font-size:11px; color:#0f172a;">\1</code>', html)
     html = html.replace('---', '<hr style="border:none; border-top:1px solid #E2E8F0; margin:8px 0;">')
     
     lines = html.split('\n')
     formatted_lines = []
     for line in lines:
         line_s = line.strip()
-        if line_s.startswith('• ') or line_s.startswith('- '):
+        if line_s.startswith('> '):
+            formatted_lines.append(f'<div style="background:#f8fafc; border-left:3px solid #0284c7; padding:4px 8px; margin:4px 0; font-size:11px; color:#475569;">{line_s[2:]}</div>')
+        elif line_s.startswith('• ') or line_s.startswith('- '):
             formatted_lines.append(f'<div style="margin-left:8px; margin-bottom:3px;">• {line_s[2:]}</div>')
+        elif re.match(r'^\d+\.\s', line_s):
+            formatted_lines.append(f'<div style="margin-left:8px; margin-bottom:3px;">{line_s}</div>')
         elif line_s.startswith('└ '):
             formatted_lines.append(f'<div style="margin-left:20px; font-size:12px; color:#64748B;">└ {line_s[2:]}</div>')
         else:
             formatted_lines.append(line)
     return '<br>'.join([l for l in formatted_lines if l != ''])
 
-def process_copilot_query(prompt: str) -> Dict[str, Any]:
+def process_copilot_query(prompt: str, active_athlete_name: Optional[str] = None) -> Dict[str, Any]:
     text = prompt.strip().lower()
+
+    # 0. Comprobar si es una consulta sobre gasto energético, deporte, METs o pautas ISSN / suplementación
+    sport_keywords = [
+        "coste", "gasto", "caloria", "caloría", "kcal", "mets", "actividad", "ejercicio",
+        "pilates", "reformer", "cadillac", "yoga", "fuerza", "pesas", "crossfit", "carrera",
+        "correr", "running", "bici", "ciclismo", "spinning", "futbol", "fútbol", "natacion",
+        "nadar", "padel", "pádel", "boxeo", "taekwondo", "judo", "bjj", "mma", "bombero",
+        "policia", "proteina", "proteína", "issn", "leucina", "creatina", "cafeina", "cafeína",
+        "beta alanina", "hidratos", "peri-entreno", "pre-entreno", "post-entreno", "intra-entreno",
+        "sodio", "electrolitos"
+    ]
+    if any(k in text for k in sport_keywords):
+        try:
+            import sports_assistant
+            res = sports_assistant.process_assistant_query(prompt, active_athlete_name)
+            if res.get("success"):
+                reply_text = res["reply_markdown"]
+                return {
+                    "success": True,
+                    "reply": reply_text,
+                    "response": reply_text,
+                    "reply_html": markdown_to_html(reply_text),
+                    "type": res.get("type", "sports_assistant"),
+                    "data": res
+                }
+        except Exception as e:
+            print(f"[COPILOT ERROR] Error en sports_assistant: {e}")
 
     if any(k in text for k in ["agenda", "hoy", "manana", "mañana", "citas de hoy", "horario"]):
         content = get_today_agenda()
