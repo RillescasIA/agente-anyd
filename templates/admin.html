@@ -569,6 +569,8 @@
             <ul class="nav-links">
                 <li class="nav-item"><a href="/" style="font-weight:700;">🏠 Menú</a></li>
                 <li class="nav-item {% if current_tab != 'past' %}active{% endif %}"><a href="/admin">📅 Calendario</a></li>
+
+                <li class="nav-item"><a href="/nuevo-paciente" style="color:white; background:#0284c7; font-weight:700; border-radius:6px; padding:6px 12px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">👤 Nuevo Paciente</a></li>
                 <li class="nav-item {% if current_tab == 'past' %}active{% endif %}"><a href="/admin?tab=past">🎟️ Histórico / Bonos (Excel)</a></li>
                 <li class="nav-item"><a href="/consulta" style="color:var(--anyd-blue); font-weight:700; background:rgba(0,134,205,0.08);">🩺 Estación Clínica</a></li>
                 <li class="nav-item"><a href="/patrones-nutricionales" style="color:#059669; font-weight:700;">🥗 Patrones Nutricionales</a></li>
@@ -786,6 +788,9 @@
             <button class="btn-create" onclick="openNewBookingModal()">
                 + CREAR NUEVO
             </button>
+            <a href="/nuevo-paciente" class="btn-create" style="background: linear-gradient(135deg, #0284c7 0%, #0086cd 100%); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);">
+                ✨ NUEVO PACIENTE (360°)
+            </a>
 
             <!-- FILTRO DE PERSONAL -->
             <div>
@@ -881,17 +886,20 @@
             
             <!-- CABECERA CON AVATAR E IDENTIFICACIÓN DEL DEPORTISTA -->
             <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
-                <div id="d-client-avatar" style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; box-shadow: 0 4px 10px rgba(0, 134, 205, 0.25); flex-shrink: 0;">
+                <div id="d-client-avatar" onclick="actionViewHistory()" title="Pulsar para ver reservas pasadas y futuras de este deportista" style="cursor: pointer; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; box-shadow: 0 4px 10px rgba(0, 134, 205, 0.25); flex-shrink: 0; transition: transform 0.15s ease;">
                     👤
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <h2 class="modal-title" id="d-client-name" style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.2;">Detalle de la Consulta</h2>
+                        <h2 class="modal-title" id="d-client-name" onclick="actionViewHistory()" title="Pulsar para ver reservas pasadas y futuras de este deportista" style="cursor: pointer; margin: 0; font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.2; text-decoration: underline dotted #0284c7;">Detalle de la Consulta</h2>
                         <span id="d-modality-badge" style="background: #E0F2FE; color: #0369A1; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #BAE6FD;">Presencial</span>
                         <span style="background: #DEF7EC; color: #03543F; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">⚡ Reservio</span>
                     </div>
                     <div style="font-size: 12px; color: #64748B; margin-top: 3px; display: flex; align-items: center; gap: 6px;">
                         <span>📋 Consulta Registrada en Agenda</span>
+                    </div>
+                    <div onclick="actionViewHistory()" style="cursor: pointer; font-size: 11.5px; color: #0284C7; font-weight: 700; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Ver todas las reservas de este deportista">
+                        <span>🔍 Ver todas las reservas pasadas y futuras</span> ➔
                     </div>
                 </div>
             </div>
@@ -1180,21 +1188,54 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN HISTÓRICO DE CITAS -->
-                <div>
-                    <div class="sidebar-section-title">📅 Histórico de Citas & Asistencias</div>
-                    <div style="overflow-x:auto; background:white; border-radius:6px; border:1px solid #E2E8F0; max-height:220px; overflow-y:auto;">
-                        <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
-                            <thead>
-                                <tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; color:#64748B;">
-                                    <th style="padding:8px 10px;">Fecha / Hora</th>
-                                    <th style="padding:8px 10px;">Modalidad</th>
-                                    <th style="padding:8px 10px;">Estado</th>
-                                    <th style="padding:8px 10px;">Notas / Servicio</th>
-                                </tr>
-                            </thead>
-                            <tbody id="h-appts-table-body"></tbody>
-                        </table>
+                <!-- SECCIÓN HISTÓRICO DE CITAS Y RESERVAS FUTURAS/PASADAS -->
+                <div style="margin-top: 20px;">
+                    <!-- RESERVAS FUTURAS -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div class="sidebar-section-title" style="margin:0;">
+                                🟢 Reservas Futuras / Próximas Citas Programadas
+                            </div>
+                            <span id="h-future-count-badge" style="background:#DEF7EC; color:#03543F; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">0 programadas</span>
+                        </div>
+                        <div style="overflow-x:auto; background:white; border-radius:6px; border:1.5px solid #BBF7D0;">
+                            <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                                <thead>
+                                    <tr style="background:#F0FDF4; border-bottom:1px solid #BBF7D0; color:#166534;">
+                                        <th style="padding:8px 10px;">Fecha y Hora</th>
+                                        <th style="padding:8px 10px;">Servicio</th>
+                                        <th style="padding:8px 10px;">Modalidad</th>
+                                        <th style="padding:8px 10px;">Estado</th>
+                                        <th style="padding:8px 10px;">Notas / Observaciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="h-future-appts-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- RESERVAS PASADAS -->
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div class="sidebar-section-title" style="margin:0;">
+                                📜 Historial de Reservas Pasadas (Consultas Anteriores)
+                            </div>
+                            <span id="h-past-count-badge" style="background:#E2E8F0; color:#475569; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">0 pasadas</span>
+                        </div>
+                        <div style="overflow-x:auto; background:white; border-radius:6px; border:1px solid #E2E8F0; max-height:220px; overflow-y:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                                <thead>
+                                    <tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; color:#64748B;">
+                                        <th style="padding:8px 10px;">Fecha y Hora</th>
+                                        <th style="padding:8px 10px;">Servicio</th>
+                                        <th style="padding:8px 10px;">Modalidad</th>
+                                        <th style="padding:8px 10px;">Estado</th>
+                                        <th style="padding:8px 10px;">Notas Clínicas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="h-past-appts-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2035,22 +2076,58 @@
                     });
                 }
 
-                // Citas
-                const apptsBody = document.getElementById('h-appts-table-body');
-                apptsBody.innerHTML = '';
-                if (data.appointments.length === 0) {
-                    apptsBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748B; padding:10px;">Sin citas registradas.</td></tr>';
-                } else {
-                    data.appointments.forEach(a => {
-                        apptsBody.innerHTML += `
-                            <tr>
-                                <td style="padding:6px 10px; font-weight:600;">${a.appointment_date} ${a.appointment_time || ''}</td>
-                                <td style="padding:6px 10px;">${a.modality || 'Presencial'}</td>
-                                <td style="padding:6px 10px;"><span style="font-weight:600; color:${a.status==='Completada'?'#10B981':(a.status==='Cancelada'?'#EF4444':'#2563EB')}">${a.status}</span></td>
-                                <td style="padding:6px 10px; font-size:11px; color:#64748B;">${a.notes || ''}</td>
-                            </tr>
-                        `;
-                    });
+                // Reservas Futuras
+                const futureBody = document.getElementById('h-future-appts-body');
+                const futureBadge = document.getElementById('h-future-count-badge');
+                if (futureBody) {
+                    futureBody.innerHTML = '';
+                    const futureAppts = data.future_appointments || [];
+                    if (futureBadge) futureBadge.innerText = `${futureAppts.length} programada${futureAppts.length === 1 ? '' : 's'}`;
+
+                    if (futureAppts.length === 0) {
+                        futureBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748B; padding:14px; background:#F8FAFC;">ℹ️ Este deportista no tiene reservas futuras programadas en este momento.</td></tr>';
+                    } else {
+                        futureAppts.forEach(a => {
+                            const isOnline = (a.modality || '').toLowerCase().includes('online');
+                            futureBody.innerHTML += `
+                                <tr style="border-bottom:1px solid #F1F5F9; background:#FAFDFB;">
+                                    <td style="padding:8px 10px; font-weight:700; color:#0F172A;">📅 ${a.appointment_date} <span style="color:#0284C7; font-weight:800;">${a.appointment_time || ''}</span> <span style="font-size:10.5px; color:#64748B;">(${a.duration_minutes || 30}m)</span></td>
+                                    <td style="padding:8px 10px; font-weight:600; color:#334155;">${a.service || 'Anyd Nutrición Deportiva'}</td>
+                                    <td style="padding:8px 10px;"><span style="font-size:11px; padding:2px 7px; border-radius:10px; font-weight:700; background:${isOnline ? '#F3E8FF' : '#E0F2FE'}; color:${isOnline ? '#6B21A8' : '#0369A1'};">${isOnline ? '🌐 Online' : '📍 Presencial'}</span></td>
+                                    <td style="padding:8px 10px;"><span style="font-weight:700; color:#059669; background:#DEF7EC; padding:2px 7px; border-radius:10px; font-size:11px;">🟢 ${a.status || 'Agendada'}</span></td>
+                                    <td style="padding:8px 10px; font-size:11.5px; color:#475569;">${a.notes || 'Ninguna observación'}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                }
+
+                // Reservas Pasadas
+                const pastBody = document.getElementById('h-past-appts-body');
+                const pastBadge = document.getElementById('h-past-count-badge');
+                if (pastBody) {
+                    pastBody.innerHTML = '';
+                    const pastAppts = data.past_appointments || [];
+                    if (pastBadge) pastBadge.innerText = `${pastAppts.length} anterior${pastAppts.length === 1 ? '' : 'es'}`;
+
+                    if (pastAppts.length === 0) {
+                        pastBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748B; padding:12px;">Sin consultas pasadas registradas en el historial.</td></tr>';
+                    } else {
+                        pastAppts.forEach(a => {
+                            const isCompleted = (a.status || '').toLowerCase() === 'completada';
+                            const isCancelled = (a.status || '').toLowerCase() === 'cancelada';
+                            const isOnline = (a.modality || '').toLowerCase().includes('online');
+                            pastBody.innerHTML += `
+                                <tr style="border-bottom:1px solid #F1F5F9;">
+                                    <td style="padding:7px 10px; font-weight:600; color:#1E293B;">${a.appointment_date} ${a.appointment_time || ''}</td>
+                                    <td style="padding:7px 10px; color:#475569;">${a.service || 'Anyd Nutrición Deportiva'}</td>
+                                    <td style="padding:7px 10px;"><span style="font-size:10.5px; padding:1px 6px; border-radius:8px; font-weight:600; background:${isOnline ? '#F3E8FF' : '#F1F5F9'}; color:${isOnline ? '#6B21A8' : '#475569'};">${isOnline ? 'Online' : 'Presencial'}</span></td>
+                                    <td style="padding:7px 10px;"><span style="font-weight:700; font-size:11px; padding:2px 6px; border-radius:8px; background:${isCompleted ? '#DEF7EC' : (isCancelled ? '#FEE2E2' : '#EFF6FF')}; color:${isCompleted ? '#03543F' : (isCancelled ? '#991B1B' : '#1E40AF')}">${isCompleted ? '✓ Completada' : (isCancelled ? '✕ Cancelada' : a.status)}</span></td>
+                                    <td style="padding:7px 10px; font-size:11px; color:#64748B;">${a.notes || ''}</td>
+                                </tr>
+                            `;
+                        });
+                    }
                 }
 
                 // Tanita

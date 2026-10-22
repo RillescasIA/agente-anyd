@@ -709,7 +709,7 @@ def export_calendar_ics():
 def get_client_history(name: Optional[str] = None, email: Optional[str] = None, client_id: Optional[int] = None):
     """
     Devuelve la ficha completa del deportista: datos de contacto, bonos activos/pasados,
-    citas asistidas/pendientes y mediciones históricas de la Tanita MC-580.
+    citas asistidas/pasadas, citas futuras/programadas y mediciones de Tanita MC-580.
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -737,15 +737,69 @@ def get_client_history(name: Optional[str] = None, email: Optional[str] = None, 
     """, (c_id, f"%{client_name.strip().lower()}%"))
     bonos = [dict(b) for b in cursor.fetchall()]
 
-    # Citas del deportista
+    # Citas completas del deportista (incluyendo servicio y detalles)
     cursor.execute("""
-    SELECT id, appointment_date, appointment_time, duration_minutes, modality, status, notes
+    SELECT id, bono_id, client_id, client_name, client_email, client_phone,
+           appointment_date, appointment_time, duration_minutes, modality, service, status, notes, created_at
     FROM appointments
     WHERE (client_id = ? OR LOWER(client_name) LIKE ?)
-    ORDER BY appointment_date DESC, appointment_time DESC
-    LIMIT 50
+    ORDER BY appointment_date ASC, appointment_time ASC
+    LIMIT 300
     """, (c_id, f"%{client_name.strip().lower()}%"))
-    appts = [dict(a) for a in cursor.fetchall()]
+    raw_appts = [dict(a) for a in cursor.fetchall()]
+
+    # Si el cliente no estaba en tabla clients, rescatar datos de contacto de appointments o bonos
+    if not client:
+        cand_email = ""
+        cand_phone = ""
+        for a in raw_appts:
+            if not cand_email and a.get("client_email"):
+                cand_email = a.get("client_email")
+            if not cand_phone and a.get("client_phone"):
+                cand_phone = a.get("client_phone")
+        client_dict = {
+            "id": None,
+            "fullname": client_name,
+            "email": cand_email,
+            "phone": cand_phone,
+            "notes": ""
+        }
+    else:
+        client_dict = dict(client)
+        if not client_dict.get("email"):
+            for a in raw_appts:
+                if a.get("client_email"):
+                    client_dict["email"] = a.get("client_email")
+                    break
+        if not client_dict.get("phone"):
+            for a in raw_appts:
+                if a.get("client_phone"):
+                    client_dict["phone"] = a.get("client_phone")
+                    break
+
+    # Separar reservas futuras vs reservas pasadas
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    future_appts = []
+    past_appts = []
+
+    for a in raw_appts:
+        appt_date = (a.get("appointment_date") or "").strip()
+        status = (a.get("status") or "").strip()
+
+        if appt_date > today_str:
+            future_appts.append(a)
+        elif appt_date == today_str:
+            if status.lower() in ("completada", "asistida", "realizada"):
+                past_appts.append(a)
+            else:
+                future_appts.append(a)
+        else:
+            past_appts.append(a)
+
+    # Ordenar futuras en orden cronológico ascendente (la más próxima primero)
+    future_appts.sort(key=lambda x: (x.get("appointment_date") or "", x.get("appointment_time") or ""))
+    # Ordenar pasadas en orden cronológico descendente (la más reciente primero)
+    past_appts.sort(key=lambda x: (x.get("appointment_date") or "", x.get("appointment_time") or ""), reverse=True)
 
     # Histórico de pesajes Tanita MC-580
     cursor.execute("""
@@ -753,17 +807,26 @@ def get_client_history(name: Optional[str] = None, email: Optional[str] = None, 
     FROM tanita_measurements
     WHERE (client_id = ? OR LOWER(client_name) LIKE ?)
     ORDER BY measurement_date DESC, id DESC
-    LIMIT 20
+    LIMIT 30
     """, (c_id, f"%{client_name.strip().lower()}%"))
     tanita_records = [dict(t) for t in cursor.fetchall()]
 
     conn.close()
 
     return {
-        "client": dict(client) if client else {"fullname": client_name, "email": "", "phone": "", "notes": ""},
+        "client": client_dict,
         "bonos": bonos,
-        "appointments": appts,
-        "tanita": tanita_records
+        "appointments": sorted(raw_appts, key=lambda x: (x.get("appointment_date") or "", x.get("appointment_time") or ""), reverse=True),
+        "future_appointments": future_appts,
+        "past_appointments": past_appts,
+        "tanita": tanita_records,
+        "stats": {
+            "future_count": len(future_appts),
+            "past_count": len(past_appts),
+            "total_count": len(raw_appts),
+            "active_bonos": len([b for b in bonos if b.get("status") == "Activo"]),
+            "tanita_count": len(tanita_records)
+        }
     }
 
 @app.get("/api/client-details")
@@ -1499,6 +1562,165 @@ class SavePlanRequest(BaseModel):
     target_fat_g: Optional[float] = 0.0
     weekly_data: Optional[Dict[str, Any]] = None
     notes: Optional[str] = ""
+
+class CompleteNuevoPacienteRequest(BaseModel):
+    client_name: str
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    birthdate: Optional[str] = ""
+    age: Optional[int] = 30
+    gender: Optional[str] = "M"
+    height_cm: Optional[float] = 175.0
+    bono_type: Optional[str] = ""
+    sport: Optional[str] = ""
+    level: Optional[str] = ""
+    weekly_hours: Optional[float] = 0.0
+    goal: Optional[str] = ""
+    supermarket: Optional[str] = "Mercadona"
+    cook_style: Optional[str] = "rapida"
+    notes: Optional[str] = ""
+    weight_kg: Optional[float] = 75.0
+    fat_percent: Optional[float] = 12.0
+    ffm_kg: Optional[float] = 66.0
+    muscle_kg: Optional[float] = 63.0
+    water_percent: Optional[float] = 62.0
+    visceral_fat: Optional[int] = 3
+    bmr_cunningham: Optional[float] = 1950.0
+    tdee_kcal: Optional[float] = 2700.0
+    weekly_plan: Optional[Dict[str, Any]] = None
+
+@app.get("/nuevo-paciente", response_class=HTMLResponse)
+@app.get("/alta-paciente", response_class=HTMLResponse)
+def page_nuevo_paciente(request: Request):
+    """
+    Workstation clínico guiado: Alta de nuevo paciente y flujo integral Dietowin 360°
+    (Anamnesis -> Tanita MC-580 -> Cunningham 1980/1991 -> Macros ACSM/ISSN -> Patrón 7 Días -> Dossier en Drive).
+    """
+    logo_b64 = dossier_pdf_generator.get_logo_base64()
+    return templates.TemplateResponse(
+        request=request,
+        name="nuevo_paciente.html",
+        context={
+            "logo_base64": logo_b64
+        }
+    )
+
+@app.post("/api/nuevo-paciente/completar")
+def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
+    """
+    Procesa el pipeline completo de alta del paciente:
+    1. Registra o actualiza al paciente en la tabla 'clients'.
+    2. Archiva la valoración de composición corporal en 'tanita_measurements'.
+    3. Guarda la planificación nutricional de 7 días en 'diet_plans'.
+    4. Compila y guarda automáticamente el Dossier Oficial ANyD de 20 páginas (con Hoja de Nevera y Lista de Compra) en Drive.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    client_name_clean = req.client_name.strip()
+    if not client_name_clean:
+        raise HTTPException(status_code=400, detail="El nombre del deportista es obligatorio.")
+
+    email_clean = (req.email or "").strip().lower()
+
+    # 1. Buscar o crear en clients
+    cursor.execute("SELECT id FROM clients WHERE LOWER(fullname) = ? OR (email != '' AND LOWER(email) = ?)", 
+                   (client_name_clean.lower(), email_clean))
+    row = cursor.fetchone()
+
+    client_note = f"Deporte: {req.sport or 'General'} | Nivel: {req.level or 'Popular'} | Horas/sem: {req.weekly_hours or 0}h | Objetivo: {req.goal or 'Salud/Rendimiento'} | Súper: {req.supermarket or 'Mercadona'} | Cocina: {req.cook_style or 'Rápida'}. {req.notes or ''}".strip()
+
+    if row:
+        client_id = row["id"]
+        cursor.execute("""
+            UPDATE clients 
+            SET phone = COALESCE(NULLIF(?, ''), phone),
+                email = COALESCE(NULLIF(?, ''), email),
+                note = ?
+            WHERE id = ?
+        """, (req.phone or "", req.email or "", client_note, client_id))
+    else:
+        parts = client_name_clean.split(" ", 1)
+        fname = parts[0]
+        lname = parts[1] if len(parts) > 1 else ""
+        cursor.execute("""
+            INSERT INTO clients (firstname, lastname, fullname, email, phone, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (fname, lname, client_name_clean, req.email or "", req.phone or "", client_note))
+        client_id = cursor.lastrowid
+
+    # 2. Guardar medición en tanita_measurements
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    bmi = round(req.weight_kg / (((req.height_cm or 175.0) / 100) ** 2), 1) if req.height_cm and req.height_cm > 0 else 24.0
+    fat_mass = round((req.weight_kg or 75.0) * ((req.fat_percent or 12.0) / 100), 2)
+
+    cursor.execute("""
+        INSERT INTO tanita_measurements (
+            client_id, client_name, measurement_date, weight, bmi, fat_percent, fat_mass,
+            muscle_mass, ffm, water_percent, visceral_fat, bmr_cunningham
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        client_id, client_name_clean, today_str, req.weight_kg or 75.0, bmi, req.fat_percent or 12.0, fat_mass,
+        req.muscle_kg or 63.0, req.ffm_kg or 66.0, req.water_percent or 62.0, req.visceral_fat or 3, req.bmr_cunningham or 1950.0
+    ))
+    conn.commit()
+    conn.close()
+
+    # 3. Guardar plan semanal en diet_plans
+    plan_name = f"Patrón Nutricional Oficial 7 Días - {client_name_clean}"
+    weekly_data = req.weekly_plan
+    if not weekly_data or not isinstance(weekly_data, dict) or not weekly_data.get("Lunes"):
+        gen_res = diet_manager.generate_smart_week(target_kcal=req.tdee_kcal or 2500.0, target_protein_g=(req.weight_kg or 75.0) * 2.0)
+        weekly_data = gen_res.get("week", {})
+
+    target_prot = round((req.weight_kg or 75.0) * 2.0, 1)
+    target_carbs = round((req.weight_kg or 75.0) * 4.5, 1)
+    target_fat = round(((req.tdee_kcal or 2500.0) * 0.25) / 9.0, 1)
+
+    diet_manager.save_diet_plan(
+        client_name=client_name_clean,
+        plan_name=plan_name,
+        client_id=client_id,
+        weight=req.weight_kg or 75.0,
+        ffm=req.ffm_kg or 66.0,
+        bmr=req.bmr_cunningham or 1950.0,
+        tdee=req.tdee_kcal or 2500.0,
+        target_kcal=req.tdee_kcal or 2500.0,
+        target_prot=target_prot,
+        target_carbs=target_carbs,
+        target_fat=target_fat,
+        weekly_data=weekly_data,
+        notes=client_note
+    )
+
+    # 4. Compilar y generar automáticamente el Dossier Oficial de 20 páginas con Edge y Drive
+    overrides = {
+        "name": client_name_clean,
+        "weight_kg": req.weight_kg or 75.0,
+        "fat_percent": req.fat_percent or 12.0,
+        "ffm_kg": req.ffm_kg or 66.0,
+        "muscle_kg": req.muscle_kg or 63.0,
+        "sport": req.sport or "Deporte",
+        "goal": req.goal or "Pérdida de grasa / Rendimiento",
+        "bmr_cunningham": int(req.bmr_cunningham or 1950),
+        "tdee_kcal": int(req.tdee_kcal or 2600)
+    }
+
+    dossier_res = dossier_pdf_generator.auto_generate_official_dossier(
+        client_name=client_name_clean,
+        user_plan=weekly_data,
+        overrides=overrides
+    )
+
+    return {
+        "success": True,
+        "client_id": client_id,
+        "client_name": client_name_clean,
+        "pdf_url": dossier_res.get("pdf_url"),
+        "html_url": dossier_res.get("html_url"),
+        "drive_folder": dossier_res.get("drive_folder"),
+        "message": "Alta de paciente completada y dossier oficial de 20 páginas compilado en Google Drive."
+    }
 
 @app.get("/patrones-nutricionales", response_class=HTMLResponse)
 @app.get("/patron-nutricional", response_class=HTMLResponse)

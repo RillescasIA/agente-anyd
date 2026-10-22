@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Paciente · Flujo Clínico Dietowin 360° | ANyD Nutricionistas</title>
+    <!-- Tipografías corporativas anyd.es -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anyd-blue: #0086cd;
+            --anyd-blue-hover: #0284c7;
+            --anyd-blue-light: #e0f2fe;
+            --anyd-dark: #0f172a;
+            --anyd-slate: #1e293b;
+            --anyd-gray-text: #475569;
+            --anyd-bg-light: #f8fafc;
+            --anyd-white: #ffffff;
+            --anyd-border: #e2e8f0;
+            --anyd-success: #10b981;
+            --anyd-warning: #f59e0b;
+            --anyd-danger: #ef4444;
+            --anyd-purple: #8b5cf6;
+            --anyd-radius: 10px;
+            --anyd-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Lato', sans-serif;
+            color: var(--anyd-gray-text);
+            background-color: var(--anyd-bg-light);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* BARRA SUPERIOR CORPORATIVA */
+        .topbar {
+            background: var(--anyd-white);
+            border-bottom: 1px solid var(--anyd-border);
+            padding: 10px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .logo-img { max-height: 38px; width: auto; }
+        .nav-links { display: flex; list-style: none; gap: 6px; align-items: center; }
+        .nav-item a {
+            text-decoration: none;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #64748B;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-item a:hover { color: var(--anyd-blue); background: #F1F5F9; }
+        .nav-item.active a { color: white; background: var(--anyd-blue); font-weight: 700; }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .profile-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+        .avatar-circle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--anyd-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        /* HEADER DEL WORKSTATION */
+        .flow-header {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            color: white;
+            padding: 24px 30px;
+            border-bottom: 3px solid var(--anyd-blue);
+        }
+        .flow-header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .flow-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.3px;
+        }
+        .flow-subtitle {
+            font-size: 12.5px;
+            color: #94A3B8;
+            margin-top: 4px;
+        }
+        .flow-badge {
+            background: rgba(0, 134, 205, 0.2);
+            border: 1px solid var(--anyd-blue);
+            color: #38BDF8;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* STEPPER CLINICO DE 6 FASES */
+        .stepper-container {
+            background: white;
+            border-bottom: 1px solid var(--anyd-border);
+            padding: 14px 20px;
+            position: sticky;
+            top: 59px;
+            z-index: 990;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .stepper {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .step-bubble {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #F1F5F9;
+            border: 2px solid #CBD5E1;
+            color: #64748B;
+            font-weight: 800;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .step-item.active .step-bubble {
+            background: var(--anyd-blue);
+            border-color: var(--anyd-blue);
+            color: white;
+            box-shadow: 0 0 0 4px rgba(0, 134, 205, 0.18);
+            transform: scale(1.08);
+        }
+        .step-item.completed .step-bubble {
+            background: #10B981;
+            border-color: #10B981;
+            color: white;
+        }
+        .step-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #64748B;
+            transition: all 0.2s;
+        }
+        .step-item.active .step-label {
+            color: var(--anyd-blue);
+            font-weight: 800;
+        }
+        .step-item.completed .step-label {
+            color: #047857;
+        }
+
+        /* CONTENEDOR PRINCIPAL Y CARDS */
+        .workspace {
+            max-width: 1200px;
+            width: 100%;
+            margin: 24px auto;
+            padding: 0 20px 60px 20px;
+            flex: 1;
+        }
+        .card {
+            background: white;
+            border: 1px solid var(--anyd-border);
+            border-radius: var(--anyd-radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--anyd-shadow);
+        }
+        .card-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--anyd-slate);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--anyd-border);
+            padding-bottom: 10px;
+        }
+
+        /* FORMULARIOS Y GRID */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-label {
+            display: block;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 9px 12px;
+            font-size: 13.5px;
+            font-family: 'Lato', sans-serif;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 6px;
+            background: white;
+            color: #1E293B;
+            transition: all 0.15s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--anyd-blue);
+            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.12);
+        }
+        .form-hint {
+            font-size: 11px;
+            color: #64748B;
+            margin-top: 4px;
+        }
+
+        /* CHIPS INTERACTIVOS SELECCIONABLES */
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .chip {
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #F1F5F9;
+            border: 1.5px solid #E2E8F0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+        .chip:hover {
+            border-color: #CBD5E1;
+            background: #E2E8F0;
+        }
+        .chip.active {
+            background: #E0F2FE;
+            border-color: var(--anyd-blue);
+            color: #0369A1;
+            font-weight: 700;
+        }
+
+        /* BOTONES DE ACCIÓN */
+        .btn-anyd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: var(--anyd-blue);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--anyd-blue-hover);
+        }
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #047857;
+        }
+        .btn-outline {
+            background: white;
+            border: 1.5px solid #CBD5E1;
+            color: #475569;
+        }
+        .btn-outline:hover {
+            border-color: #94A3B8;
+            background: #F8FAFC;
+        }
+
+        /* TARJETAS METABÓLICAS DIDÁCTICAS */
+        .metric-card {
+            background: #F8FAFC;
+            border: 1.5px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 14px 16px;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .metric-card:hover {
+            border-color: #CBD5E1;
+            background: white;
+        }
+        .metric-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric-value {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--anyd-slate);
+            margin: 4px 0;
+        }
+        .metric-sub {
+            font-size: 11.5px;
+            color: #64748B;
+        }
+
+        /* CUADRÍCULA SEMANAL DE 7 DÍAS */
+        .week-tabs {
+            display: flex;
+            gap: 6px;
+            border-bottom: 2px solid #E2E8F0;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .week-tab-btn {
+            padding: 8px 16px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #64748B;
+            background: none;
+            border: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .week-tab-btn.active {
+            color: var(--anyd-blue);
+            background: #E0F2FE;
+            border-bottom: 2px solid var(--anyd-blue);
+        }
+
+        .meal-slot-box {
+            background: white;
+            border: 1.5px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+            transition: all 0.15s;
+        }
+        .meal-slot-box:hover {
+            border-color: #CBD5E1;
+        }
+        .meal-slot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .meal-slot-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--anyd-slate);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .meal-recipe-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #0369A1;
+            margin-bottom: 6px;
+        }
+        .meal-recipe-desc {
+            font-size: 12px;
+            color: #475569;
+            background: #F8FAFC;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border-left: 3px solid var(--anyd-blue);
+            line-height: 1.4;
+        }
+
+        /* NAVEGACIÓN INFERIOR DE PASOS */
+        .wizard-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--anyd-border);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. TOPBAR CORPORATIVA -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="/">
+                {% if logo_base64 %}
+                <img src="data:image/png;base64,{{ logo_base64 }}" alt="ANyD Nutricionistas" class="logo-img">
+                {% else %}
+                <img src="/static/img/logo_anyd.png" alt="ANyD Nutricionistas" class="logo-img">
+                {% endif %}
+            </a>
+            <ul class="nav-links">
+                <li class="nav-item"><a href="/">🏠 Menú</a></li>
+                <li class="nav-item"><a href="/admin">📅 Calendario</a></li>
+                <li class="nav-item active"><a href="/nuevo-paciente" style="background:#0284c7; color:white; font-weight:700;">👤 Nuevo Paciente</a></li>
+                <li class="nav-item"><a href="/consulta" style="color:var(--anyd-blue); font-weight:700;">🩺 Estación Clínica</a></li>
+                <li class="nav-item"><a href="/patrones-nutricionales" style="color:#059669; font-weight:700;">🥗 Patrones Nutricionales</a></li>
+                <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
+                <li class="nav-item"><a href="/reservar" target="_blank">🌐 Reservas Web</a></li>
+            </ul>
+        </div>
+        <div class="topbar-right">
+            <div class="profile-chip">
+                <div class="avatar-circle">RI</div>
+                <span>Román Illescas (MAD00274)</span>
+            </div>
+            <a href="/logout" class="btn-anyd btn-outline" style="font-size:11px; padding:5px 9px;">🚪 Salir</a>
+        </div>
+    </header>
+
+    <!-- 2. HEADER DEL WORKSTATION FLUIDO -->
+    <section class="flow-header">
+        <div class="flow-header-content">
+            <div>
+                <h1 class="flow-title">
+                    <span>👤</span> Alta de Nuevo Paciente & Flujo Dietowin 360°
+                </h1>
+                <p class="flow-subtitle">
+                    Protocolo oficial ANyD: Anamnesis ➔ Bioimpedancia Tanita MC-580 ➔ Cunningham (1980/1991) ➔ Periodización ACSM/ISSN ➔ Patrón 7 Días ➔ Dossier 20 Páginas en Google Drive.
+                </p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <span class="flow-badge">⚡ Protocolo Oficial Evidencia Grado I</span>
+                <button type="button" onclick="loadDemoAthlete()" class="btn-anyd btn-outline" style="font-size:11px; padding:6px 12px; background:rgba(255,255,255,0.1); color:white; border-color:rgba(255,255,255,0.3);">
+                    🧪 Cargar Deportista de Prueba
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. STEPPER VISUAL DE 6 FASES -->
+    <nav class="stepper-container">
+        <div class="stepper">
+            <div class="step-item active" id="step-btn-1" onclick="goToStep(1)">
+                <div class="step-bubble">1</div>
+                <span class="step-label">Anamnesis</span>
+            </div>
+            <div class="step-item" id="step-btn-2" onclick="goToStep(2)">
+                <div class="step-bubble">2</div>
+                <span class="step-label">Tanita MC-580</span>
+            </div>
+            <div class="step-item" id="step-btn-3" onclick="goToStep(3)">
+                <div class="step-bubble">3</div>
+                <span class="step-label">Cunningham</span>
+            </div>
+            <div class="step-item" id="step-btn-4" onclick="goToStep(4)">
+                <div class="step-bubble">4</div>
+                <span class="step-label">Macronutrientes</span>
+            </div>
+            <div class="step-item" id="step-btn-5" onclick="goToStep(5)">
+                <div class="step-bubble">5</div>
+                <span class="step-label">Patrón Dietowin</span>
+            </div>
+            <div class="step-item" id="step-btn-6" onclick="goToStep(6)">
+                <div class="step-bubble">6</div>
+                <span class="step-label">Dossier & Drive</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 4. CONTENIDO INTERACTIVO (WIZARD STEPS) -->
+    <main class="workspace">
+
+        <!-- ================= FASE 1: ALTA Y ANAMNESIS CLÍNICO-DEPORTIVA ================= -->
+        <section id="step-content-1" class="wizard-step">
+            <div class="card">
+                <h2 class="card-title">📋 1. Datos Personales y Administrativos del Deportista</h2>
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label class="form-label">Nombre y Apellidos *</label>
+                        <input type="text" id="p-fullname" class="form-control" placeholder="Ej. Carlos Méndez Soto" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email de Contacto *</label>
+                        <input type="email" id="p-email" class="form-control" placeholder="deportista@correo.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Teléfono Móvil / WhatsApp *</label>
+                        <input type="tel" id="p-phone" class="form-control" placeholder="612345678">
+                    </div>
+                </div>
+
+                <div class="grid-4" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Fecha de Nacimiento</label>
+                        <input type="date" id="p-birthdate" class="form-control" onchange="calculateAgeFromBirthdate()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Edad Calculada</label>
+                        <input type="number" id="p-age" class="form-control" value="30" min="12" max="99">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sexo Biológico</label>
+                        <select id="p-gender" class="form-control" onchange="recalculateMetabolism()">
+                            <option value="M">Hombre (M)</option>
+                            <option value="F">Mujer (F)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Altura (cm)</label>
+                        <input type="number" id="p-height" class="form-control" value="178" min="120" max="230">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:10px;">
+                    <label class="form-label">Bono Asignado / Modalidad de Consulta</label>
+                    <select id="p-bono-type" class="form-control">
+                        <option value="Bono 4 Sesiones ANyD (Seguimiento Deportivo)">Bono 4 Sesiones ANyD (Seguimiento Deportivo)</option>
+                        <option value="1ª Consulta Nutrición Deportiva + Plan 7 Días">1ª Consulta Nutrición Deportiva + Plan 7 Días</option>
+                        <option value="Bono CF Catedral Nutrición">Bono CF Catedral Nutrición</option>
+                        <option value="Bono Tracius Nutrición">Bono Tracius Nutrición</option>
+                        <option value="Consulta OnLine (Videollamada)">Consulta OnLine (Videollamada)</option>
+                        <option value="Sin bono activo / Consulta suelta">Sin bono activo / Consulta suelta</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">🏃 2. Perfil Deportivo, Calendario y Horarios</h2>
+                <div class="form-group">
+                    <label class="form-label">Disciplina Deportiva Principal (Selecciona o escribe)</label>
+                    <input type="text" id="p-sport" class="form-control" placeholder="Ej. Running / Asfalto, Maratón, Triatlón..." value="Running / Asfalto">
+                    <div class="chips-container" style="margin-top:8px;">
+                        <span class="chip active" onclick="selectSportChip(this, 'Running / Asfalto')">🏃 Running / Asfalto</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Trail Running / Montaña')">⛰️ Trail Running</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Ciclismo Carretera / MTB')">🚴 Ciclismo</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Triatlón (70.3 / Olímpico)')">🏊‍♂️ Triatlón</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Fuerza / Hipertrofia / Gimnasio')">🏋️‍♂️ Fuerza / Hipertrofia</span>
+                        <span class="chip" onclick="selectSportChip(this, 'CrossFit / Hyrox')">⚡ CrossFit / Hyrox</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Fútbol / Deportes de Equipo')">⚽ Fútbol</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Pádel / Tenis')">🎾 Pádel</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Natación')">🏊 Natación</span>
+                        <span class="chip" onclick="selectSportChip(this, 'Pilates / Movilidad')">🧘 Pilates Máquina</span>
+                    </div>
+                </div>
+
+                <div class="grid-3" style="margin-top:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Nivel Competitivo</label>
+                        <select id="p-level" class="form-control">
+                            <option value="Popular / Aficionado">Popular / Aficionado</option>
+                            <option value="Competitivo / Federado" selected>Competitivo / Federado</option>
+                            <option value="Alto Rendimiento / Élite">Alto Rendimiento / Élite</option>
+                            <option value="Salud y Recreación">Salud y Recreación</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Días de Entrenamiento Semanal</label>
+                        <select id="p-weekly-days" class="form-control">
+                            <option value="3">3 días / semana</option>
+                            <option value="4">4 días / semana</option>
+                            <option value="5" selected>5 días / semana</option>
+                            <option value="6">6 días / semana</option>
+                            <option value="7">7 días / semana (Doble sesión)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Horas Semanales Totales</label>
+                        <input type="number" id="p-weekly-hours" class="form-control" value="6.5" step="0.5">
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Horario Habitual de Entrenamiento</label>
+                        <select id="p-schedule" class="form-control">
+                            <option value="Tarde (18:00 - 20:00)" selected>Tardes (18:00 - 20:00)</option>
+                            <option value="Mañana temprano (07:00 - 09:00)">Mañanas temprano (07:00 - 09:00)</option>
+                            <option value="Mediodía (14:00 - 15:30)">Mediodía (14:00 - 15:30)</option>
+                            <option value="Noches (>20:30)">Noches (>20:30)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Objetivo Prioritario</label>
+                        <select id="p-goal" class="form-control" onchange="recalculateMetabolism()">
+                            <option value="perdida_grasa" selected>Pérdida de grasa conservando masa magra (FFM)</option>
+                            <option value="hipertrofia">Aumento de masa muscular / Hipertrofia limpia</option>
+                            <option value="rendimiento">Rendimiento deportivo & Carga glucogénica</option>
+                            <option value="recomposicion">Recomposición corporal (Grasa baja + Músculo)</option>
+                            <option value="mantenimiento">Salud general, energía y mantenimiento</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">🩺 3. Anamnesis Digestiva, Hábitos y Logística de Cocina</h2>
+                <div class="form-group">
+                    <label class="form-label">Alergias e Intolerancias Diagnosticadas</label>
+                    <div class="chips-container" id="allergies-chips">
+                        <span class="chip" onclick="toggleChip(this)">Sin Gluten / Celiaquía</span>
+                        <span class="chip" onclick="toggleChip(this)">Sin Lactosa</span>
+                        <span class="chip" onclick="toggleChip(this)">Fructosa / Sorbitol</span>
+                        <span class="chip" onclick="toggleChip(this)">Mariscos / Crustáceos</span>
+                        <span class="chip" onclick="toggleChip(this)">Frutos Secos</span>
+                        <span class="chip" onclick="toggleChip(this)">Huevo</span>
+                        <span class="chip" onclick="toggleChip(this)">Legumbres</span>
+                        <span class="chip" onclick="toggleChip(this)">Soja</span>
+                        <span class="chip active" onclick="clearChips(this)">Ninguna Alergia</span>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-top:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Supermercado de Compra Frecuente</label>
+                        <select id="p-supermarket" class="form-control">
+                            <option value="Mercadona" selected>Mercadona (Hacendado / Congelados limpios)</option>
+                            <option value="Lidl">Lidl (Freshona / Ocean Sea)</option>
+                            <option value="Aldi">Aldi (GutBio / Golden Seafood)</option>
+                            <option value="Carrefour">Carrefour</option>
+                            <option value="Varios / Mercado Tradicional">Varios / Mercado Tradicional</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estilo de Cocina & Adherencia</label>
+                        <select id="p-cook-style" class="form-control">
+                            <option value="rapida" selected>Cocina Rápida (10-15 min, microondas, plancha, congelados limpios)</option>
+                            <option value="batch_cooking">Batch Cooking (Cocinar 2-3h el fin de semana para toda la semana)</option>
+                            <option value="tradicional">Cocina Tradicional diaria</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Patologías Digestivas / Molestias en Esfuerzo</label>
+                        <input type="text" id="p-digestive-issues" class="form-control" placeholder="Ej. Reflujo, hinchazón vespertina, flato en carrera...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alimentos Descartados / Aversiones</label>
+                        <input type="text" id="p-disliked-foods" class="form-control" placeholder="Ej. Hígado, coles de Bruselas, queso azul...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <div></div>
+                <button type="button" class="btn-anyd btn-primary" onclick="goToStep(2)">
+                    Continuar a Valoración Tanita MC-580 ➔
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= FASE 2: ANTROPOMETRÍA TANITA MC-580 ================= -->
+        <section id="step-content-2" class="wizard-step hidden">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--anyd-border); padding-bottom:10px;">
+                    <h2 class="card-title" style="margin:0; border:none; padding:0;">
+                        ⚖️ Valoración Antropométrica (Bioimpedancia Tanita MC-580)
+                    </h2>
+                    <button type="button" onclick="autoFetchTanitaMeasurement()" class="btn-anyd btn-outline" style="font-size:12px; padding:6px 12px;">
+                        📡 Capturar Última Lectura Tanita
+                    </button>
+                </div>
+                <p style="font-size:12.5px; color:#64748B; margin-bottom:16px;">
+                    Introduce los datos medidos en la báscula de bioimpedancia Tanita MC-580. La <strong>Masa Libre de Grasa (FFM)</strong> es la clave metabólica para la fórmula de Cunningham.
+                </p>
+
+                <div class="grid-4">
+                    <div class="form-group">
+                        <label class="form-label">Peso Corporal Total (kg) *</label>
+                        <input type="number" id="t-weight" class="form-control" value="76.5" step="0.1" oninput="onTanitaWeightFatChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">% Grasa Corporal *</label>
+                        <input type="number" id="t-fat-percent" class="form-control" value="13.2" step="0.1" oninput="onTanitaWeightFatChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Masa Libre de Grasa - FFM (kg) *</label>
+                        <input type="number" id="t-ffm" class="form-control" value="66.4" step="0.1" style="font-weight:700; color:#0369A1;" oninput="recalculateMetabolism()">
+                        <div class="form-hint">Cálculo automático: Peso × (1 - %Grasa)</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Masa Muscular (kg)</label>
+                        <input type="number" id="t-muscle" class="form-control" value="63.1" step="0.1">
+                    </div>
+                </div>
+
+                <div class="grid-4" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Agua Corporal Total (%)</label>
+                        <input type="number" id="t-water" class="form-control" value="62.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Grasa Visceral (1 - 12)</label>
+                        <input type="number" id="t-visceral" class="form-control" value="3" min="1" max="15">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Masa Ósea (kg)</label>
+                        <input type="number" id="t-bone" class="form-control" value="3.3" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">IMC Calculado (kg/m²)</label>
+                        <input type="number" id="t-bmi" class="form-control" value="24.1" step="0.1" readonly style="background:#F1F5F9;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="background:#F0FDF4; border-color:#BBF7D0;">
+                <h3 style="font-size:14px; font-weight:800; color:#166534; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    ✅ Diagnóstico Clínico de Composición Corporal
+                </h3>
+                <div id="tanita-diagnostic-text" style="font-size:12.5px; color:#14532D; line-height:1.5;">
+                    Deportista con <strong>76.5 kg</strong> y <strong>13.2% de grasa</strong>. Su Masa Libre de Grasa (FFM) es de <strong>66.4 kg</strong>, situándose en un estado muscular óptimo para periodización de carbohidratos.
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <button type="button" class="btn-anyd btn-outline" onclick="goToStep(1)">
+                    ⬅ Volver a Anamnesis
+                </button>
+                <button type="button" class="btn-anyd btn-primary" onclick="goToStep(3)">
+                    Calcular Fisiología con Cunningham ➔
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= FASE 3: MOTOR METABÓLICO CUNNINGHAM ================= -->
+        <section id="step-content-3" class="wizard-step hidden">
+            <div class="card">
+                <h2 class="card-title">⚡ 3. Motor Fisiológico Automático: Fórmula de Cunningham (1980/1991)</h2>
+                <p style="font-size:12.5px; color:#64748B; margin-bottom:16px;">
+                    En deportistas, el tejido metabólicamente activo determinante en reposo es la <strong>Masa Libre de Grasa (FFM)</strong>. Aplicamos de forma estricta el estándar de oro ANyD eliminando la sobreestimación de Harris-Benedict.
+                </p>
+
+                <!-- DESGLOSE MATEMÁTICO DIDÁCTICO -->
+                <div style="background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:8px; padding:16px; margin-bottom:20px; font-family:'Courier New', monospace; font-size:13.5px; color:#0F172A;">
+                    <strong>Fórmula de Cunningham:</strong> BMR = 500 + 22 × FFM (kg)<br>
+                    <span id="cunningham-math-breakdown" style="color:#0284C7; font-weight:700;">BMR = 500 + 22 × 66.4 kg = 1.961 kcal / día</span>
+                </div>
+
+                <div class="grid-4" style="margin-bottom:20px;">
+                    <div class="metric-card" style="border-top: 4px solid var(--anyd-blue);">
+                        <div class="metric-title">Metabolismo Basal (BMR)</div>
+                        <div class="metric-value" id="res-bmr">1.961</div>
+                        <div class="metric-sub">kcal / día (Cunningham)</div>
+                    </div>
+                    <div class="metric-card" style="border-top: 4px solid #8B5CF6;">
+                        <div class="metric-title">🛋️ Día Descanso (PAL 1.25)</div>
+                        <div class="metric-value" id="res-tdee-rest">2.451</div>
+                        <div class="metric-sub">kcal requeridas</div>
+                    </div>
+                    <div class="metric-card" style="border-top: 4px solid #059669;">
+                        <div class="metric-title">🏃 Día Moderado (PAL 1.40)</div>
+                        <div class="metric-value" id="res-tdee-mod">2.745</div>
+                        <div class="metric-sub">kcal requeridas</div>
+                    </div>
+                    <div class="metric-card" style="border-top: 4px solid #EF4444;">
+                        <div class="metric-title">⚡ Día Intenso (PAL 1.60)</div>
+                        <div class="metric-value" id="res-tdee-intense">3.138</div>
+                        <div class="metric-sub">kcal requeridas</div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px;">
+                    <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:14px;">
+                        <h4 style="font-size:13px; font-weight:800; color:#1E40AF; margin-bottom:6px;">
+                            🛡️ Disponibilidad Energética (Energy Availability - EA)
+                        </h4>
+                        <p style="font-size:12px; color:#1E3A8A; line-height:1.4;">
+                            Rango calibrado: <strong>38.5 kcal / kg FFM / día</strong>. Zona fisiológica segura y óptima según el Comité Olímpico Internacional (COI), previniendo el síndrome REDs y la alteración neuroendocrina.
+                        </p>
+                    </div>
+                    <div style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:8px; padding:14px; text-align:center;">
+                        <div style="font-size:11px; font-weight:700; color:#64748B;">Comparativa Mifflin-St Jeor</div>
+                        <div style="font-size:18px; font-weight:800; color:#475569; margin:4px 0;" id="res-mifflin">1.755 kcal</div>
+                        <div style="font-size:11px; color:#64748B;">(Diferencia: +206 kcal por FFM)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <button type="button" class="btn-anyd btn-outline" onclick="goToStep(2)">
+                    ⬅ Volver a Tanita
+                </button>
+                <button type="button" class="btn-anyd btn-primary" onclick="goToStep(4)">
+                    Configurar Macronutrientes & Periodización ➔
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= FASE 4: MACRONUTRIENTES Y PERIODIZACIÓN ================= -->
+        <section id="step-content-4" class="wizard-step hidden">
+            <div class="card">
+                <h2 class="card-title">🎯 4. Prescripción de Macronutrientes y Periodización (ACSM / ISSN)</h2>
+                
+                <!-- PROTEÍNA ISSN -->
+                <div style="background:white; border:1.5px solid #E2E8F0; border-radius:8px; padding:18px; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <div>
+                            <h3 style="font-size:14px; font-weight:800; color:#0F172A;">🥩 Ingesta Proteica (Criterios Oficiales ISSN)</h3>
+                            <div style="font-size:11.5px; color:#64748B;">Fraccionamiento cada 3-4 horas para saturar mTORC1 (Umbral de leucina: 2.5 - 3.0 g)</div>
+                        </div>
+                        <span id="badge-protein-total" style="background:#FEF3C7; color:#92400E; font-size:13px; font-weight:800; padding:4px 10px; border-radius:12px;">153 g / día (2.0 g/kg)</span>
+                    </div>
+
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label class="form-label">Ratio de Proteína (g/kg peso)</label>
+                            <input type="number" id="macro-prot-ratio" class="form-control" value="2.0" step="0.1" min="1.4" max="3.0" oninput="updateMacroCalculations()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dosis por Toma Principal (4-5 tomas)</label>
+                            <input type="text" id="macro-prot-per-meal" class="form-control" value="30 - 38 g / toma" readonly style="background:#F8FAFC; font-weight:700;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Proteína Pre-Sueño (Digestión Lenta)</label>
+                            <input type="text" id="macro-prot-presleep" class="form-control" value="30 g (Queso fresco batido / Caseína)" readonly style="background:#F8FAFC;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARBOHIDRATOS ACSM Y REGLA DE RACIONES ESTABLES -->
+                <div style="background:white; border:1.5px solid #E2E8F0; border-radius:8px; padding:18px; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <div>
+                            <h3 style="font-size:14px; font-weight:800; color:#0F172A;">🍚 Carbohidratos Periodizados (ACSM / IOC)</h3>
+                            <div style="font-size:11.5px; color:#64748B;">Regla de oro ANyD: Raciones estables fijas (variación máxima ±10 g)</div>
+                        </div>
+                        <span style="background:#DEF7EC; color:#03543F; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:10px;">Regla ±10g Activa</span>
+                    </div>
+
+                    <div class="grid-3" style="margin-bottom:14px;">
+                        <div class="form-group">
+                            <label class="form-label">Días de Descanso (3 - 4 g/kg)</label>
+                            <input type="number" id="macro-cho-rest" class="form-control" value="260" step="10" oninput="updateMacroCalculations()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Días Moderados (5 - 6 g/kg)</label>
+                            <input type="number" id="macro-cho-mod" class="form-control" value="380" step="10" oninput="updateMacroCalculations()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Días Intensos (7 - 9 g/kg)</label>
+                            <input type="number" id="macro-cho-intense" class="form-control" value="500" step="10" oninput="updateMacroCalculations()">
+                        </div>
+                    </div>
+
+                    <!-- ESTÁNDAR VISUAL DE RACIONES ANyD -->
+                    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; font-size:11.5px; color:#475569;">
+                        <strong>Tabla Maestra de Raciones:</strong> 
+                        Arroz/Pasta en seco: <strong>70 g</strong> (60-80g) · Patata/Legumbre cocida: <strong>250 g</strong> (240-260g) · Pan 100% integral: <strong>60 g</strong> (50-70g) · Copos avena: <strong>50 g</strong> (40-60g).
+                    </div>
+                </div>
+
+                <!-- GRASAS OMS Y SUPLEMENTACIÓN -->
+                <div class="grid-2">
+                    <div style="background:white; border:1.5px solid #E2E8F0; border-radius:8px; padding:16px;">
+                        <h4 style="font-size:13px; font-weight:800; color:#0F172A; margin-bottom:8px;">🫒 Grasas Cardioprotectoras (Criterio OMS)</h4>
+                        <ul style="font-size:12px; color:#475569; padding-left:18px; line-height:1.5;">
+                            <li>Grasas saturadas estrictamente <strong>&lt; 7-8% del VCT</strong>.</li>
+                            <li>Aceite de Oliva Virgen Extra (AOVE) en crudo: <strong>2-3 cucharadas soperas (10g c/u)</strong>.</li>
+                            <li>Omega-3 marino (EPA/DHA): 2 tomas/sem pescado azul.</li>
+                        </ul>
+                    </div>
+                    <div style="background:white; border:1.5px solid #E2E8F0; border-radius:8px; padding:16px;">
+                        <h4 style="font-size:13px; font-weight:800; color:#0F172A; margin-bottom:8px;">💊 Suplementación Ergonutricional (AIS Grupo A)</h4>
+                        <ul style="font-size:12px; color:#475569; padding-left:18px; line-height:1.5;">
+                            <li><strong>Creatina Monohidrato Creapure:</strong> 3 a 5 g/día continua.</li>
+                            <li><strong>Cafeína anhidra:</strong> 3 a 6 mg/kg pre-esfuerzo intenso.</li>
+                            <li><strong>Electrólitos (Sodio 500-700 mg/h):</strong> En sesiones &gt; 60 min.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <button type="button" class="btn-anyd btn-outline" onclick="goToStep(3)">
+                    ⬅ Volver a Cunningham
+                </button>
+                <button type="button" class="btn-anyd btn-primary" onclick="generatePatternAndGoToStep5()">
+                    ⚡ Confeccionar Patrón Nutricional en Dietowin ➔
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= FASE 5: PATRÓN NUTRICIONAL DIETOWIN (7 DÍAS) ================= -->
+        <section id="step-content-5" class="wizard-step hidden">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--anyd-border); padding-bottom:10px;">
+                    <div>
+                        <h2 class="card-title" style="margin:0; border:none; padding:0;">
+                            🥗 5. Patrón Nutricional Semanal de 7 Días (Catálogo Dietowin 2.0)
+                        </h2>
+                        <div style="font-size:12px; color:#64748B; margin-top:3px;">
+                            Selección de las 1.340 recetas maestras: ≥4 legumbres, pescado 3-4x, carne roja reducida, 0% ultraprocesados y preparaciones en 10-15 min.
+                        </div>
+                    </div>
+                    <button type="button" onclick="regenerateWeeklyPattern()" class="btn-anyd btn-outline" style="font-size:12px; padding:6px 12px;">
+                        🔄 Regenerar Menú Inteligente
+                    </button>
+                </div>
+
+                <!-- SELECTOR DE DÍAS (PESTAÑAS LUNES A DOMINGO) -->
+                <div class="week-tabs">
+                    <button type="button" class="week-tab-btn active" onclick="switchDayTab(0)">Lunes (Descanso)</button>
+                    <button type="button" class="week-tab-btn" onclick="switchDayTab(1)">Martes (Entreno Mod)</button>
+                    <button type="button" class="week-tab-btn" onclick="switchDayTab(2)">Miércoles (Series/Intenso)</button>
+                    <button type="button" class="week-tab-btn" onclick="switchDayTab(3)">Jueves (Fuerza)</button>
+                    <button type="button" class="week-tab-btn" onclick="switchDayTab(4)">Viernes (Descanso)</button>
+                    <button type="button" class="week-tab-btn" onclick="switchDayTab(5)">Sábado (Tirada Larga)</button>
+                    <button type="button" class="week-tab-btn" onclick="switchDayTab(6)">Domingo (Recuperación)</button>
+                </div>
+
+                <!-- CONTENEDOR DE LAS 5 TOMAS DEL DÍA SELECCIONADO -->
+                <div id="day-meals-container">
+                    <!-- Se inyecta dinámicamente con JavaScript -->
+                </div>
+
+                <!-- RESUMEN NUTRICIONAL DEL DÍA -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px 18px; margin-top:16px;">
+                    <div style="font-size:12.5px; font-weight:700; color:#1E293B;">
+                        📊 Totales del Día: <span id="day-total-kcal" style="color:var(--anyd-blue); font-size:15px; margin-left:6px;">2.480 kcal</span>
+                    </div>
+                    <div style="font-size:12px; color:#475569; display:flex; gap:16px;">
+                        <span>🥩 Proteínas: <b id="day-total-prot">155 g</b></span>
+                        <span>🍚 Carbohidratos: <b id="day-total-carbs">330 g</b></span>
+                        <span>🫒 Grasas: <b id="day-total-fat">60 g</b></span>
+                        <span>🌾 Fibra: <b id="day-total-fiber" style="color:#059669;">29 g</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <button type="button" class="btn-anyd btn-outline" onclick="goToStep(4)">
+                    ⬅ Volver a Macronutrientes
+                </button>
+                <button type="button" class="btn-anyd btn-success" style="font-size:14px; padding:12px 24px;" onclick="completeAndGenerateDossier()">
+                    💾 Guardar Alta & Compilar Dossier Oficial (20 Páginas) ➔
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= FASE 6: DOSSIER OFICIAL Y DRIVE ================= -->
+        <section id="step-content-6" class="wizard-step hidden">
+            <div class="card" style="text-align:center; padding:36px 20px;">
+                <div style="width:70px; height:70px; border-radius:50%; background:#DEF7EC; color:#03543F; font-size:36px; display:flex; align-items:center; justify-content:center; margin:0 auto 16px auto;">
+                    ✓
+                </div>
+                <h2 style="font-family:'Montserrat', sans-serif; font-size:22px; font-weight:800; color:#065F46; margin-bottom:8px;">
+                    ¡Alta de Paciente y Patrón Nutricional Completados con Éxito!
+                </h2>
+                <p style="font-size:13.5px; color:#475569; max-width:650px; margin:0 auto 24px auto;">
+                    El paciente ha sido registrado en la base de datos oficial de ANyD, su medición Tanita MC-580 ha sido archivada y se ha generado su <strong>Dossier Oficial de 20 páginas con la Hoja de la Nevera A4 y la Lista de la Compra</strong> en Google Drive.
+                </p>
+
+                <!-- BOTONERA DE ACCIÓN FINAL DIRECTA -->
+                <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:24px;">
+                    <a id="btn-download-pdf" href="#" target="_blank" class="btn-anyd btn-primary" style="padding:12px 22px; font-size:13px;">
+                        📄 Descargar PDF Oficial (20 Páginas)
+                    </a>
+                    <a id="btn-view-html" href="#" target="_blank" class="btn-anyd btn-outline" style="padding:12px 20px; font-size:13px;">
+                        🌐 Ver Dossier en Navegador
+                    </a>
+                    <a id="btn-open-drive" href="#" target="_blank" class="btn-anyd btn-outline" style="padding:12px 20px; font-size:13px; color:#059669; border-color:#059669;">
+                        📁 Abrir Carpeta en Google Drive
+                    </a>
+                    <button type="button" id="btn-whatsapp-welcome" onclick="sendWelcomeWhatsApp()" class="btn-anyd" style="background:#25D366; color:white; padding:12px 20px; font-size:13px;">
+                        💬 Enviar WhatsApp al Atleta
+                    </button>
+                </div>
+
+                <div style="border-top:1px solid var(--anyd-border); padding-top:20px; margin-top:20px; display:flex; justify-content:center; gap:14px;">
+                    <a href="/admin" class="btn-anyd btn-outline" style="font-size:12px;">
+                        📅 Ir al Calendario / Agenda
+                    </a>
+                    <a href="/nuevo-paciente" class="btn-anyd btn-outline" style="font-size:12px;">
+                        ➕ Dar de Alta Otro Paciente
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // ESTADO GLOBAL DEL WIZARD
+        let currentStep = 1;
+        let generatedWeeklyPlan = null;
+        let finalResponseData = null;
+
+        // INICIALIZACIÓN
+        document.addEventListener('DOMContentLoaded', () => {
+            recalculateMetabolism();
+        });
+
+        // NAVEGACIÓN ENTRE PASOS
+        function goToStep(stepNumber) {
+            if (stepNumber < 1 || stepNumber > 6) return;
+
+            // Validaciones al avanzar del paso 1
+            if (currentStep === 1 && stepNumber > 1) {
+                const name = document.getElementById('p-fullname').value.trim();
+                if (!name) {
+                    alert("Por favor, introduce al menos el Nombre y Apellidos del paciente.");
+                    document.getElementById('p-fullname').focus();
+                    return;
+                }
+            }
+
+            // Ocultar todos los pasos
+            for (let i = 1; i <= 6; i++) {
+                const stepEl = document.getElementById(`step-content-${i}`);
+                const btnEl = document.getElementById(`step-btn-${i}`);
+                if (stepEl) stepEl.classList.add('hidden');
+                if (btnEl) {
+                    btnEl.classList.remove('active');
+                    if (i < stepNumber) btnEl.classList.add('completed');
+                    else btnEl.classList.remove('completed');
+                }
+            }
+
+            // Mostrar el paso actual
+            const activeStepEl = document.getElementById(`step-content-${stepNumber}`);
+            const activeBtnEl = document.getElementById(`step-btn-${stepNumber}`);
+            if (activeStepEl) activeStepEl.classList.remove('hidden');
+            if (activeBtnEl) activeBtnEl.classList.add('active');
+
+            currentStep = stepNumber;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Ejecutar cálculos según el paso
+            if (stepNumber === 3) {
+                recalculateMetabolism();
+            }
+        }
+
+        // SELECCIÓN DE CHIPS
+        function selectSportChip(chip, sportName) {
+            document.querySelectorAll('#step-content-1 .chips-container .chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            document.getElementById('p-sport').value = sportName;
+        }
+
+        function toggleChip(chip) {
+            chip.classList.toggle('active');
+            const noneChip = document.querySelector('#allergies-chips .chip:last-child');
+            if (noneChip && chip !== noneChip) {
+                noneChip.classList.remove('active');
+            }
+        }
+
+        function clearChips(chip) {
+            document.querySelectorAll('#allergies-chips .chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+        }
+
+        // CÁLCULO DE EDAD
+        function calculateAgeFromBirthdate() {
+            const bdate = document.getElementById('p-birthdate').value;
+            if (!bdate) return;
+            const today = new Date();
+            const birth = new Date(bdate);
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                age--;
+            }
+            if (age > 0) document.getElementById('p-age').value = age;
+            recalculateMetabolism();
+        }
+
+        // BIOIMPEDANCIA: AUTO-CÁLCULO DE FFM
+        function onTanitaWeightFatChange() {
+            const weight = parseFloat(document.getElementById('t-weight').value) || 0;
+            const fatPct = parseFloat(document.getElementById('t-fat-percent').value) || 0;
+            const height = (parseFloat(document.getElementById('p-height').value) || 178) / 100;
+
+            if (weight > 0 && fatPct >= 0) {
+                const fatMass = weight * (fatPct / 100);
+                const ffm = weight - fatMass;
+                document.getElementById('t-ffm').value = ffm.toFixed(1);
+
+                // Masa muscular aproximada Tanita (FFM - masa ósea ~3.2)
+                const muscle = Math.max(ffm - 3.3, ffm * 0.95);
+                document.getElementById('t-muscle').value = muscle.toFixed(1);
+            }
+
+            if (weight > 0 && height > 0) {
+                const bmi = weight / (height * height);
+                document.getElementById('t-bmi').value = bmi.toFixed(1);
+            }
+
+            updateTanitaDiagnosticText();
+            recalculateMetabolism();
+        }
+
+        function updateTanitaDiagnosticText() {
+            const name = document.getElementById('p-fullname').value.trim() || 'El deportista';
+            const weight = document.getElementById('t-weight').value;
+            const fat = document.getElementById('t-fat-percent').value;
+            const ffm = document.getElementById('t-ffm').value;
+            const diagEl = document.getElementById('tanita-diagnostic-text');
+            if (diagEl) {
+                diagEl.innerHTML = `${name} presenta <strong>${weight} kg</strong> con <strong>${fat}% de grasa corporal</strong>. Su Masa Libre de Grasa (FFM) es de <strong>${ffm} kg</strong>, lo que garantiza una excelente capacidad metabólica y requerimientos proteicos estables.`;
+            }
+        }
+
+        // MOTOR FISIOLÓGICO: FÓRMULA DE CUNNINGHAM (1980/1991)
+        function recalculateMetabolism() {
+            const ffm = parseFloat(document.getElementById('t-ffm').value) || 66.4;
+            const weight = parseFloat(document.getElementById('t-weight').value) || 76.5;
+            const height = parseFloat(document.getElementById('p-height').value) || 178;
+            const age = parseInt(document.getElementById('p-age').value) || 30;
+            const gender = document.getElementById('p-gender').value;
+
+            // 1. Cunningham: BMR = 500 + 22 * FFM
+            const bmrCunningham = Math.round(500 + 22 * ffm);
+            document.getElementById('res-bmr').innerText = bmrCunningham;
+            document.getElementById('cunningham-math-breakdown').innerText = `BMR = 500 + 22 × ${ffm.toFixed(1)} kg = ${bmrCunningham} kcal / día`;
+
+            // 2. PAL Conservador ANyD
+            const tdeeRest = Math.round(bmrCunningham * 1.25);
+            const tdeeMod = Math.round(bmrCunningham * 1.40);
+            const tdeeIntense = Math.round(bmrCunningham * 1.60);
+
+            document.getElementById('res-tdee-rest').innerText = tdeeRest;
+            document.getElementById('res-tdee-mod').innerText = tdeeMod;
+            document.getElementById('res-tdee-intense').innerText = tdeeIntense;
+
+            // 3. Mifflin-St Jeor comparativa
+            let bmrMifflin = (10 * weight) + (6.25 * height) - (5 * age) + (gender === 'M' ? 5 : -161);
+            bmrMifflin = Math.round(bmrMifflin);
+            document.getElementById('res-mifflin').innerText = `${bmrMifflin} kcal`;
+
+            // 4. Actualizar macros según peso
+            updateMacroCalculations();
+        }
+
+        // MACRONUTRIENTES PERIODIZADOS
+        function updateMacroCalculations() {
+            const weight = parseFloat(document.getElementById('t-weight').value) || 76.5;
+            const protRatio = parseFloat(document.getElementById('macro-prot-ratio').value) || 2.0;
+
+            const totalProtG = Math.round(weight * protRatio);
+            document.getElementById('badge-protein-total').innerText = `${totalProtG} g / día (${protRatio} g/kg)`;
+
+            const protPerMeal = Math.round(totalProtG / 4);
+            document.getElementById('macro-prot-per-meal').value = `${protPerMeal - 4} - ${protPerMeal + 4} g / toma`;
+        }
+
+        // CONFECCIÓN Y GENERACIÓN DEL PATRÓN NUTRICIONAL EN DIETOWIN
+        async function generatePatternAndGoToStep5() {
+            goToStep(5);
+            await regenerateWeeklyPattern();
+        }
+
+        async function regenerateWeeklyPattern() {
+            const bmr = parseInt(document.getElementById('res-bmr').innerText) || 1960;
+            const tdeeMod = parseInt(document.getElementById('res-tdee-mod').innerText) || 2700;
+            const protRatio = parseFloat(document.getElementById('macro-prot-ratio').value) || 2.0;
+            const weight = parseFloat(document.getElementById('t-weight').value) || 76.5;
+            const targetProt = Math.round(weight * protRatio);
+
+            const container = document.getElementById('day-meals-container');
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#64748B;">⚡ Confeccionando menú semanal con las 1.340 recetas maestras de Dietowin...</div>';
+
+            try {
+                const res = await fetch('/api/diet/generate-smart-week', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target_kcal: tdeeMod,
+                        target_protein_g: targetProt
+                    })
+                });
+                const data = await res.json();
+                generatedWeeklyPlan = data.week || {};
+                renderDayMeals(0); // Renderizar Lunes por defecto
+            } catch (e) {
+                container.innerHTML = '<div style="color:#EF4444; padding:20px;">Error al conectar con el catálogo de recetas Dietowin.</div>';
+            }
+        }
+
+        // RENDERIZADO DEL DÍA EN EL PATRÓN
+        const DAYS_KEYS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+        let activeDayIndex = 0;
+
+        function switchDayTab(idx) {
+            activeDayIndex = idx;
+            document.querySelectorAll('.week-tab-btn').forEach((b, i) => {
+                if (i === idx) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+            renderDayMeals(idx);
+        }
+
+        function renderDayMeals(idx) {
+            const dayName = DAYS_KEYS[idx];
+            const container = document.getElementById('day-meals-container');
+            if (!generatedWeeklyPlan || !generatedWeeklyPlan[dayName]) {
+                container.innerHTML = '<div style="padding:20px; color:#64748B;">Sin datos para este día. Pulsa "Regenerar Menú".</div>';
+                return;
+            }
+
+            const dayData = generatedWeeklyPlan[dayName];
+            const meals = dayData.meals || {};
+
+            let html = '';
+            const slotNames = [
+                { key: 'Desayuno', label: '🌅 Desayuno', icon: '🥣' },
+                { key: 'Media Mañana', label: '🍏 Media Mañana (Snack)', icon: '🥪' },
+                { key: 'Comida', label: '🍽️ Comida Principal', icon: '🍲' },
+                { key: 'Merienda', label: '⚡ Merienda (Pre/Post Entreno)', icon: '🍌' },
+                { key: 'Cena', label: '🌙 Cena Ligera', icon: '🥗' }
+            ];
+
+            slotNames.forEach(slot => {
+                const item = meals[slot.key] || {
+                    nombre: `${slot.label} Equilibrado ANyD`,
+                    ingredientes: 'Pauta personalizada',
+                    elaboracion: 'Preparación concisa en 10-15 min.',
+                    kcal: 450, proteina_g: 25, carbohidratos_g: 50, grasa_g: 12
+                };
+
+                html += `
+                    <div class="meal-slot-box">
+                        <div class="meal-slot-header">
+                            <span class="meal-slot-name">${slot.label}</span>
+                            <span style="font-size:11.5px; font-weight:700; color:#64748B;">${item.kcal || 400} kcal · ${item.proteina_g || 25}g P · ${item.carbohidratos_g || 45}g HC</span>
+                        </div>
+                        <div class="meal-recipe-title">${item.nombre || 'Plato Saludable ANyD'}</div>
+                        <div style="font-size:12px; color:#334155; margin-bottom:6px;"><strong>Ingredientes:</strong> ${item.ingredientes || 'Según estándar visual'}</div>
+                        <div class="meal-recipe-desc"><strong>Técnica (10-15 min):</strong> ${item.elaboracion || 'Cocción limpia, salteado o vapor.'}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Actualizar resumen
+            document.getElementById('day-total-kcal').innerText = `${dayData.total_kcal || 2450} kcal`;
+            document.getElementById('day-total-prot').innerText = `${dayData.total_protein_g || 150} g`;
+            document.getElementById('day-total-carbs').innerText = `${dayData.total_carbs_g || 320} g`;
+            document.getElementById('day-total-fat').innerText = `${dayData.total_fat_g || 60} g`;
+        }
+
+        // GUARDADO FINAL Y GENERACIÓN DEL DOSSIER OFICIAL
+        async function completeAndGenerateDossier() {
+            const name = document.getElementById('p-fullname').value.trim();
+            const email = document.getElementById('p-email').value.trim();
+            const phone = document.getElementById('p-phone').value.trim();
+            const weight = parseFloat(document.getElementById('t-weight').value) || 76.5;
+            const fatPct = parseFloat(document.getElementById('t-fat-percent').value) || 13.2;
+            const ffm = parseFloat(document.getElementById('t-ffm').value) || 66.4;
+            const sport = document.getElementById('p-sport').value.trim() || 'Deporte';
+            const goal = document.getElementById('p-goal').value;
+            const bmr = parseInt(document.getElementById('res-bmr').innerText) || 1960;
+            const tdee = parseInt(document.getElementById('res-tdee-mod').innerText) || 2700;
+
+            const payload = {
+                client_name: name,
+                email: email,
+                phone: phone,
+                birthdate: document.getElementById('p-birthdate').value,
+                age: parseInt(document.getElementById('p-age').value) || 30,
+                gender: document.getElementById('p-gender').value,
+                height_cm: parseFloat(document.getElementById('p-height').value) || 178,
+                bono_type: document.getElementById('p-bono-type').value,
+                sport: sport,
+                level: document.getElementById('p-level').value,
+                weekly_hours: parseFloat(document.getElementById('p-weekly-hours').value) || 6,
+                goal: goal,
+                supermarket: document.getElementById('p-supermarket').value,
+                cook_style: document.getElementById('p-cook-style').value,
+                notes: document.getElementById('p-digestive-issues').value,
+                weight_kg: weight,
+                fat_percent: fatPct,
+                ffm_kg: ffm,
+                muscle_kg: parseFloat(document.getElementById('t-muscle').value) || 63,
+                water_percent: parseFloat(document.getElementById('t-water').value) || 62,
+                visceral_fat: parseInt(document.getElementById('t-visceral').value) || 3,
+                bmr_cunningham: bmr,
+                tdee_kcal: tdee,
+                weekly_plan: generatedWeeklyPlan
+            };
+
+            const btn = document.querySelector('#step-content-5 .btn-success');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Guardando y Compilando Dossier Oficial (20 Páginas)...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/nuevo-paciente/completar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                finalResponseData = data;
+
+                if (data.success) {
+                    // Configurar enlaces finales
+                    const safeEnc = encodeURIComponent(name);
+                    document.getElementById('btn-download-pdf').href = data.pdf_url || `/api/diet/download-dossier-pdf?client=${safeEnc}`;
+                    document.getElementById('btn-view-html').href = data.html_url || `/api/diet/view-dossier-html?client=${safeEnc}`;
+                    document.getElementById('btn-open-drive').href = `javascript:openDriveFolderByName('${name}')`;
+
+                    goToStep(6);
+                } else {
+                    alert("Aviso: " + (data.message || "Error al completar el alta."));
+                }
+            } catch (e) {
+                alert("Error de conexión al generar el dossier.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // WHATSAPP DE BIENVENIDA
+        function sendWelcomeWhatsApp() {
+            const name = document.getElementById('p-fullname').value.trim();
+            const phone = document.getElementById('p-phone').value.trim();
+            let targetPhone = phone.replace(/[^0-9]/g, '');
+            if (!targetPhone) {
+                alert("Por favor indica un teléfono móvil válido.");
+                return;
+            }
+            if (!targetPhone.startsWith('34') && targetPhone.length === 9) {
+                targetPhone = '34' + targetPhone;
+            }
+
+            const msg = `¡Hola ${name}! Te escribe Román Illescas de ANyD Nutricionistas. Ya he terminado de confeccionar y periodizar tu Patrón Nutricional oficial de 7 días adaptado a tu composición corporal Tanita y objetivos. Tienes el dossier completo en tu expediente. ¡A por todas!`;
+            window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function openDriveFolderByName(clientName) {
+            window.open(`/api/open-client-drive-folder?name=${encodeURIComponent(clientName)}`, '_blank');
+        }
+
+        // CARGA RÁPIDA DE DEPORTISTA DE PRUEBA
+        function loadDemoAthlete() {
+            document.getElementById('p-fullname').value = "Carlos Méndez Soto";
+            document.getElementById('p-email').value = "carlos.mendez@example.com";
+            document.getElementById('p-phone').value = "612987654";
+            document.getElementById('p-birthdate').value = "1994-05-18";
+            document.getElementById('p-age').value = 32;
+            document.getElementById('p-gender').value = "M";
+            document.getElementById('p-height').value = 178;
+            document.getElementById('p-sport').value = "Running / Asfalto (Preparación Maratón)";
+            document.getElementById('t-weight').value = 75.4;
+            document.getElementById('t-fat-percent').value = 12.8;
+            onTanitaWeightFatChange();
+            alert("✅ Datos de deportista de prueba cargados correctamente.");
+        }
+
+        async function autoFetchTanitaMeasurement() {
+            const name = document.getElementById('p-fullname').value.trim();
+            if (!name) {
+                alert("Por favor escribe primero el nombre del deportista para buscar sus mediciones.");
+                return;
+            }
+            try {
+                const res = await fetch(`/api/client-history?name=${encodeURIComponent(name)}`);
+                const data = await res.json();
+                if (data.tanita && data.tanita.length > 0) {
+                    const last = data.tanita[0];
+                    if (last.weight) document.getElementById('t-weight').value = last.weight;
+                    if (last.fat_percent) document.getElementById('t-fat-percent').value = last.fat_percent;
+                    if (last.muscle_mass) document.getElementById('t-muscle').value = last.muscle_mass;
+                    if (last.ffm) document.getElementById('t-ffm').value = last.ffm;
+                    onTanitaWeightFatChange();
+                    alert(`✅ Lectura recuperada de Tanita MC-580 (${last.measurement_date || 'Reciente'}).`);
+                } else {
+                    alert("No se encontraron mediciones previas de Tanita para este deportista.");
+                }
+            } catch (e) {
+                alert("Error consultando registros de Tanita.");
+            }
+        }
+    </script>
+</body>
+</html>
