@@ -1510,6 +1510,30 @@ def query_ai_copilot(req: CopilotQueryRequest):
     res = ai_copilot.process_copilot_query(req.prompt, req.active_athlete)
     return res
 
+@app.get("/agente", response_class=HTMLResponse)
+@app.get("/copiloto", response_class=HTMLResponse)
+def page_agente_standalone(request: Request, client: Optional[str] = None):
+    """
+    Ventana exclusiva del Agente Copiloto ANyD.
+    Permite tener el asistente clínico abierto en una ventana flotante independiente.
+    """
+    logo_b64 = dossier_pdf_generator.get_logo_base64()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, fullname, phone, email FROM clients ORDER BY fullname ASC")
+    clients = cursor.fetchall()
+    conn.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="agente.html",
+        context={
+            "logo_base64": logo_b64,
+            "clients": clients,
+            "initial_client": client or ""
+        }
+    )
+
 # --- ENDPOINTS GESTIÓN DE FESTIVOS Y CIERRES (ALCORCÓN Y NACIONALES) ---
 
 class AddHolidayRequest(BaseModel):

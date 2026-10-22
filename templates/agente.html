@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente Copiloto ANyD · Ventana Exclusiva | Román Illescas</title>
+    <!-- Fuentes oficiales anyd.es -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anyd-blue: #0086cd;
+            --anyd-blue-hover: #0284c7;
+            --anyd-blue-light: #e0f2fe;
+            --anyd-dark: #0f172a;
+            --anyd-slate: #1e293b;
+            --anyd-gray-text: #475569;
+            --anyd-bg-light: #f8fafc;
+            --anyd-white: #ffffff;
+            --anyd-border: #e2e8f0;
+            --anyd-success: #10b981;
+            --anyd-warning: #f59e0b;
+            --anyd-danger: #ef4444;
+            --anyd-purple: #8b5cf6;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Lato', sans-serif;
+            color: var(--anyd-gray-text);
+            background-color: var(--anyd-bg-light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* HEADER DE VENTANA EXCLUSIVA */
+        .agent-header {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            color: white;
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--anyd-blue);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+            -webkit-app-region: drag; /* Permite arrastrar ventana si es PWA/Electron */
+        }
+        .agent-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .agent-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 6px rgba(0, 134, 205, 0.4);
+        }
+        .agent-titles {
+            line-height: 1.2;
+        }
+        .agent-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .agent-sub {
+            font-size: 11px;
+            color: #94A3B8;
+        }
+        .agent-badge {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10B981;
+            color: #34D399;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .agent-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10B981;
+            box-shadow: 0 0 6px #10B981;
+        }
+
+        /* CONTEXTO DEL DEPORTISTA ACTIVO */
+        .context-bar {
+            background: white;
+            border-bottom: 1px solid var(--anyd-border);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .context-label {
+            font-weight: 700;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .context-select {
+            padding: 4px 8px;
+            font-size: 12px;
+            font-family: 'Lato', sans-serif;
+            font-weight: 600;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 6px;
+            color: #1E293B;
+            flex: 1;
+            max-width: 260px;
+        }
+        .context-info {
+            font-size: 11px;
+            color: #0369A1;
+            background: #E0F2FE;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* CHIPS DE ACCESO RÁPIDO */
+        .chips-bar {
+            background: #F1F5F9;
+            border-bottom: 1px solid #E2E8F0;
+            padding: 8px 14px;
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .copilot-chip {
+            background: white;
+            border: 1px solid #CBD5E1;
+            color: #334155;
+            padding: 4px 10px;
+            border-radius: 14px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copilot-chip:hover {
+            background: #E0F2FE;
+            border-color: var(--anyd-blue);
+            color: var(--anyd-blue);
+        }
+
+        /* ÁREA DE MENSAJES DEL CHAT */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #F8FAFC;
+        }
+        .bubble {
+            max-width: 88%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .bubble-bot {
+            align-self: flex-start;
+            background: white;
+            border: 1px solid #E2E8F0;
+            color: #1E293B;
+            border-bottom-left-radius: 2px;
+        }
+        .bubble-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%);
+            color: white;
+            border-bottom-right-radius: 2px;
+            font-weight: 500;
+        }
+
+        /* FORMATO DE RESPUESTAS CLÍNICAS */
+        .bubble-bot h3, .bubble-bot h4 {
+            font-family: 'Montserrat', sans-serif;
+            color: #0F172A;
+            margin: 8px 0 4px 0;
+            font-size: 13.5px;
+        }
+        .bubble-bot ul, .bubble-bot ol {
+            padding-left: 20px;
+            margin: 6px 0;
+        }
+        .bubble-bot li {
+            margin-bottom: 4px;
+        }
+        .bubble-bot strong {
+            color: #0F172A;
+        }
+        .bubble-bot .code-calc {
+            background: #F1F5F9;
+            border-left: 3px solid var(--anyd-blue);
+            padding: 6px 10px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 6px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .bubble-bot table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin: 8px 0;
+        }
+        .bubble-bot th, .bubble-bot td {
+            padding: 6px 8px;
+            border: 1px solid #CBD5E1;
+            text-align: left;
+        }
+        .bubble-bot th {
+            background: #F8FAFC;
+            font-weight: 700;
+        }
+
+        /* BARRA INFERIOR DE ESCRITURA */
+        .chat-footer {
+            background: white;
+            border-top: 1px solid var(--anyd-border);
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Lato', sans-serif;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 8px;
+            color: #1E293B;
+            outline: none;
+            transition: all 0.15s;
+        }
+        .chat-input:focus {
+            border-color: var(--anyd-blue);
+            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.12);
+        }
+        .btn-send {
+            background: var(--anyd-blue);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .btn-send:hover {
+            background: var(--anyd-blue-hover);
+            transform: scale(1.05);
+        }
+        .btn-clear {
+            background: none;
+            border: none;
+            color: #94A3B8;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.15s;
+        }
+        .btn-clear:hover {
+            color: #EF4444;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. HEADER CORPORATIVO -->
+    <header class="agent-header">
+        <div class="agent-header-left">
+            <div class="agent-avatar">🤖</div>
+            <div class="agent-titles">
+                <div class="agent-title">
+                    Agente Copiloto ANyD
+                    <span class="agent-badge"><span class="agent-badge-dot"></span> Grado I</span>
+                </div>
+                <div class="agent-sub">Román Illescas Quiroga (Col. MAD00274)</div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button onclick="clearChat()" class="btn-clear" title="Limpiar conversación">🗑️</button>
+        </div>
+    </header>
+
+    <!-- 2. BARRA DE CONTEXTO DEL DEPORTISTA -->
+    <div class="context-bar">
+        <div class="context-label">
+            <span>👤 Deportista Activo:</span>
+            <select id="active-athlete-select" class="context-select" onchange="onAthleteChange()">
+                <option value="">-- Sin deportista seleccionado (Genérico) --</option>
+                {% for c in clients %}
+                <option value="{{ c.fullname }}" {% if initial_client and initial_client.lower() in c.fullname.lower() %}selected{% endif %}>
+                    {{ c.fullname }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="athlete-context-badge" class="context-info" style="display:none;">
+            75 kg · BMR 1.950 kcal
+        </div>
+    </div>
+
+    <!-- 3. CHIPS DE CONSULTA RÁPIDA 1-CLIC -->
+    <div class="chips-bar">
+        <button class="copilot-chip" onclick="sendPreset('Dime el coste energético de pilates máquina en este deportista durante una hora')">
+            🧘 Pilates Máquina 1h
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Coste energético de 1 hora de running a 4:30 min/km con requerimientos de hidratación y sodio')">
+            🏃 Running 1h (4:30)
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Agenda de hoy')">
+            📋 Agenda de Hoy
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Alertas de bonos por agotar')">
+            ⚠️ Alertas Bonos
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Últimos pesajes Tanita MC-580')">
+            ⚖️ Tanita MC-580
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Pautas de proteína según la ISSN para hipertrofia y umbral de leucina')">
+            🥩 Proteína ISSN
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Regla de oro ANyD de raciones estables de hidratos de carbono')">
+            🍚 Raciones ±10g
+        </button>
+        <button class="copilot-chip" onclick="sendPreset('Pautas clínicas OMS para carne roja y ultraprocesados')">
+            🥗 Pautas OMS
+        </button>
+    </div>
+
+    <!-- 4. CONTENEDOR DE CONVERSACIÓN -->
+    <div class="chat-container" id="chat-messages">
+        <div class="bubble bubble-bot">
+            <strong>¡Hola Román!</strong> Bienvenido a tu <strong>Ventana Exclusiva del Agente Copiloto ANyD</strong>.<br><br>
+            Tengo acceso completo a tu agenda, estado de bonos, mediciones de la <strong>Tanita MC-580</strong>, carpetas de <strong>Google Drive</strong> y al <strong>Compendio ACSM/Ainsworth</strong>.<br><br>
+            Puedes preguntarme cualquier cuestión clínica o de gestión, como:<br>
+            • <em>«Dime el coste energético de pilates máquina en este deportista durante 1 hora»</em><br>
+            • <em>«¿Qué consultas tengo programadas para hoy?»</em><br>
+            • <em>«¿Qué bonos están a punto de agotarse?»</em><br>
+            • <em>«Pautas de proteínas y leucina según la ISSN»</em>
+        </div>
+    </div>
+
+    <!-- 5. BARRA DE ENTRADA -->
+    <div class="chat-footer">
+        <input type="text" id="chat-input" class="chat-input" placeholder="Pregunta a tu Agente Copiloto..." onkeydown="if(event.key==='Enter') sendUserMessage()" autofocus>
+        <button class="btn-send" onclick="sendUserMessage()" title="Enviar mensaje">➤</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            onAthleteChange();
+        });
+
+        function onAthleteChange() {
+            const athleteName = document.getElementById('active-athlete-select').value.trim();
+            const badge = document.getElementById('athlete-context-badge');
+            if (athleteName) {
+                badge.innerText = `👤 ${athleteName}`;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function sendPreset(text) {
+            document.getElementById('chat-input').value = text;
+            sendUserMessage();
+        }
+
+        async function sendUserMessage() {
+            const input = document.getElementById('chat-input');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            const athleteName = document.getElementById('active-athlete-select').value.trim();
+            const container = document.getElementById('chat-messages');
+
+            // Burbuja del usuario
+            const userBubble = document.createElement('div');
+            userBubble.className = 'bubble bubble-user';
+            userBubble.innerText = prompt;
+            container.appendChild(userBubble);
+
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+
+            // Burbuja de espera del bot
+            const botBubble = document.createElement('div');
+            botBubble.className = 'bubble bubble-bot';
+            botBubble.innerHTML = '<span style="color:#64748B;">🤖 Consultando base de datos ANyD y evidencia...</span>';
+            container.appendChild(botBubble);
+            container.scrollTop = container.scrollHeight;
+
+            try {
+                const res = await fetch('/api/ai/copilot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        active_athlete: athleteName
+                    })
+                });
+                const data = await res.json();
+
+                botBubble.innerHTML = data.reply_html || formatMarkdownSimple(data.reply || 'Sin respuesta.');
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                botBubble.innerHTML = '<span style="color:#EF4444;">Error conectando con el servidor. Comprueba la conexión.</span>';
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function formatMarkdownSimple(text) {
+            if (!text) return '';
+            let formatted = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>')
+                .replace(/• /g, '&bull; ');
+            return formatted;
+        }
+
+        function clearChat() {
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = `
+                <div class="bubble bubble-bot">
+                    <strong>Conversación reiniciada.</strong> ¿En qué puedo ayudarte hoy, Román?
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

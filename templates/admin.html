@@ -577,7 +577,7 @@
                 <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
                 <li class="nav-item"><a href="/reservar" target="_blank">🔗 Reservas en línea</a></li>
                 <li class="nav-item"><a href="javascript:void(0)" onclick="openGcalModal()" style="color:#0284c7; background:rgba(2, 132, 199, 0.08);">📲 Google Calendar (.ics)</a></li>
-                <li class="nav-item"><a href="javascript:void(0)" onclick="toggleCopilot()" style="color:#4F46E5; background:rgba(79, 70, 229, 0.08); font-weight:700;">🤖 Copiloto IA</a></li>
+                <li class="nav-item"><a href="javascript:void(0)" onclick="openAgentExclusiveWindow()" style="color:#4F46E5; background:rgba(79, 70, 229, 0.08); font-weight:700;" title="Abrir Agente Copiloto en Ventana Exclusiva">🤖 Agente Copiloto ⧉</a></li>
             </ul>
         </div>
 
@@ -1314,7 +1314,7 @@
             </div>
         </div>
     </div>
-    <button class="copilot-fab" onclick="toggleCopilot()">
+    <button class="copilot-fab" onclick="openAgentExclusiveWindow()" title="Abrir Agente Copiloto en Ventana Exclusiva">
         <span class="copilot-pulse"></span>
         <span>🤖 Copiloto IA</span>
     </button>
@@ -1325,7 +1325,7 @@
                 <div class="copilot-title">🤖 Copiloto Clínico ANyD</div>
                 <div style="font-size:11px; opacity:0.85;">Román Illescas Quiroga (Col. MAD00274)</div>
             </div>
-            <button class="copilot-close" onclick="toggleCopilot()">&times;</button>
+            <div style="display:flex; align-items:center; gap:6px;"><button onclick="openAgentExclusiveWindow()" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 7px; color:#4F46E5;" title="Abrir en Ventana Exclusiva">⧉ Exclusiva</button><button class="copilot-close" onclick="toggleCopilot()">&times;</button></div>
         </div>
 
         <div class="copilot-chips">
@@ -2225,6 +2225,15 @@
         }
 
         // --- FUNCIONES COPILOTO IA ANyD ---
+        function openAgentExclusiveWindow(clientName = '') {
+            const w = 520;
+            const h = 840;
+            const left = Math.max(0, window.screen.width - w - 40);
+            const top = 50;
+            const activeClient = clientName || (document.getElementById('d-client-name') && document.getElementById('d-client-name').innerText !== 'Detalle de la Consulta' ? document.getElementById('d-client-name').innerText : '');
+            const url = activeClient && activeClient !== '--' ? `/agente?client=${encodeURIComponent(activeClient)}` : '/agente';
+            window.open(url, 'AgenteANyD_Exclusivo', `width=${w},height=${h},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+        }
         function toggleCopilot() {
             const drawer = document.getElementById('copilot-drawer');
             drawer.classList.toggle('hidden');

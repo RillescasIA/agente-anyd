@@ -467,6 +467,7 @@
                 <li class="nav-item"><a href="/patrones-nutricionales">🥗 Patrones Nutricionales</a></li>
                 <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
                 <li class="nav-item"><a href="/reservar" target="_blank">🌐 Reservas</a></li>
+                <li class="nav-item"><a href="javascript:void(0)" onclick="openAgentExclusiveWindow()" style="color:#4F46E5; font-weight:700;">🤖 Agente Copiloto ⧉</a></li>
             </ul>
         </div>
         <div class="topbar-right">
@@ -1626,6 +1627,15 @@
                 `;
             }).join('');
         }
+    </script>
+<script>
+    function openAgentExclusiveWindow() {
+        const clientName = (document.getElementById('current-client-name') && document.getElementById('current-client-name').innerText) || '';
+        const w = 520; const h = 840;
+        const left = Math.max(0, window.screen.width - w - 40);
+        const url = clientName && clientName !== '--' ? `/agente?client=${encodeURIComponent(clientName)}` : '/agente';
+        window.open(url, 'AgenteANyD_Exclusivo', `width=${w},height=${h},top=50,left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+    }
     </script>
 </body>
 </html>
