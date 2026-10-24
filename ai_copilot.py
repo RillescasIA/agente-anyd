@@ -220,22 +220,26 @@ def get_clinical_guidelines_response() -> str:
      * Cuchara sopera = 10-12g (90-100 kcal)
 """
 
+import html as html_lib
+
 def markdown_to_html(md: str) -> str:
-    html = md
-    html = re.sub(r'#### (.*)', r'<div style="font-weight:700; color:#0369a1; margin-top:6px; margin-bottom:2px; font-size:12px;">\1</div>', html)
-    html = re.sub(r'### (.*)', r'<div style="font-weight:700; color:#0284C7; margin-top:8px; margin-bottom:4px; font-size:13px;">\1</div>', html)
-    html = re.sub(r'## (.*)', r'<div style="font-weight:700; color:#1E293B; margin-top:10px; margin-bottom:6px; font-size:14px;">\1</div>', html)
-    html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
-    html = re.sub(r'\*(.*?)\*', r'<em>\1</em>', html)
-    html = re.sub(r'`(.*?)`', r'<code style="background:#f1f5f9; padding:2px 4px; border-radius:4px; font-size:11px; color:#0f172a;">\1</code>', html)
-    html = html.replace('---', '<hr style="border:none; border-top:1px solid #E2E8F0; margin:8px 0;">')
+    # 1. Blindaje Anti-XSS: Escapar etiquetas HTML maliciosas de inicio (<script>, <iframe>, <img>)
+    safe_text = html_lib.escape(md)
+    safe_text = re.sub(r'#### (.*)', r'<div style="font-weight:700; color:#0369a1; margin-top:6px; margin-bottom:2px; font-size:12px;">\1</div>', safe_text)
+    safe_text = re.sub(r'### (.*)', r'<div style="font-weight:700; color:#0284C7; margin-top:8px; margin-bottom:4px; font-size:13px;">\1</div>', safe_text)
+    safe_text = re.sub(r'## (.*)', r'<div style="font-weight:700; color:#1E293B; margin-top:10px; margin-bottom:6px; font-size:14px;">\1</div>', safe_text)
+    safe_text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', safe_text)
+    safe_text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', safe_text)
+    safe_text = re.sub(r'`(.*?)`', r'<code style="background:#f1f5f9; padding:2px 4px; border-radius:4px; font-size:11px; color:#0f172a;">\1</code>', safe_text)
+    safe_text = safe_text.replace('---', '<hr style="border:none; border-top:1px solid #E2E8F0; margin:8px 0;">')
     
-    lines = html.split('\n')
+    lines = safe_text.split('\n')
     formatted_lines = []
     for line in lines:
         line_s = line.strip()
-        if line_s.startswith('> '):
-            formatted_lines.append(f'<div style="background:#f8fafc; border-left:3px solid #0284c7; padding:4px 8px; margin:4px 0; font-size:11px; color:#475569;">{line_s[2:]}</div>')
+        if line_s.startswith('&gt; ') or line_s.startswith('> '):
+            clean_gt = line_s.split(' ', 1)[1] if ' ' in line_s else ''
+            formatted_lines.append(f'<div style="background:#f8fafc; border-left:3px solid #0284c7; padding:4px 8px; margin:4px 0; font-size:11px; color:#475569;">{clean_gt}</div>')
         elif line_s.startswith('• ') or line_s.startswith('- '):
             formatted_lines.append(f'<div style="margin-left:8px; margin-bottom:3px;">• {line_s[2:]}</div>')
         elif re.match(r'^\d+\.\s', line_s):

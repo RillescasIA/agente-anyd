@@ -21,6 +21,7 @@ import diet_manager
 import clinical_manager
 import dossier_pdf_generator
 import auth_manager
+import security_shield
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -53,7 +54,26 @@ PUBLIC_PREFIXES = (
 
 @app.middleware("http")
 async def security_and_https_middleware(request: Request, call_next):
-    # 1. Enforzar HTTPS si la conexión entrante viene por HTTP inseguro (proxy Render / Cloudflare)
+    client_ip = security_shield.get_client_ip(request)
+    path = request.url.path
+
+    # 1. Escudo Anti-Escaneo y Sondas Maliciosas (Path Traversal, .env, wp-login, etc.)
+    if security_shield.is_malicious_path(path):
+        security_shield.log_security_alert("PROBE_BLOCKED", client_ip, f"Path: {path}")
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Acceso denegado por filtro de seguridad perimetral."}
+        )
+
+    # 2. Escudo Anti-DDoS / Rate Limiter Global (máximo 180 req/min por IP)
+    if not security_shield.check_rate_limit(client_ip, is_login=False):
+        security_shield.log_security_alert("RATE_LIMIT_EXCEEDED", client_ip, f"Path: {path}")
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Demasiadas peticiones. Por favor, reduce la velocidad de navegación."}
+        )
+
+    # 3. Enforzar HTTPS si la conexión entrante viene por HTTP inseguro (proxy Render / Cloudflare)
     proto = request.headers.get("x-forwarded-proto", "").lower()
     host = request.headers.get("host", "").lower()
     if proto == "http" and "localhost" not in host and "127.0.0.1" not in host:
@@ -62,12 +82,13 @@ async def security_and_https_middleware(request: Request, call_next):
 
     response: Response = await call_next(request)
 
-    # 2. Inyección de Cabeceras Estrictas de Seguridad y HSTS (RFC 6797)
+    # 4. Inyección de Cabeceras Estrictas de Seguridad y HSTS (RFC 6797 / OWASP)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
     return response
 
@@ -311,14 +332,50 @@ def page_login(request: Request, next: Optional[str] = "/admin", error: Optional
 
 @app.post("/login")
 async def handle_login(request: Request):
+    client_ip = security_shield.get_client_ip(request)
+
+    # 1. Comprobar si la IP está bloqueada por ataques de fuerza bruta
+    is_locked, remaining_sec = security_shield.check_login_lockout(client_ip)
+    if is_locked:
+        minutes = max(1, remaining_sec // 60)
+        logo_b64 = dossier_pdf_generator.get_logo_base64()
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "next_url": "/agente",
+                "error": f"🚨 ACCESO BLOQUEADO POR SEGURIDAD: Se han detectado demasiados intentos fallidos desde tu IP ({client_ip}). Bloqueo temporal activo durante {minutes} minutos.",
+                "logo_base64": logo_b64,
+                "default_username": ""
+            },
+            status_code=429
+        )
+
+    # 2. Rate limiter específico para login (máximo 12 intentos/minuto)
+    if not security_shield.check_rate_limit(client_ip, is_login=True):
+        logo_b64 = dossier_pdf_generator.get_logo_base64()
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "next_url": "/agente",
+                "error": "Demasiadas solicitudes en poco tiempo. Por favor, espera 60 segundos.",
+                "logo_base64": logo_b64,
+                "default_username": ""
+            },
+            status_code=429
+        )
+
     form_data = await request.form()
     username = str(form_data.get("username", "")).strip()
     password = str(form_data.get("password", "")).strip()
-    next_url = str(form_data.get("next", "/admin") or "/admin")
+    next_url = str(form_data.get("next", "/agente") or "/agente")
 
     stored_user, stored_hash = auth_manager.get_stored_credentials()
 
     if username.lower() == stored_user.lower() and auth_manager.verify_password(password, stored_hash):
+        # Éxito: restablecer intentos fallidos
+        security_shield.reset_failed_login(client_ip)
         token = auth_manager.create_session_token(username, duration_hours=4)
         response = RedirectResponse(url=next_url, status_code=303)
         # Cookie de sesión estricta (sin max_age persistente): se destruye al cerrar el navegador.
@@ -332,17 +389,32 @@ async def handle_login(request: Request):
         )
         return response
     else:
+        # Fallo: aplicar tarpitting de 1.2 segundos para neutralizar bots automatizados
+        import time
+        time.sleep(1.2)
+        lock_seconds = security_shield.record_failed_login(client_ip, username)
         logo_b64 = dossier_pdf_generator.get_logo_base64()
+
+        if lock_seconds > 0:
+            error_msg = "🚨 HAS SUPERADO EL LÍMITE DE INTENTOS: Tu dirección IP ha sido bloqueada temporalmente durante 15 minutos por el escudo de seguridad."
+            status_code = 429
+        else:
+            attempts_data = security_shield._failed_attempts.get(client_ip, {})
+            current_fails = attempts_data.get("count", 1)
+            remaining_tries = max(0, security_shield.MAX_FAILED_LOGIN_ATTEMPTS - current_fails)
+            error_msg = f"Usuario o contraseña incorrectos. Intentos restantes antes del bloqueo: {remaining_tries}"
+            status_code = 401
+
         return templates.TemplateResponse(
             request=request,
             name="login.html",
             context={
                 "next_url": next_url,
-                "error": "Usuario o contraseña incorrectos. Por favor, verifica tus datos de acceso.",
+                "error": error_msg,
                 "logo_base64": logo_b64,
                 "default_username": username
             },
-            status_code=401
+            status_code=status_code
         )
 
 @app.get("/logout")
