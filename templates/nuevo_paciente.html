@@ -276,6 +276,124 @@
             margin-top: 4px;
         }
 
+        
+        /* RECUADRO FOTOGRÁFICO DEPORTISTA EN ANAMNESIS */
+        .patient-info-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+        .patient-photo-card {
+            width: 140px;
+            background: #F8FAFC;
+            border: 2px dashed #CBD5E1;
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            transition: all 0.2s;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .patient-photo-card:hover, .patient-photo-card.dragover {
+            border-color: var(--anyd-blue);
+            background: #E0F2FE;
+            box-shadow: 0 4px 12px rgba(0, 134, 205, 0.15);
+        }
+        .photo-preview-box {
+            width: 110px;
+            height: 110px;
+            border-radius: 10px;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+        }
+        .photo-preview-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 9px;
+            display: none;
+        }
+        .photo-placeholder-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #94A3B8;
+        }
+        .btn-delete-avatar {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #EF4444;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 11px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+            transition: transform 0.15s;
+            z-index: 5;
+        }
+        .btn-delete-avatar:hover {
+            transform: scale(1.15);
+        }
+        .btn-camera-trigger {
+            margin-top: 8px;
+            width: 100%;
+            background: var(--anyd-blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: background 0.15s;
+        }
+        .btn-camera-trigger:hover {
+            background: var(--anyd-blue-hover);
+        }
+        .photo-paste-tip {
+            font-size: 9.5px;
+            color: #64748B;
+            margin-top: 5px;
+            line-height: 1.25;
+        }
+        @media (max-width: 860px) {
+            .patient-info-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+            .patient-photo-card {
+                width: 100%;
+                max-width: 220px;
+                margin-bottom: 12px;
+            }
+        }
+
         /* CHIPS INTERACTIVOS SELECCIONABLES */
         .chips-container {
             display: flex;
@@ -551,45 +669,77 @@
         <!-- ================= FASE 1: ALTA Y ANAMNESIS CLÍNICO-DEPORTIVA ================= -->
         <section id="step-content-1" class="wizard-step">
             <div class="card">
-                <h2 class="card-title">📋 1. Datos Personales y Administrativos del Deportista</h2>
-                <div class="grid-3">
-                    <div class="form-group">
-                        <label class="form-label">Nombre y Apellidos *</label>
-                        <input type="text" id="p-fullname" class="form-control" placeholder="Ej. Carlos Méndez Soto" required>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+                    <h2 class="card-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
+                        📋 1. Datos Personales y Administrativos del Deportista
+                    </h2>
+                    <span style="font-size:11px; color:#64748B; font-weight:600;">Campos obligatorios (*)</span>
+                </div>
+
+                <!-- BLOQUE INTEGRADO: FOTOGRAFÍA CLÍNICA + DATOS PERSONALES -->
+                <div class="patient-info-layout">
+                    
+                    <!-- RECUADRO PARA FOTO DEL PACIENTE (CÁMARA / WHATSAPP / DRAG & DROP) -->
+                    <div class="patient-photo-card" id="patient-photo-card" onclick="document.getElementById('patient-photo-file-input').click()" title="Haz clic para tomar foto o elegir archivo">
+                        <div class="photo-preview-box">
+                            <div id="photo-placeholder-view" class="photo-placeholder-view">
+                                <span style="font-size:38px; line-height:1;">👤</span>
+                                <span style="font-size:10px; font-weight:700; color:#64748B; margin-top:4px;">FOTO PACIENTE</span>
+                            </div>
+                            <img id="patient-photo-img" src="" alt="Foto Paciente" class="photo-preview-img">
+                            <button type="button" id="btn-delete-avatar" onclick="removePatientPhoto(event)" title="Eliminar foto" class="btn-delete-avatar">✕</button>
+                        </div>
+                        <input type="file" id="patient-photo-file-input" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelected(event)">
+                        <button type="button" class="btn-camera-trigger" onclick="event.stopPropagation(); document.getElementById('patient-photo-file-input').click()">
+                            📸 Tomar / Subir
+                        </button>
+                        <div class="photo-paste-tip">
+                            o pega con <strong>Ctrl + V</strong> desde WhatsApp
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Email de Contacto *</label>
-                        <input type="email" id="p-email" class="form-control" placeholder="deportista@correo.com">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Teléfono Móvil / WhatsApp *</label>
-                        <input type="tel" id="p-phone" class="form-control" placeholder="612345678">
+
+                    <!-- CAMPOS DEL FORMULARIO -->
+                    <div style="flex:1; width:100%;">
+                        <div class="grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Nombre y Apellidos *</label>
+                                <input type="text" id="p-fullname" class="form-control" placeholder="Ej. Carlos Méndez Soto" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email de Contacto *</label>
+                                <input type="email" id="p-email" class="form-control" placeholder="deportista@correo.com">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Teléfono Móvil / WhatsApp *</label>
+                                <input type="tel" id="p-phone" class="form-control" placeholder="612345678">
+                            </div>
+                        </div>
+
+                        <div class="grid-4" style="margin-top:10px;">
+                            <div class="form-group">
+                                <label class="form-label">Fecha de Nacimiento</label>
+                                <input type="date" id="p-birthdate" class="form-control" onchange="calculateAgeFromBirthdate()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Edad Calculada</label>
+                                <input type="number" id="p-age" class="form-control" value="30" min="12" max="99">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Sexo Biológico</label>
+                                <select id="p-gender" class="form-control" onchange="recalculateMetabolism()">
+                                    <option value="M">Hombre (M)</option>
+                                    <option value="F">Mujer (F)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Altura (cm)</label>
+                                <input type="number" id="p-height" class="form-control" value="178" min="120" max="230">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid-4" style="margin-top:10px;">
-                    <div class="form-group">
-                        <label class="form-label">Fecha de Nacimiento</label>
-                        <input type="date" id="p-birthdate" class="form-control" onchange="calculateAgeFromBirthdate()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Edad Calculada</label>
-                        <input type="number" id="p-age" class="form-control" value="30" min="12" max="99">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Sexo Biológico</label>
-                        <select id="p-gender" class="form-control" onchange="recalculateMetabolism()">
-                            <option value="M">Hombre (M)</option>
-                            <option value="F">Mujer (F)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Altura (cm)</label>
-                        <input type="number" id="p-height" class="form-control" value="178" min="120" max="230">
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top:10px;">
+                <div class="form-group" style="margin-top:4px;">
                     <label class="form-label">Bono Asignado / Modalidad de Consulta</label>
                     <select id="p-bono-type" class="form-control">
                         <option value="Bono 4 Sesiones ANyD (Seguimiento Deportivo)">Bono 4 Sesiones ANyD (Seguimiento Deportivo)</option>
@@ -1066,6 +1216,78 @@
         let finalResponseData = null;
 
         // INICIALIZACIÓN
+        
+        // ================= GESTIÓN DE FOTOGRAFÍA DEL DEPORTISTA =================
+        let patientPhotoBase64 = "";
+
+        function handlePhotoSelected(event) {
+            const file = event.target.files[0];
+            if (file) {
+                loadPhotoFile(file);
+            }
+        }
+
+        function loadPhotoFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert("Por favor selecciona un archivo de imagen válido (JPG, PNG).");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                patientPhotoBase64 = e.target.result;
+                const img = document.getElementById('patient-photo-img');
+                img.src = patientPhotoBase64;
+                img.style.display = 'block';
+                document.getElementById('photo-placeholder-view').style.display = 'none';
+                document.getElementById('btn-delete-avatar').style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removePatientPhoto(event) {
+            if (event) event.stopPropagation();
+            patientPhotoBase64 = "";
+            const img = document.getElementById('patient-photo-img');
+            img.src = "";
+            img.style.display = 'none';
+            document.getElementById('photo-placeholder-view').style.display = 'flex';
+            document.getElementById('btn-delete-avatar').style.display = 'none';
+            document.getElementById('patient-photo-file-input').value = "";
+        }
+
+        // Listener para pegar fotos con Ctrl + V desde WhatsApp Web
+        window.addEventListener('paste', function(e) {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    loadPhotoFile(blob);
+                    break;
+                }
+            }
+        });
+
+        // Soporte para arrastrar y soltar (Drag and Drop)
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropCard = document.getElementById('patient-photo-card');
+            if (dropCard) {
+                dropCard.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    dropCard.classList.add('dragover');
+                });
+                dropCard.addEventListener('dragleave', function() {
+                    dropCard.classList.remove('dragover');
+                });
+                dropCard.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    dropCard.classList.remove('dragover');
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        loadPhotoFile(e.dataTransfer.files[0]);
+                    }
+                });
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             recalculateMetabolism();
         });
@@ -1358,7 +1580,8 @@
                 visceral_fat: parseInt(document.getElementById('t-visceral').value) || 3,
                 bmr_cunningham: bmr,
                 tdee_kcal: tdee,
-                weekly_plan: generatedWeeklyPlan
+                weekly_plan: generatedWeeklyPlan,
+                photo_base64: patientPhotoBase64
             };
 
             const btn = document.querySelector('#step-content-5 .btn-success');
@@ -1427,8 +1650,17 @@
             document.getElementById('p-sport').value = "Running / Asfalto (Preparación Maratón)";
             document.getElementById('t-weight').value = 75.4;
             document.getElementById('t-fat-percent').value = 12.8;
+            
+            // Avatar de deportista de prueba
+            patientPhotoBase64 = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%230086cd'/><circle cx='50' cy='36' r='18' fill='white'/><path d='M20 85 C20 62 35 55 50 55 C65 55 80 62 80 85 Z' fill='white'/></svg>";
+            const img = document.getElementById('patient-photo-img');
+            img.src = patientPhotoBase64;
+            img.style.display = 'block';
+            document.getElementById('photo-placeholder-view').style.display = 'none';
+            document.getElementById('btn-delete-avatar').style.display = 'flex';
+
             onTanitaWeightFatChange();
-            alert("✅ Datos de deportista de prueba cargados correctamente.");
+            alert("✅ Datos y fotografía del deportista de prueba cargados correctamente.");
         }
 
         async function autoFetchTanitaMeasurement() {

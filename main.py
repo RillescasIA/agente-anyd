@@ -206,6 +206,15 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients (id)
     )""")
+
+    try:
+        cursor.execute("ALTER TABLE clients ADD COLUMN photo_url TEXT")
+    except Exception:
+        pass
+
+    uploads_dir = os.path.join(BASE_DIR, "static", "uploads", "patients")
+    os.makedirs(uploads_dir, exist_ok=True)
+
     conn.commit()
     conn.close()
 
@@ -1647,7 +1656,7 @@ def api_athlete_summary(name: str):
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, fullname, phone, email, note FROM clients
+    SELECT id, fullname, phone, email, note, photo_url FROM clients
     WHERE LOWER(fullname) = ? OR LOWER(fullname) LIKE ?
     LIMIT 1
     """, (clean_name.lower(), f"%{clean_name.lower()}%"))
@@ -1659,6 +1668,7 @@ def api_athlete_summary(name: str):
 
     client_id = client["id"]
     client_fullname = client["fullname"]
+    client_photo = client["photo_url"] or ""
 
     # Última Tanita
     cursor.execute("""
@@ -1727,7 +1737,8 @@ def api_athlete_summary(name: str):
             "fullname": client["fullname"],
             "phone": client["phone"] or "",
             "email": client["email"] or "",
-            "note": client["note"] or ""
+            "note": client["note"] or "",
+            "photo_url": client_photo
         },
         "tanita": tanita_data,
         "bono": bono_data,
@@ -1791,6 +1802,7 @@ class CompleteNuevoPacienteRequest(BaseModel):
     client_name: str
     email: Optional[str] = ""
     phone: Optional[str] = ""
+    photo_base64: Optional[str] = ""
     birthdate: Optional[str] = ""
     age: Optional[int] = 30
     gender: Optional[str] = "M"
@@ -1873,6 +1885,27 @@ def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
         """, (fname, lname, client_name_clean, req.email or "", req.phone or "", client_note))
         client_id = cursor.lastrowid
 
+    # Guardar fotografía del paciente si se ha proporcionado
+    if req.photo_base64 and len(req.photo_base64) > 50:
+        try:
+            import base64
+            import re
+            uploads_dir = os.path.join(BASE_DIR, "static", "uploads", "patients")
+            os.makedirs(uploads_dir, exist_ok=True)
+            img_b64 = req.photo_base64
+            if "," in img_b64:
+                img_b64 = img_b64.split(",", 1)[1]
+            decoded_bytes = base64.b64decode(img_b64)
+            safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', client_name_clean)
+            photo_filename = f"{client_id}_{safe_name}.jpg"
+            photo_disk_path = os.path.join(uploads_dir, photo_filename)
+            with open(photo_disk_path, "wb") as f:
+                f.write(decoded_bytes)
+            photo_url = f"/static/uploads/patients/{photo_filename}"
+            cursor.execute("UPDATE clients SET photo_url = ? WHERE id = ?", (photo_url, client_id))
+        except Exception as pe:
+            print(f"[PHOTO SAVE ERROR] {pe}")
+
     # 2. Guardar medición en tanita_measurements
     today_str = datetime.now().strftime("%Y-%m-%d")
     bmi = round(req.weight_kg / (((req.height_cm or 175.0) / 100) ** 2), 1) if req.height_cm and req.height_cm > 0 else 24.0
@@ -1945,6 +1978,51 @@ def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
         "drive_folder": dossier_res.get("drive_folder"),
         "message": "Alta de paciente completada y dossier oficial de 20 páginas compilado en Google Drive."
     }
+
+class PatientPhotoUploadRequest(BaseModel):
+    client_id: Optional[int] = None
+    client_name: Optional[str] = ""
+    photo_base64: str
+
+@app.post("/api/patient/photo")
+def api_upload_patient_photo(req: PatientPhotoUploadRequest):
+    """Guarda o actualiza la fotografía del paciente desde el móvil, WhatsApp o PC."""
+    conn = get_db()
+    cursor = conn.cursor()
+    client = None
+    if req.client_id:
+        cursor.execute("SELECT id, fullname FROM clients WHERE id = ?", (req.client_id,))
+        client = cursor.fetchone()
+    elif req.client_name:
+        cursor.execute("SELECT id, fullname FROM clients WHERE LOWER(fullname) = ? LIMIT 1", (req.client_name.strip().lower(),))
+        client = cursor.fetchone()
+
+    if not client:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Deportista no encontrado")
+
+    c_id = client["id"]
+    c_name = client["fullname"]
+    uploads_dir = os.path.join(BASE_DIR, "static", "uploads", "patients")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    import base64
+    import re
+    img_b64 = req.photo_base64
+    if "," in img_b64:
+        img_b64 = img_b64.split(",", 1)[1]
+    decoded = base64.b64decode(img_b64)
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', c_name)
+    photo_filename = f"{c_id}_{safe_name}.jpg"
+    photo_path = os.path.join(uploads_dir, photo_filename)
+    with open(photo_path, "wb") as f:
+        f.write(decoded)
+
+    photo_url = f"/static/uploads/patients/{photo_filename}"
+    cursor.execute("UPDATE clients SET photo_url = ? WHERE id = ?", (photo_url, c_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "photo_url": photo_url, "message": "Fotografía guardada con éxito"}
 
 @app.get("/patrones-nutricionales", response_class=HTMLResponse)
 @app.get("/patron-nutricional", response_class=HTMLResponse)
