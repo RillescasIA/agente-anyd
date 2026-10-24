@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
-PUENTE LOCAL TANITA MC-580 -> AGENTE ANYD NUTRICIONISTAS
+PUENTE BIDIRECCIONAL TANITA MC-580 · AGENTE ANYD NUTRICIONISTAS
 Román Illescas Quiroga (Col. MAD00274)
 =============================================================================
-Este script se ejecuta en el PC de consulta conectado por USB a la báscula.
-1. Detecta automáticamente el puerto COM (Prolific PL2303GT).
-2. Escucha las pesadas de los pacientes en tiempo real.
-3. Envía automáticamente cada medición a https://agente.anyd.es/api/tanita/feed
+1. Detecta automáticamente la báscula en el puerto USB (COM3 Prolific).
+2. Recibe órdenes desde https://agente.anyd.es/api/tanita/pending-command
+   y envía a la báscula los datos del paciente (Sexo, Altura, Edad, Tara)
+   para que la pantalla de la Tanita se encienda y configure automáticamente.
+3. Captura la pesada final tras el análisis BIA y la envía en tiempo real a la web.
 =============================================================================
 """
 
@@ -27,22 +28,20 @@ except ImportError:
     print("[ERROR] Falta el paquete 'pyserial'. Instálalo con: pip install pyserial")
     sys.exit(1)
 
-CLOUD_API_URL = "https://agente.anyd.es/api/tanita/feed"
+FEED_URL = "https://agente.anyd.es/api/tanita/feed"
+PENDING_CMD_URL = "https://agente.anyd.es/api/tanita/pending-command"
 
 def find_tanita_port():
-    """Busca automáticamente el puerto COM donde está conectada la Tanita."""
+    """Busca automáticamente el puerto COM de la Tanita MC-580."""
     ports = list(serial.tools.list_ports.comports())
-    # Prioridad: Prolific PL2303 o COM3
     for p in ports:
         desc = (p.description or "").lower()
         hwid = (p.hwid or "").lower()
         if "prolific" in desc or "pl2303" in desc or "067b:23c3" in hwid:
             return p.device
-    # Si no, buscar COM3
     for p in ports:
         if p.device.upper() == "COM3":
             return p.device
-    # Si no, devolver el primer puerto USB serial
     for p in ports:
         if "usb" in (p.description or "").lower():
             return p.device
@@ -67,7 +66,6 @@ def parse_tanita_line(raw_str):
         "bmr_cunningham": None
     }
 
-    # 1. Formato tokenizado clásico (Wk, FW, MW, FF, WW, wW, bW, IF...)
     tokens = re.findall(r'([A-Za-z0-9~]+)[,:]\s*"?([^",\r\n]+)"?', raw_str)
     td = {k.strip(): v.strip() for k, v in tokens}
 
@@ -90,7 +88,6 @@ def parse_tanita_line(raw_str):
     data["bmr_tanita"] = get_f(["rA", "BMR", "bmr_tanita"])
     data["bmi"] = get_f(["BMI", "IMC", "bmi"])
 
-    # 2. Formato CSV puro
     if data["weight"] is None and "," in raw_str:
         parts = [p.strip().replace('"', '') for p in raw_str.split(",")]
         nums = []
@@ -108,7 +105,6 @@ def parse_tanita_line(raw_str):
                     if idx + 3 < len(nums) and 20.0 <= nums[idx + 3] <= 120.0:
                         data["muscle_mass"] = nums[idx + 3]
 
-    # Cálculos derivados
     if data["weight"] and data["fat_percent"]:
         data["fat_mass"] = round(data["weight"] * (data["fat_percent"] / 100.0), 2)
         if not data["ffm"]:
@@ -121,57 +117,113 @@ def parse_tanita_line(raw_str):
         return data
     return None
 
-def send_to_cloud(measurement):
-    """Envía la medición al servidor de producción en Render."""
+def send_patient_to_scale(ser, gender=1, body_type=2, height_cm=178.0, age=30, tare_kg=0.2):
+    """
+    Envía los comandos protocolarios Tanita para inicializar la báscula con los datos del paciente:
+    - D1: Sexo (1=Hombre, 2=Mujer)
+    - D2: Tipo (2=Atleta, 0=Estándar)
+    - D3: Altura en cm (ej: 178.0)
+    - D4: Edad (ej: 30)
+    - D0: Tara de ropa (ej: 00.2)
+    - G1: Iniciar rutina de pesaje y encender pantalla
+    """
+    tare_str = f"{float(tare_kg):04.1f}"
+    cmds = [
+        f"D1 {gender}\r\n".encode(),
+        f"D2 {body_type}\r\n".encode(),
+        f"D3 {float(height_cm):.1f}\r\n".encode(),
+        f"D4 {int(age)}\r\n".encode(),
+        f"D0 {tare_str}\r\n".encode(),
+        b"G1\r\n"
+    ]
+    for c in cmds:
+        ser.write(c)
+        time.sleep(0.12)
+        if ser.in_waiting:
+            ser.read(ser.in_waiting)
+    print(f"\n[TANITA] >>> DATOS ENVIADOS A LA BÁSCULA CON ÉXITO <<<")
+    print(f"  Sexo: {'Hombre' if gender==1 else 'Mujer'} | Altura: {height_cm} cm | Edad: {age} | Tara: {tare_kg} kg")
+    print(f"  ¡La pantalla de la Tanita MC-580 se ha encendido! Sube al paciente a la plataforma.")
+
+def check_pending_web_command(ser):
+    """Consulta si desde la web https://agente.anyd.es se ha pulsado iniciar pesaje."""
+    try:
+        req = urllib.request.Request(PENDING_CMD_URL, headers={"User-Agent": "TanitaBridge/1.0"})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("has_command") and data.get("command"):
+                cmd = data["command"]
+                send_patient_to_scale(
+                    ser,
+                    gender=cmd.get("gender", 1),
+                    body_type=cmd.get("body_type", 2),
+                    height_cm=cmd.get("height_cm", 178.0),
+                    age=cmd.get("age", 30),
+                    tare_kg=cmd.get("tare_kg", 0.2)
+                )
+    except Exception:
+        pass
+
+def send_measurement_to_cloud(measurement):
+    """Envía la medición final a la web para rellenar la ficha."""
     payload = json.dumps({"measurement": measurement}).encode("utf-8")
     req = urllib.request.Request(
-        CLOUD_API_URL,
+        FEED_URL,
         data=payload,
-        headers={"Content-Type": "application/json", "User-Agent": "TanitaLocalBridge/1.0"}
+        headers={"Content-Type": "application/json", "User-Agent": "TanitaBridge/1.0"}
     )
     try:
         with urllib.request.urlopen(req, timeout=8) as response:
-            res_body = response.read().decode("utf-8")
-            print(f"[OK] Sincronizado con agente.anyd.es: {res_body}")
+            print(f"[OK] ¡Medición sincronizada con agente.anyd.es!")
             return True
     except Exception as e:
-        print(f"[AVISO] No se pudo enviar a la nube ({e}). Guardado localmente.")
+        print(f"[AVISO] Error enviando a la nube: {e}")
         return False
 
 def main():
-    print("=" * 65)
-    print("  ANyD Nutricionistas · Puente de Enlace Báscula Tanita MC-580")
+    print("=" * 70)
+    print("  ANyD Nutricionistas · Puente de Enlace Bidireccional Tanita MC-580")
     print("  Román Illescas Quiroga (Col. MAD00274)")
-    print("=" * 65)
+    print("=" * 70)
 
     port = find_tanita_port()
     if not port:
         print("\n[ALERTA] No se detectó ninguna báscula Tanita conectada al USB.")
-        print("Puertos encontrados en tu equipo:")
+        print("Puertos encontrados en este PC:")
         for p in serial.tools.list_ports.comports():
             print(f" - {p.device}: {p.description}")
-        print("\nPor favor conecta el cable USB de la báscula y vuelve a intentarlo.")
+        print("\nConecta el cable USB de la Tanita y vuelve a ejecutar este programa.")
         input("\nPulsa ENTER para salir...")
         return
 
-    print(f"\n[+] Báscula Tanita MC-580 detectada en puerto: {port}")
+    print(f"\n[+] Báscula Tanita MC-580 detectada en: {port}")
     print("[+] Conectando a 9600 baudios (8N1)...")
 
     try:
-        ser = serial.Serial(port, baudrate=9600, timeout=1)
+        ser = serial.Serial(port, baudrate=9600, timeout=0.5)
         print(f"[OK] ¡Conexión establecida con {port}!")
-        print("\n>>> LISTO Y ESPERANDO PESAJES DE PACIENTES <<<")
-        print("(Cada vez que un paciente se pese en la Tanita, los datos se enviarán")
-        print(" automáticamente a tu pantalla en https://agente.anyd.es/nuevo-paciente)\n")
+        print("\n>>> LISTO EN SEGUNDO PLANO <<<")
+        print("- Cuando en https://agente.anyd.es/nuevo-paciente pulses 'Iniciar Pesaje',")
+        print("  los datos del paciente (altura, edad, sexo) se reflejarán en la báscula al instante.")
+        print("- Cuando el paciente termine el pesaje, los datos se volcarán solos en la web.\n")
     except Exception as e:
         print(f"[ERROR] No se pudo abrir {port}: {e}")
-        print("Verifica que ninguna otra aplicación (como Tanita Pro Suite) tenga el puerto abierto.")
+        print("Asegúrate de cerrar Dietowin o SuiteBiológica si están abiertas.")
         input("\nPulsa ENTER para salir...")
         return
 
     buffer = ""
+    last_poll_time = 0
+
     try:
         while True:
+            # 1. Comprobar órdenes desde la web cada 1.5 segundos
+            now = time.time()
+            if now - last_poll_time > 1.5:
+                check_pending_web_command(ser)
+                last_poll_time = now
+
+            # 2. Leer datos que envíe la báscula al terminar el pesaje
             if ser.in_waiting > 0:
                 raw_bytes = ser.read(ser.in_waiting)
                 chunk = raw_bytes.decode("utf-8", errors="replace")
@@ -184,17 +236,17 @@ def main():
                         if len(line_clean) > 10:
                             parsed = parse_tanita_line(line_clean)
                             if parsed and parsed.get("weight"):
-                                print("\n" + "#" * 55)
-                                print(f"  NUEVA MEDICIÓN RECIBIDA [{parsed['timestamp']}]")
+                                print("\n" + "#" * 60)
+                                print(f"  ✅ NUEVA MEDICIÓN COMPLETADA [{parsed['timestamp']}]")
                                 print(f"  Peso: {parsed['weight']} kg | % Grasa: {parsed['fat_percent']}%")
                                 print(f"  FFM (Masa Libre de Grasa): {parsed['ffm']} kg")
                                 print(f"  BMR Cunningham: {parsed['bmr_cunningham']} kcal")
-                                print("#" * 55)
-                                send_to_cloud(parsed)
+                                print("#" * 60)
+                                send_measurement_to_cloud(parsed)
                     buffer = ""
-            time.sleep(0.1)
+            time.sleep(0.08)
     except KeyboardInterrupt:
-        print("\n[INFO] Puente Tanita detenido por el usuario.")
+        print("\n[INFO] Puente detenido por el usuario.")
     finally:
         ser.close()
 

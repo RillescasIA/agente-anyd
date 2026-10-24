@@ -1615,6 +1615,46 @@ def parse_tanita_raw(req: TanitaRawParseRequest):
         
     return {"success": False, "message": "No se encontraron datos biométricos válidos en la trama de la báscula."}
 
+# --- CONTROL REMOTO / CARGA DE PACIENTE EN BÁSCULA TANITA MC-580 ---
+pending_tanita_command: Optional[Dict[str, Any]] = None
+
+class TanitaSendCommandRequest(BaseModel):
+    gender: Optional[int] = 1        # 1=Hombre, 2=Mujer
+    body_type: Optional[int] = 2     # 2=Atleta, 0=Estándar
+    height_cm: Optional[float] = 178.0
+    age: Optional[int] = 30
+    tare_kg: Optional[float] = 0.2
+
+@app.post("/api/tanita/send-patient")
+def api_tanita_send_patient(req: TanitaSendCommandRequest):
+    """
+    Encola la orden de inicialización de la báscula Tanita MC-580 con los datos del paciente
+    (Sexo, Tipo de cuerpo, Altura, Edad y Tara de ropa).
+    """
+    global pending_tanita_command
+    pending_tanita_command = {
+        "gender": req.gender,
+        "body_type": req.body_type,
+        "height_cm": req.height_cm,
+        "age": req.age,
+        "tare_kg": req.tare_kg,
+        "timestamp": time.time()
+    }
+    return {"success": True, "message": "Datos de paciente encolados para la báscula Tanita.", "command": pending_tanita_command}
+
+@app.get("/api/tanita/pending-command")
+def api_tanita_get_pending_command():
+    """
+    Consultado por tanita_bridge.py en el PC de consulta.
+    Si hay una orden pendiente reciente (<90 seg), la devuelve y la limpia.
+    """
+    global pending_tanita_command
+    if pending_tanita_command and (time.time() - pending_tanita_command.get("timestamp", 0) < 90):
+        cmd = pending_tanita_command
+        pending_tanita_command = None
+        return {"has_command": True, "command": cmd}
+    return {"has_command": False}
+
 @app.post("/api/tanita/save")
 def save_tanita(req: TanitaSaveRequest):
     conn = get_db()

@@ -897,10 +897,10 @@
                     </div>
 
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                        <!-- Botón 1: USB / COM en Directo -->
-                        <button type="button" id="btn-tanita-live" onclick="capturarTanitaLive()" class="btn-anyd btn-primary" style="font-size: 12px; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;" title="Captura directa desde la báscula Tanita conectada al PC por puerto USB/COM">
+                        <!-- Botón 1: Iniciar Pesaje y Enviar Paciente a Tanita -->
+                        <button type="button" id="btn-tanita-live" onclick="iniciarPesajeTanita()" class="btn-anyd btn-primary" style="font-size: 12px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700;" title="Envía automáticamente los datos del paciente (sexo, altura, edad, tara) a la báscula Tanita para encender la pantalla y realizar los cálculos">
                             <span id="tanita-live-spinner" style="display:none;">⏳</span>
-                            <span>⚡ Báscula en Directo (USB)</span>
+                            <span>⚡ Iniciar Pesaje en Tanita (Enviar Datos)</span>
                         </button>
                         
                         <!-- Botón 2: Importar CSV / Tarjeta SD -->
@@ -1619,54 +1619,138 @@
 
         let activeSerialPort = null;
         let activeSerialReader = null;
+        let tanitaLivePollInterval = null;
 
-        async function connectWebSerialTanita(statusEl, spinner) {
-            if (!('serial' in navigator)) {
-                return false;
+        // Alias para compatibilidad
+        function capturarTanitaLive() {
+            iniciarPesajeTanita();
+        }
+
+        async function iniciarPesajeTanita() {
+            const spinner = document.getElementById('tanita-live-spinner');
+            const statusEl = document.getElementById('tanita-capture-status');
+            if (spinner) spinner.style.display = 'inline-block';
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#EFF6FF';
+                statusEl.style.color = '#1E40AF';
+                statusEl.innerHTML = '⚡ Preparando datos del paciente para la báscula Tanita MC-580...';
             }
 
+            // 1. Extraer datos del paciente desde el Paso 1
+            const genderVal = (document.getElementById('p-gender') && document.getElementById('p-gender').value) || 'M';
+            const genderCode = (genderVal === 'F' || genderVal === 2) ? 2 : 1;
+            const ageVal = parseInt(document.getElementById('p-age') && document.getElementById('p-age').value) || 30;
+            const heightVal = parseFloat(document.getElementById('p-height') && document.getElementById('p-height').value) || 178.0;
+            const sportVal = (document.getElementById('p-sport') && document.getElementById('p-sport').value) || '';
+            const bodyCode = (sportVal.length > 2) ? 2 : 0; // 2=Atleta, 0=Estándar
+            const tareVal = 0.2; // 200g tara de ropa estándar Dietowin
+
+            // 2. Encolar orden en la API para el puente local (tanita_bridge.py)
             try {
-                const ports = await navigator.serial.getPorts();
-                let port = ports.length > 0 ? ports[0] : null;
+                fetch('/api/tanita/send-patient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gender: genderCode,
+                        body_type: bodyCode,
+                        height_cm: heightVal,
+                        age: ageVal,
+                        tare_kg: tareVal
+                    })
+                });
+            } catch (e) {
+                console.log("Error encolando orden:", e);
+            }
 
-                if (!port) {
-                    statusEl.style.display = 'block';
-                    statusEl.style.background = '#EFF6FF';
-                    statusEl.style.color = '#1E40AF';
-                    statusEl.innerHTML = '👆 <strong>Selecciona la báscula:</strong> En el menú del navegador arriba a la izquierda, haz clic en <em>"Prolific PL2303GT (COM3)"</em> y pulsa <strong>Conectar</strong>.';
-                    port = await navigator.serial.requestPort();
-                }
+            // 3. Si el navegador soporta Web Serial API, conectar y enviar directamente
+            if ('serial' in navigator) {
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    let port = ports.length > 0 ? ports[0] : null;
 
-                if (port) {
-                    activeSerialPort = port;
-                    if (!port.readable) {
-                        try {
-                            await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: "none" });
-                        } catch (oe) {
-                            console.log("Port open info:", oe);
-                        }
+                    if (!port) {
+                        statusEl.innerHTML = '👆 <strong>Selecciona la báscula:</strong> En la ventana de arriba a la izquierda, elige <em>"Prolific PL2303GT (COM3)"</em> y pulsa <strong>Conectar</strong>.';
+                        port = await navigator.serial.requestPort();
                     }
 
-                    statusEl.style.display = 'block';
-                    statusEl.style.background = '#ECFDF5';
-                    statusEl.style.color = '#065F46';
-                    statusEl.innerHTML = '🟢 <strong>¡Báscula Tanita conectada al USB (COM)!</strong> Realiza el pesaje en la báscula o pulsa el botón <em>PRINT</em> en la pantalla de la Tanita para transmitir los datos...';
+                    if (port) {
+                        activeSerialPort = port;
+                        if (!port.readable) {
+                            try {
+                                await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: "none" });
+                            } catch (oe) {
+                                console.log("Port open info:", oe);
+                            }
+                        }
 
-                    readSerialStream(port, statusEl, spinner);
-                    return true;
-                }
-            } catch (err) {
-                console.warn("Web Serial error:", err);
-                if (err.name === 'NotFoundError') {
-                    statusEl.style.display = 'block';
-                    statusEl.style.background = '#FFFBEB';
-                    statusEl.style.color = '#B45309';
-                    statusEl.innerHTML = '⚠️ Cancelaste la selección de puerto. Vuelve a pulsar <em>"⚡ Báscula en Directo"</em> y selecciona <strong>Prolific PL2303GT (COM3)</strong>.';
-                    if (spinner) spinner.style.display = 'none';
-                    return true;
+                        // Enviar comandos protocolarios Tanita (D1..D4, D0, G1)
+                        await sendPatientDataToWebSerial(port, genderCode, bodyCode, heightVal, ageVal, tareVal);
+
+                        statusEl.style.background = '#ECFDF5';
+                        statusEl.style.color = '#065F46';
+                        statusEl.innerHTML = `🟢 <strong>¡Datos enviados a la Tanita MC-580!</strong><br>Sexo: <strong>${genderCode === 1 ? 'Hombre' : 'Mujer'}</strong> | Altura: <strong>${heightVal} cm</strong> | Edad: <strong>${ageVal} años</strong> | Tara: <strong>${tareVal} kg</strong>.<br>✨ <em>La pantalla de la báscula se ha encendido. Sube al deportista a la plataforma...</em>`;
+
+                        readSerialStream(port, statusEl, spinner);
+                        return;
+                    }
+                } catch (serialErr) {
+                    console.warn("Web Serial error/cancelled:", serialErr);
                 }
             }
-            return false;
+
+            // 4. Si se utiliza el puente local (tanita_bridge.py / iniciar_tanita_local.bat)
+            statusEl.style.background = '#EFF6FF';
+            statusEl.style.color = '#1E40AF';
+            statusEl.innerHTML = `⏳ <strong>Orden enviada a la báscula Tanita:</strong> Sexo: ${genderCode === 1 ? 'Hombre' : 'Mujer'}, Altura: ${heightVal} cm, Edad: ${ageVal} años.<br>Si tienes <code>iniciar_tanita_local.bat</code> en ejecución, la báscula se encenderá automáticamente. Esperando pesaje del paciente...`;
+
+            // Iniciar sondeo a /api/tanita/live
+            if (tanitaLivePollInterval) clearInterval(tanitaLivePollInterval);
+            let pollAttempts = 0;
+            tanitaLivePollInterval = setInterval(async () => {
+                pollAttempts++;
+                if (pollAttempts > 90) {
+                    clearInterval(tanitaLivePollInterval);
+                    if (spinner) spinner.style.display = 'none';
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/tanita/live');
+                    const data = await res.json();
+                    if (data.latest_measurement && data.latest_measurement.weight) {
+                        clearInterval(tanitaLivePollInterval);
+                        populateTanitaFields(data.latest_measurement);
+                        statusEl.style.background = '#ECFDF5';
+                        statusEl.style.color = '#065F46';
+                        statusEl.innerHTML = `✅ <strong>¡Pesaje completado con éxito!</strong> ${data.latest_measurement.weight} kg | ${data.latest_measurement.fat_percent}% grasa | FFM: ${data.latest_measurement.ffm} kg.`;
+                        if (spinner) spinner.style.display = 'none';
+                    }
+                } catch (e) {}
+            }, 1000);
+        }
+
+        async function sendPatientDataToWebSerial(port, genderCode, bodyCode, heightVal, ageVal, tareVal) {
+            if (!port || !port.writable) return;
+            const writer = port.writable.getWriter();
+            const tareStr = (tareVal || 0.2).toFixed(1).padStart(4, '0');
+            const heightStr = (heightVal || 178.0).toFixed(1);
+            const ageStr = parseInt(ageVal || 30).toString();
+
+            const enc = new TextEncoder();
+            const commands = [
+                `D1 ${genderCode}\r\n`,
+                `D2 ${bodyCode}\r\n`,
+                `D3 ${heightStr}\r\n`,
+                `D4 ${ageStr}\r\n`,
+                `D0 ${tareStr}\r\n`,
+                `G1\r\n`
+            ];
+
+            for (const cmd of commands) {
+                await writer.write(enc.encode(cmd));
+                await new Promise(r => setTimeout(r, 120));
+            }
+            writer.releaseLock();
         }
 
         async function readSerialStream(port, statusEl, spinner) {
@@ -1683,6 +1767,7 @@
                     if (done) break;
                     if (value) {
                         accumulated += value;
+                        // Si recibimos salto de línea o datos de pesaje
                         if (accumulated.includes('\n') || accumulated.includes('\r') || accumulated.length > 25) {
                             try {
                                 const res = await fetch('/api/tanita/parse-raw', {
@@ -1695,7 +1780,7 @@
                                     populateTanitaFields(data.measurement);
                                     statusEl.style.background = '#ECFDF5';
                                     statusEl.style.color = '#065F46';
-                                    statusEl.innerHTML = `✅ <strong>¡Pesaje capturado en directo por USB!</strong> ${data.measurement.weight} kg | ${data.measurement.fat_percent}% grasa | FFM: ${data.measurement.ffm} kg.`;
+                                    statusEl.innerHTML = `✅ <strong>¡Pesaje completado con éxito!</strong> ${data.measurement.weight} kg | ${data.measurement.fat_percent}% grasa | FFM: ${data.measurement.ffm} kg.`;
                                     if (spinner) spinner.style.display = 'none';
                                     reader.cancel();
                                     break;
@@ -1711,50 +1796,6 @@
             } finally {
                 if (spinner) spinner.style.display = 'none';
             }
-        }
-
-        async function capturarTanitaLive() {
-            const spinner = document.getElementById('tanita-live-spinner');
-            const statusEl = document.getElementById('tanita-capture-status');
-            if (spinner) spinner.style.display = 'inline-block';
-            if (statusEl) {
-                statusEl.style.display = 'block';
-                statusEl.style.background = '#EFF6FF';
-                statusEl.style.color = '#1E40AF';
-                statusEl.innerHTML = '📡 Conectando con receptor Tanita MC-580 (USB)...';
-            }
-
-            // 1. Comprobar si hay pesaje en la API (p. ej. enviado por el puente local)
-            try {
-                const res = await fetch('/api/tanita/live');
-                const data = await res.json();
-                if (data.latest_measurement && data.latest_measurement.weight) {
-                    populateTanitaFields(data.latest_measurement);
-                    if (statusEl) {
-                        statusEl.style.background = '#ECFDF5';
-                        statusEl.style.color = '#065F46';
-                        statusEl.innerHTML = `✅ <strong>Lectura capturada en directo:</strong> ${data.latest_measurement.weight} kg, ${data.latest_measurement.fat_percent}% grasa (${data.latest_measurement.timestamp || 'Ahora'}).`;
-                    }
-                    if (spinner) spinner.style.display = 'none';
-                    return;
-                }
-            } catch (e) {
-                console.log("Live check:", e);
-            }
-
-            // 2. Si no hay pesaje en el servidor, intentar Web Serial API directamente en el navegador
-            if ('serial' in navigator) {
-                const handled = await connectWebSerialTanita(statusEl, spinner);
-                if (handled) return;
-            }
-
-            // 3. Fallback explicativo
-            if (statusEl) {
-                statusEl.style.background = '#FFFBEB';
-                statusEl.style.color = '#B45309';
-                statusEl.innerHTML = `⚠️ <strong>Báscula detectada en tu PC (Prolific COM3):</strong> Utiliza <strong>Microsoft Edge</strong> o <strong>Google Chrome</strong> para que el navegador se conecte directamente por USB, o ejecuta <code>iniciar_tanita_local.bat</code> en tu ordenador de consulta.`;
-            }
-            if (spinner) spinner.style.display = 'none';
         }
 
         function triggerTanitaCsvUpload() {
