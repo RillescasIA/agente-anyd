@@ -3,22 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agente Copiloto ANyD · Ventana Exclusiva | Román Illescas</title>
+    <title>Agente Copiloto ANyD · Workstation Clínico 2.0 | Román Illescas</title>
     <!-- Fuentes oficiales anyd.es -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@500;600;700;800&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --anyd-blue: #0086cd;
+            --anyd-blue-dark: #006da8;
             --anyd-blue-hover: #0284c7;
             --anyd-blue-light: #e0f2fe;
+            --anyd-blue-50: #f0f9ff;
             --anyd-dark: #0f172a;
             --anyd-slate: #1e293b;
+            --anyd-slate-light: #334155;
             --anyd-gray-text: #475569;
-            --anyd-bg-light: #f8fafc;
+            --anyd-gray-muted: #64748b;
+            --anyd-bg-light: #f1f5f9;
             --anyd-white: #ffffff;
-            --anyd-border: #e2e8f0;
+            --anyd-border: #cbd5e1;
+            --anyd-border-light: #e2e8f0;
             --anyd-success: #10b981;
             --anyd-warning: #f59e0b;
             --anyd-danger: #ef4444;
@@ -37,129 +42,341 @@
             overflow: hidden;
         }
 
-        /* HEADER DE VENTANA EXCLUSIVA */
+        /* HEADER WORKSTATION */
         .agent-header {
-            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            background: linear-gradient(135deg, #0b1329 0%, #172554 100%);
             color: white;
-            padding: 12px 18px;
+            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid var(--anyd-blue);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             flex-shrink: 0;
-            -webkit-app-region: drag; /* Permite arrastrar ventana si es PWA/Electron */
+            z-index: 50;
         }
-        .agent-header-left {
+        .header-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
-        .agent-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%);
+        .agent-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #0086cd 0%, #0369a1 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 2px 6px rgba(0, 134, 205, 0.4);
+            font-size: 22px;
+            box-shadow: 0 4px 10px rgba(0, 134, 205, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .agent-titles {
-            line-height: 1.2;
-        }
-        .agent-title {
+        .header-titles h1 {
             font-family: 'Montserrat', sans-serif;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 800;
-            color: white;
+            color: #ffffff;
+            letter-spacing: -0.3px;
             display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-titles .subtitle {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+        .rgpd-pill {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid #10b981;
+            color: #34d399;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 20px;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
         }
-        .agent-sub {
-            font-size: 11px;
-            color: #94A3B8;
-        }
-        .agent-badge {
-            background: rgba(16, 185, 129, 0.2);
-            border: 1px solid #10B981;
-            color: #34D399;
-            font-size: 10.5px;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 12px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .agent-badge-dot {
-            width: 6px;
-            height: 6px;
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #10B981;
-            box-shadow: 0 0 6px #10B981;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
         }
 
-        /* CONTEXTO DEL DEPORTISTA ACTIVO */
-        .context-bar {
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-header {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'Lato', sans-serif;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .btn-header:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.35);
+            color: #ffffff;
+        }
+        .btn-header-primary {
+            background: var(--anyd-blue);
+            border-color: var(--anyd-blue);
+            color: white;
+        }
+        .btn-header-primary:hover {
+            background: var(--anyd-blue-hover);
+        }
+
+        /* CUERPO PRINCIPAL DIVIDIDO (SPLIT WORKSTATION) */
+        .workstation-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 65px);
+            overflow: hidden;
+        }
+
+        /* PANEL TÁCTICO LATERAL IZQUIERDO */
+        .tactical-sidebar {
+            width: 360px;
             background: white;
-            border-bottom: 1px solid var(--anyd-border);
-            padding: 8px 16px;
+            border-right: 1px solid var(--anyd-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.03);
+            z-index: 10;
+        }
+        .sidebar-section {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--anyd-border-light);
+        }
+        .section-header {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--anyd-slate-light);
+            margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            font-size: 12px;
-            flex-shrink: 0;
-        }
-        .context-label {
-            font-weight: 700;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
-        }
-        .context-select {
-            padding: 4px 8px;
-            font-size: 12px;
-            font-family: 'Lato', sans-serif;
-            font-weight: 600;
-            border: 1.5px solid #CBD5E1;
-            border-radius: 6px;
-            color: #1E293B;
-            flex: 1;
-            max-width: 260px;
-        }
-        .context-info {
-            font-size: 11px;
-            color: #0369A1;
-            background: #E0F2FE;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-weight: 700;
-            white-space: nowrap;
         }
 
-        /* CHIPS DE ACCESO RÁPIDO */
-        .chips-bar {
-            background: #F1F5F9;
-            border-bottom: 1px solid #E2E8F0;
-            padding: 8px 14px;
+        /* SELECTOR Y TARJETA DEL DEPORTISTA */
+        .athlete-select-box {
+            position: relative;
+        }
+        .athlete-dropdown {
+            width: 100%;
+            padding: 9px 12px;
+            font-size: 12.5px;
+            font-family: 'Lato', sans-serif;
+            font-weight: 700;
+            color: var(--anyd-slate);
+            border: 1.5px solid var(--anyd-border);
+            border-radius: 8px;
+            background-color: var(--anyd-bg-light);
+            outline: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .athlete-dropdown:focus {
+            border-color: var(--anyd-blue);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.15);
+        }
+
+        /* CARD DEPORTISTA ACTIVO */
+        .athlete-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 10px;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .athlete-card.active {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-color: #93c5fd;
+        }
+        .card-name-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .card-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .card-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 12px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        
+        /* GRID DE MÉTRICAS TANITA */
+        .tanita-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .metric-box {
+            background: white;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+        .metric-lbl {
+            font-size: 9.5px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .metric-val {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 1px;
+        }
+        .metric-val small {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .card-footer-info {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed #cbd5e1;
+            font-size: 11px;
+            color: #475569;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* HERRAMIENTAS TÁCTICAS (SKILLS EN 1-CLIC) */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+        }
+        .skill-tool-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 9px 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-align: left;
+        }
+        .skill-tool-card:hover {
+            border-color: var(--anyd-blue);
+            background: #f0f9ff;
+            transform: translateX(2px);
+            box-shadow: 0 2px 6px rgba(0, 134, 205, 0.12);
+        }
+        .skill-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            border: 1px solid #e2e8f0;
+        }
+        .skill-tool-card:hover .skill-icon {
+            background: #e0f2fe;
+            border-color: #bae6fd;
+        }
+        .skill-content {
+            flex: 1;
+            overflow: hidden;
+        }
+        .skill-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .skill-desc {
+            font-size: 10.5px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* COLUMNA DERECHA: CHAT Y WORKSTATION CLÍNICO */
+        .chat-workstation {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+
+        /* BARRA SUPERIOR DE ACCESO RÁPIDO */
+        .quick-pills-bar {
+            background: white;
+            border-bottom: 1px solid var(--anyd-border-light);
+            padding: 8px 16px;
             display: flex;
             gap: 6px;
             overflow-x: auto;
             flex-shrink: 0;
             white-space: nowrap;
         }
-        .copilot-chip {
-            background: white;
-            border: 1px solid #CBD5E1;
+        .quick-pill {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
             color: #334155;
-            padding: 4px 10px;
-            border-radius: 14px;
+            padding: 5px 11px;
+            border-radius: 16px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
@@ -168,125 +385,180 @@
             align-items: center;
             gap: 4px;
         }
-        .copilot-chip:hover {
-            background: #E0F2FE;
+        .quick-pill:hover {
+            background: #e0f2fe;
             border-color: var(--anyd-blue);
-            color: var(--anyd-blue);
+            color: var(--anyd-blue-dark);
         }
 
-        /* ÁREA DE MENSAJES DEL CHAT */
-        .chat-container {
+        /* CONTENEDOR DE MENSAJES */
+        .chat-stream {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 20px 24px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            background: #F8FAFC;
+            gap: 16px;
+            background: #f8fafc;
         }
-        .bubble {
-            max-width: 88%;
-            padding: 12px 16px;
+        .msg-bubble {
+            max-width: 86%;
+            padding: 14px 18px;
             border-radius: 12px;
-            font-size: 13px;
-            line-height: 1.5;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            animation: fadeIn 0.2s ease;
+            font-size: 13.5px;
+            line-height: 1.6;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+            animation: fadeIn 0.25s ease;
+            position: relative;
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
+            from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .bubble-bot {
-            align-self: flex-start;
-            background: white;
-            border: 1px solid #E2E8F0;
-            color: #1E293B;
-            border-bottom-left-radius: 2px;
-        }
-        .bubble-user {
+        .msg-user {
             align-self: flex-end;
             background: linear-gradient(135deg, #0086cd 0%, #0284c7 100%);
             color: white;
-            border-bottom-right-radius: 2px;
+            border-bottom-right-radius: 3px;
             font-weight: 500;
+            box-shadow: 0 2px 8px rgba(0, 134, 205, 0.25);
+        }
+        .msg-bot {
+            align-self: flex-start;
+            background: white;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+            border-bottom-left-radius: 3px;
+            width: 100%;
         }
 
-        /* FORMATO DE RESPUESTAS CLÍNICAS */
-        .bubble-bot h3, .bubble-bot h4 {
+        /* FORMATO CLÍNICO DENTRO DE BURBUJAS */
+        .msg-bot h3 {
             font-family: 'Montserrat', sans-serif;
-            color: #0F172A;
-            margin: 8px 0 4px 0;
-            font-size: 13.5px;
+            color: #0f172a;
+            margin: 6px 0 6px 0;
+            font-size: 14px;
+            font-weight: 800;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
         }
-        .bubble-bot ul, .bubble-bot ol {
+        .msg-bot h4 {
+            font-family: 'Montserrat', sans-serif;
+            color: #0284c7;
+            margin: 10px 0 4px 0;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+        .msg-bot ul, .msg-bot ol {
             padding-left: 20px;
             margin: 6px 0;
         }
-        .bubble-bot li {
+        .msg-bot li {
             margin-bottom: 4px;
         }
-        .bubble-bot strong {
-            color: #0F172A;
+        .msg-bot pre, .msg-bot code {
+            font-family: 'Consolas', monospace;
+            background: #f1f5f9;
+            color: #0f172a;
+            border-radius: 6px;
         }
-        .bubble-bot .code-calc {
-            background: #F1F5F9;
-            border-left: 3px solid var(--anyd-blue);
-            padding: 6px 10px;
-            font-family: monospace;
-            font-size: 12px;
-            margin: 6px 0;
-            border-radius: 0 4px 4px 0;
-        }
-        .bubble-bot table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
+        .msg-bot pre {
+            padding: 10px 14px;
             margin: 8px 0;
+            overflow-x: auto;
+            border-left: 3px solid var(--anyd-blue);
+            font-size: 12px;
+            white-space: pre-wrap;
         }
-        .bubble-bot th, .bubble-bot td {
-            padding: 6px 8px;
-            border: 1px solid #CBD5E1;
-            text-align: left;
-        }
-        .bubble-bot th {
-            background: #F8FAFC;
-            font-weight: 700;
+        .msg-bot code {
+            padding: 2px 6px;
+            font-size: 12px;
         }
 
-        /* BARRA INFERIOR DE ESCRITURA */
-        .chat-footer {
+        /* BOTÓN FLOTANTE PARA COPIAR RESPUESTAS O WHATSAPP */
+        .msg-action-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #f1f5f9;
+        }
+        .btn-msg-copy {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-msg-copy:hover {
+            background: #e0f2fe;
+            color: var(--anyd-blue-dark);
+            border-color: var(--anyd-blue);
+        }
+        .btn-msg-copy.whatsapp {
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+            color: #065f46;
+        }
+        .btn-msg-copy.whatsapp:hover {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        /* BARRA INFERIOR DE ESCRITURA Y CONTROL */
+        .chat-input-bar {
             background: white;
             border-top: 1px solid var(--anyd-border);
-            padding: 12px 16px;
+            padding: 12px 20px;
             display: flex;
             gap: 10px;
             align-items: center;
             flex-shrink: 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.02);
         }
-        .chat-input {
+        .active-athlete-pill {
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 700;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .chat-input-field {
             flex: 1;
-            padding: 10px 14px;
-            font-size: 13px;
+            padding: 11px 16px;
+            font-size: 13.5px;
             font-family: 'Lato', sans-serif;
-            border: 1.5px solid #CBD5E1;
+            border: 1.5px solid var(--anyd-border);
             border-radius: 8px;
-            color: #1E293B;
+            color: var(--anyd-slate);
             outline: none;
-            transition: all 0.15s;
+            transition: all 0.2s;
         }
-        .chat-input:focus {
+        .chat-input-field:focus {
             border-color: var(--anyd-blue);
-            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.12);
+            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.15);
         }
-        .btn-send {
+        .btn-chat-send {
             background: var(--anyd-blue);
             color: white;
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 18px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -294,152 +566,563 @@
             transition: all 0.15s;
             flex-shrink: 0;
         }
-        .btn-send:hover {
+        .btn-chat-send:hover {
             background: var(--anyd-blue-hover);
-            transform: scale(1.05);
+            transform: scale(1.04);
         }
-        .btn-clear {
+        .btn-chat-clear {
             background: none;
             border: none;
-            color: #94A3B8;
-            font-size: 18px;
+            color: #94a3b8;
+            font-size: 20px;
             cursor: pointer;
-            padding: 4px;
-            transition: color 0.15s;
+            padding: 6px;
+            border-radius: 6px;
+            transition: all 0.15s;
         }
-        .btn-clear:hover {
-            color: #EF4444;
+        .btn-chat-clear:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        /* MODAL DE CAMBIO DE CONTRASEÑA */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 12px;
+            width: 420px;
+            max-width: 90vw;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #cbd5e1;
+            animation: modalFadeIn 0.2s ease;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 12px;
+        }
+        .modal-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: #0f172a; }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 5px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 13px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            border-color: var(--anyd-blue);
+            box-shadow: 0 0 0 3px rgba(0, 134, 205, 0.12);
+        }
+        .modal-alert {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 12px;
+            display: none;
+        }
+        .modal-alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .modal-alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .btn-modal-submit {
+            width: 100%;
+            background: var(--anyd-blue);
+            color: white;
+            border: none;
+            padding: 11px;
+            border-radius: 6px;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-modal-submit:hover {
+            background: var(--anyd-blue-hover);
+        }
+
+        /* TOAST CONFIRMACIÓN */
+        #toast-notification {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #0f172a;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 2000;
+            border-left: 4px solid var(--anyd-success);
         }
     </style>
 </head>
 <body>
 
-    <!-- 1. HEADER CORPORATIVO -->
+    <!-- 1. HEADER DE CONTROL CLÍNICO Y SEGURIDAD -->
     <header class="agent-header">
-        <div class="agent-header-left">
-            <div class="agent-avatar">🤖</div>
-            <div class="agent-titles">
-                <div class="agent-title">
+        <div class="header-left">
+            <div class="agent-logo">🤖</div>
+            <div class="header-titles">
+                <h1>
                     Agente Copiloto ANyD
-                    <span class="agent-badge"><span class="agent-badge-dot"></span> Grado I</span>
-                </div>
-                <div class="agent-sub">Román Illescas Quiroga (Col. MAD00274)</div>
+                    <span class="rgpd-pill"><span class="pulse-dot"></span> RGPD Grado Alto · Protegido</span>
+                </h1>
+                <div class="subtitle">Román Illescas Quiroga (Col. MAD00274) · Workstation Clínico 2.0</div>
             </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-            <button onclick="clearChat()" class="btn-clear" title="Limpiar conversación">🗑️</button>
+        <div class="header-actions">
+            <button class="btn-header" onclick="openPasswordModal()" title="Gestionar y cambiar contraseña administrativa">
+                🔑 Contraseña
+            </button>
+            <a href="/nuevo-paciente" class="btn-header btn-header-primary" title="Dar de alta nuevo deportista">
+                👤 + Nuevo Paciente
+            </a>
+            <a href="/admin" class="btn-header" title="Volver al CRM general">
+                🗂️ Panel CRM
+            </a>
+            <a href="/logout" class="btn-header" style="color:#fca5a5;" title="Cerrar sesión de forma segura">
+                🚪 Salir
+            </a>
         </div>
     </header>
 
-    <!-- 2. BARRA DE CONTEXTO DEL DEPORTISTA -->
-    <div class="context-bar">
-        <div class="context-label">
-            <span>👤 Deportista Activo:</span>
-            <select id="active-athlete-select" class="context-select" onchange="onAthleteChange()">
-                <option value="">-- Sin deportista seleccionado (Genérico) --</option>
-                {% for c in clients %}
-                <option value="{{ c.fullname }}" {% if initial_client and initial_client.lower() in c.fullname.lower() %}selected{% endif %}>
-                    {{ c.fullname }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div id="athlete-context-badge" class="context-info" style="display:none;">
-            75 kg · BMR 1.950 kcal
+    <!-- 2. WORKSTATION PRINCIPAL -->
+    <div class="workstation-container">
+
+        <!-- PANEL LATERAL TÁCTICO -->
+        <aside class="tactical-sidebar">
+            
+            <!-- SELECCIÓN DE DEPORTISTA -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>👤 Deportista en Consulta</span>
+                    <span id="athlete-counter" style="font-size:10px; color:#94a3b8;">{{ clients|length }} pacientes</span>
+                </div>
+                <div class="athlete-select-box">
+                    <select id="athlete-select" class="athlete-dropdown" onchange="loadAthleteProfile()">
+                        <option value="">-- Sin seleccionar (Modo General) --</option>
+                        {% for c in clients %}
+                        <option value="{{ c.fullname }}" {% if initial_client and initial_client.lower() in c.fullname.lower() %}selected{% endif %}>
+                            {{ c.fullname }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- CARD TÁCTICO DEL DEPORTISTA -->
+                <div id="athlete-profile-card" class="athlete-card" style="display:none;">
+                    <div class="card-name-row">
+                        <div class="card-name" id="card-fullname">--</div>
+                        <span class="card-badge" id="card-bono-badge">Sin Bono</span>
+                    </div>
+                    <div style="font-size:11px; color:#64748b; margin-bottom:4px;" id="card-contact">--</div>
+
+                    <!-- MÉTRICAS TANITA MC-580 -->
+                    <div class="tanita-metrics-grid" id="card-tanita-grid">
+                        <div class="metric-box">
+                            <div class="metric-lbl">Peso Total</div>
+                            <div class="metric-val" id="card-weight">-- <small>kg</small></div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-lbl">% Grasa</div>
+                            <div class="metric-val" id="card-fat">-- <small>%</small></div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-lbl">Masa Libre (FFM)</div>
+                            <div class="metric-val" id="card-ffm">-- <small>kg</small></div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-lbl">BMR Cunningham</div>
+                            <div class="metric-val" id="card-bmr">-- <small>kcal</small></div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer-info">
+                        <span id="card-tanita-date">⚖️ Sin pesaje</span>
+                        <span id="card-next-appt">📅 Sin citas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5 SKILLS CLÍNICAS + HERRAMIENTAS TÁCTICAS -->
+            <div class="sidebar-section" style="flex:1;">
+                <div class="section-header">
+                    <span>⚡ Herramientas Clínicas 1-Clic</span>
+                </div>
+                
+                <div class="skills-grid">
+                    <!-- SKILL 1: BIOMARCADORES -->
+                    <div class="skill-tool-card" onclick="triggerSkill('blood_biomarkers')">
+                        <div class="skill-icon">🩸</div>
+                        <div class="skill-content">
+                            <div class="skill-title">Analizador Biomarcadores</div>
+                            <div class="skill-desc">Ferritina, IST, Vit D (25-OH), CPK, REDs</div>
+                        </div>
+                    </div>
+
+                    <!-- SKILL 2: SUDORACIÓN & HIDRATACIÓN -->
+                    <div class="skill-tool-card" onclick="triggerSkill('sweat_rate')">
+                        <div class="skill-icon">💧</div>
+                        <div class="skill-content">
+                            <div class="skill-title">Calculadora Tasa Sudor</div>
+                            <div class="skill-desc">Tasa L/h, Sodio 500-700mg, reposición 150%</div>
+                        </div>
+                    </div>
+
+                    <!-- SKILL 3: WEARABLES & TSS -->
+                    <div class="skill-tool-card" onclick="triggerSkill('wearable_sync')">
+                        <div class="skill-icon">⌚</div>
+                        <div class="skill-content">
+                            <div class="skill-title">Sincronizador Wearables & TSS</div>
+                            <div class="skill-desc">Garmin/Strava kJ a kcal y CH g/kg FFM</div>
+                        </div>
+                    </div>
+
+                    <!-- SKILL 4: SUPERMERCADO & NOVA -->
+                    <div class="skill-tool-card" onclick="triggerSkill('supermarket_audit')">
+                        <div class="skill-icon">🛒</div>
+                        <div class="skill-content">
+                            <div class="skill-title">Auditor Supermercado & NOVA</div>
+                            <div class="skill-desc">Mercadona/Lidl, grasas sat <7%, NOVA 1-3</div>
+                        </div>
+                    </div>
+
+                    <!-- SKILL 5: MENSAJES WHATSAPP -->
+                    <div class="skill-tool-card" onclick="triggerSkill('whatsapp_tanita')">
+                        <div class="skill-icon">📱</div>
+                        <div class="skill-content">
+                            <div class="skill-title">WhatsApp Protocolo Tanita 24h</div>
+                            <div class="skill-desc">Instrucciones previas de ayuno e hidratación</div>
+                        </div>
+                    </div>
+
+                    <div class="skill-tool-card" onclick="triggerSkill('whatsapp_dossier')">
+                        <div class="skill-icon">📄</div>
+                        <div class="skill-content">
+                            <div class="skill-title">WhatsApp Entrega Dossier 20p</div>
+                            <div class="skill-desc">Entrega oficial y enlace a Google Drive</div>
+                        </div>
+                    </div>
+
+                    <div class="skill-tool-card" onclick="triggerSkill('whatsapp_followup')">
+                        <div class="skill-icon">💬</div>
+                        <div class="skill-content">
+                            <div class="skill-title">WhatsApp Seguimiento D+7</div>
+                            <div class="skill-desc">Tolerancia digestiva, energía y adherencia</div>
+                        </div>
+                    </div>
+
+                    <!-- PILATES & RUNNING -->
+                    <div class="skill-tool-card" onclick="triggerSkill('pilates')">
+                        <div class="skill-icon">🧘</div>
+                        <div class="skill-content">
+                            <div class="skill-title">Pilates Máquina 1h</div>
+                            <div class="skill-desc">Gasto calórico exacto según FFM</div>
+                        </div>
+                    </div>
+
+                    <div class="skill-tool-card" onclick="triggerSkill('running')">
+                        <div class="skill-icon">🏃</div>
+                        <div class="skill-content">
+                            <div class="skill-title">Running 1h (4:30 min/km)</div>
+                            <div class="skill-desc">METs compendio ACSM + vaciamiento gástrico</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CANVAS DERECHO: INTERACCIÓN Y STREAM CLÍNICO -->
+        <main class="chat-workstation">
+            
+            <!-- PILLS DE CONSULTA DIRECTA -->
+            <div class="quick-pills-bar">
+                <button class="quick-pill" onclick="sendPreset('Agenda de hoy')">
+                    📋 Agenda Hoy
+                </button>
+                <button class="quick-pill" onclick="sendPreset('Alertas de bonos por agotar')">
+                    ⚠️ Alertas Bonos
+                </button>
+                <button class="quick-pill" onclick="sendPreset('Últimos pesajes Tanita MC-580')">
+                    ⚖️ Últimos Pesajes
+                </button>
+                <button class="quick-pill" onclick="sendPreset('Regla de oro ANyD de raciones estables de hidratos de carbono')">
+                    🍚 Raciones CH ±10g
+                </button>
+                <button class="quick-pill" onclick="sendPreset('Pautas clínicas OMS para carne roja y legumbres')">
+                    🥗 Criterios OMS Legumbres
+                </button>
+                <button class="quick-pill" onclick="sendPreset('Pautas de proteína según la ISSN para hipertrofia y umbral de leucina')">
+                    🥩 Proteína ISSN
+                </button>
+            </div>
+
+            <!-- STREAM DE CONVERSACIÓN -->
+            <div class="chat-stream" id="chat-stream">
+                <div class="msg-bubble msg-bot">
+                    <h3>👋 Bienvenido a tu Workstation Clínico 2.0, Román</h3>
+                    <p style="margin-top:6px;">
+                        Este entorno integra en tiempo real las <strong>5 Habilidades Clínicas de Alto Rendimiento ANyD</strong> junto a tu base de datos clínica protegida:
+                    </p>
+                    <ul style="margin: 8px 0 8px 18px; font-size:13px;">
+                        <li>🩸 <strong>Biomarcadores:</strong> Evaluación de ferritina, transferrina/IST, Vitamina D (25-OH), CPK y alertas REDs.</li>
+                        <li>💧 <strong>Tasa de Sudoración:</strong> Reposición científica con sodio (500-700 mg/L) y regla del 150%.</li>
+                        <li>⌚ <strong>Wearables & TSS:</strong> Reajuste de hidratos (g/kg FFM) desde Strava, Garmin Connect o TrainingPeaks.</li>
+                        <li>🛒 <strong>Auditor Supermercado:</strong> Filtro NOVA 1-3, grasas saturadas &lt;7-8% y recetas de 10-15 min.</li>
+                        <li>📱 <strong>WhatsApp Paciente:</strong> Mensajes oficiales con 1 solo clic listos para enviar.</li>
+                    </ul>
+                    <p style="font-size:12px; color:#64748b;">
+                        <em>💡 Selecciona a cualquier deportista en el panel lateral para personalizar automáticamente todos los cálculos y prescripciones.</em>
+                    </p>
+                </div>
+            </div>
+
+            <!-- BARRA DE ENTRADA -->
+            <div class="chat-input-bar">
+                <div id="input-athlete-tag" class="active-athlete-pill" style="display:none;">
+                    <span id="input-athlete-name">👤 General</span>
+                </div>
+                <input type="text" id="chat-input-box" class="chat-input-field" placeholder="Pregunta a tu Copiloto Clínico (ej: 'Ferritina 24 y Vit D 28', 'Tasa de sudor con 74kg y 72.8kg')..." onkeydown="if(event.key==='Enter') submitUserMessage()" autofocus>
+                <button class="btn-chat-send" onclick="submitUserMessage()" title="Enviar consulta">➤</button>
+                <button class="btn-chat-clear" onclick="resetChatStream()" title="Reiniciar conversación">🗑️</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. MODAL: CAMBIO DE CONTRASEÑA ADMINISTRATIVA -->
+    <div id="password-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">🔑 Cambiar Contraseña de Acceso</div>
+                <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <div id="modal-alert-box" class="modal-alert"></div>
+            <form id="change-pwd-form" onsubmit="event.preventDefault(); submitChangePassword();">
+                <div class="form-group">
+                    <label class="form-label" for="curr-pwd">Contraseña Actual:</label>
+                    <input type="password" id="curr-pwd" class="form-input" required autocomplete="current-password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="new-pwd">Nueva Contraseña (mínimo 6 caracteres):</label>
+                    <input type="password" id="new-pwd" class="form-input" required minlength="6" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="confirm-pwd">Confirmar Nueva Contraseña:</label>
+                    <input type="password" id="confirm-pwd" class="form-input" required minlength="6" autocomplete="new-password">
+                </div>
+                <button type="submit" id="btn-save-pwd" class="btn-modal-submit">Guardar Nueva Contraseña</button>
+            </form>
         </div>
     </div>
 
-    <!-- 3. CHIPS DE CONSULTA RÁPIDA 1-CLIC -->
-    <div class="chips-bar">
-        <button class="copilot-chip" onclick="sendPreset('Dime el coste energético de pilates máquina en este deportista durante una hora')">
-            🧘 Pilates Máquina 1h
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Coste energético de 1 hora de running a 4:30 min/km con requerimientos de hidratación y sodio')">
-            🏃 Running 1h (4:30)
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Agenda de hoy')">
-            📋 Agenda de Hoy
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Alertas de bonos por agotar')">
-            ⚠️ Alertas Bonos
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Últimos pesajes Tanita MC-580')">
-            ⚖️ Tanita MC-580
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Pautas de proteína según la ISSN para hipertrofia y umbral de leucina')">
-            🥩 Proteína ISSN
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Regla de oro ANyD de raciones estables de hidratos de carbono')">
-            🍚 Raciones ±10g
-        </button>
-        <button class="copilot-chip" onclick="sendPreset('Pautas clínicas OMS para carne roja y ultraprocesados')">
-            🥗 Pautas OMS
-        </button>
-    </div>
-
-    <!-- 4. CONTENEDOR DE CONVERSACIÓN -->
-    <div class="chat-container" id="chat-messages">
-        <div class="bubble bubble-bot">
-            <strong>¡Hola Román!</strong> Bienvenido a tu <strong>Ventana Exclusiva del Agente Copiloto ANyD</strong>.<br><br>
-            Tengo acceso completo a tu agenda, estado de bonos, mediciones de la <strong>Tanita MC-580</strong>, carpetas de <strong>Google Drive</strong> y al <strong>Compendio ACSM/Ainsworth</strong>.<br><br>
-            Puedes preguntarme cualquier cuestión clínica o de gestión, como:<br>
-            • <em>«Dime el coste energético de pilates máquina en este deportista durante 1 hora»</em><br>
-            • <em>«¿Qué consultas tengo programadas para hoy?»</em><br>
-            • <em>«¿Qué bonos están a punto de agotarse?»</em><br>
-            • <em>«Pautas de proteínas y leucina según la ISSN»</em>
-        </div>
-    </div>
-
-    <!-- 5. BARRA DE ENTRADA -->
-    <div class="chat-footer">
-        <input type="text" id="chat-input" class="chat-input" placeholder="Pregunta a tu Agente Copiloto..." onkeydown="if(event.key==='Enter') sendUserMessage()" autofocus>
-        <button class="btn-send" onclick="sendUserMessage()" title="Enviar mensaje">➤</button>
-    </div>
+    <!-- NOTIFICACIÓN TOAST -->
+    <div id="toast-notification">✅ Mensaje copiado al portapapeles</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            onAthleteChange();
+            loadAthleteProfile();
         });
 
-        function onAthleteChange() {
-            const athleteName = document.getElementById('active-athlete-select').value.trim();
-            const badge = document.getElementById('athlete-context-badge');
-            if (athleteName) {
-                badge.innerText = `👤 ${athleteName}`;
-                badge.style.display = 'inline-block';
-            } else {
-                badge.style.display = 'none';
+        // --- GESTIÓN DEL DEPORTISTA ACTIVO Y MÉTRICAS TANITA ---
+        async function loadAthleteProfile() {
+            const select = document.getElementById('athlete-select');
+            const athleteName = select.value.trim();
+            const card = document.getElementById('athlete-profile-card');
+            const inputTag = document.getElementById('input-athlete-tag');
+            const inputTagName = document.getElementById('input-athlete-name');
+
+            if (!athleteName) {
+                card.style.display = 'none';
+                inputTag.style.display = 'none';
+                return;
+            }
+
+            inputTagName.innerText = `👤 ${athleteName}`;
+            inputTag.style.display = 'flex';
+            card.style.display = 'block';
+            card.classList.add('active');
+
+            document.getElementById('card-fullname').innerText = athleteName;
+            document.getElementById('card-contact').innerText = 'Consultando expediente...';
+
+            try {
+                const res = await fetch(`/api/athlete-summary?name=${encodeURIComponent(athleteName)}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const c = data.client;
+                    const contactParts = [];
+                    if (c.phone) contactParts.push(`📞 ${c.phone}`);
+                    if (c.email) contactParts.push(`✉️ ${c.email}`);
+                    document.getElementById('card-contact').innerText = contactParts.join(' | ') || 'Sin teléfono/email';
+
+                    // Bono
+                    const bonoBadge = document.getElementById('card-bono-badge');
+                    if (data.bono) {
+                        bonoBadge.innerText = `${data.bono.remaining}/${data.bono.total_sessions} sesiones (${data.bono.tipo_bono})`;
+                        bonoBadge.style.background = data.bono.remaining <= 1 ? '#fee2e2' : '#dbeafe';
+                        bonoBadge.style.color = data.bono.remaining <= 1 ? '#991b1b' : '#1e40af';
+                    } else {
+                        bonoBadge.innerText = 'Sin bono activo';
+                        bonoBadge.style.background = '#f1f5f9';
+                        bonoBadge.style.color = '#64748b';
+                    }
+
+                    // Tanita
+                    if (data.tanita) {
+                        document.getElementById('card-weight').innerHTML = `${data.tanita.weight} <small>kg</small>`;
+                        document.getElementById('card-fat').innerHTML = `${data.tanita.fat_percent} <small>%</small>`;
+                        document.getElementById('card-ffm').innerHTML = `${data.tanita.ffm} <small>kg</small>`;
+                        document.getElementById('card-bmr').innerHTML = `${data.tanita.bmr_cunningham || '--'} <small>kcal</small>`;
+                        document.getElementById('card-tanita-date').innerText = `⚖️ Pesaje: ${data.tanita.measurement_date}`;
+                    } else {
+                        document.getElementById('card-weight').innerHTML = `-- <small>kg</small>`;
+                        document.getElementById('card-fat').innerHTML = `-- <small>%</small>`;
+                        document.getElementById('card-ffm').innerHTML = `-- <small>kg</small>`;
+                        document.getElementById('card-bmr').innerHTML = `-- <small>kcal</small>`;
+                        document.getElementById('card-tanita-date').innerText = `⚖️ Sin pesaje registrado`;
+                    }
+
+                    // Cita
+                    if (data.next_appointment) {
+                        document.getElementById('card-next-appt').innerText = `📅 Cita: ${data.next_appointment.date} (${data.next_appointment.time})`;
+                    } else {
+                        document.getElementById('card-next-appt').innerText = `📅 Sin citas futuras`;
+                    }
+                }
+            } catch (err) {
+                console.error("Error cargando perfil del atleta:", err);
+            }
+        }
+
+        // --- DISPARADORES DE SKILLS CLÍNICAS (1-CLIC) ---
+        function triggerSkill(skillKey) {
+            const athleteName = document.getElementById('athlete-select').value.trim();
+            const athleteRef = athleteName ? ` para ${athleteName}` : '';
+
+            let query = '';
+            switch(skillKey) {
+                case 'blood_biomarkers':
+                    query = `Analiza biomarcadores sanguíneos deportivos${athleteRef}: Ferritina, IST, Vitamina D 25-OH, CPK y riesgo de REDs`;
+                    break;
+                case 'sweat_rate':
+                    query = `Calcula la tasa de sudoración e hidratación${athleteRef} con reposición de sodio 500-700mg y regla 150%`;
+                    break;
+                case 'wearable_sync':
+                    query = `Sincroniza entreno wearable${athleteRef} con TSS 110 y gasto activo para recalibrar hidratos g/kg FFM`;
+                    break;
+                case 'supermarket_audit':
+                    query = `Audita productos de conveniencia en Mercadona y Lidl con filtro NOVA 1-3, grasas sat <7% y recetas 10-15 min`;
+                    break;
+                case 'whatsapp_tanita':
+                    query = `Genera mensaje de WhatsApp con recordatorio del protocolo 24h para pesaje Tanita MC-580${athleteRef}`;
+                    break;
+                case 'whatsapp_dossier':
+                    query = `Genera mensaje de WhatsApp para entrega oficial de Patrón Nutricional ANyD de 20 páginas${athleteRef}`;
+                    break;
+                case 'whatsapp_followup':
+                    query = `Genera mensaje de WhatsApp de seguimiento día +7 para tolerancia digestiva y vaciamiento gástrico${athleteRef}`;
+                    break;
+                case 'pilates':
+                    query = `Dime el coste energético de 1 hora de pilates máquina (reformer/cadillac)${athleteRef}`;
+                    break;
+                case 'running':
+                    query = `Coste energético de 1 hora de running a 4:30 min/km con pautas peri-entreno de hidratación y vaciamiento gástrico${athleteRef}`;
+                    break;
+            }
+
+            if (query) {
+                sendPreset(query);
             }
         }
 
         function sendPreset(text) {
-            document.getElementById('chat-input').value = text;
-            sendUserMessage();
+            document.getElementById('chat-input-box').value = text;
+            submitUserMessage();
         }
 
-        async function sendUserMessage() {
-            const input = document.getElementById('chat-input');
+        // --- ENVÍO Y RENDERIZADO DE MENSAJES ---
+        async function submitUserMessage() {
+            const input = document.getElementById('chat-input-box');
             const prompt = input.value.trim();
             if (!prompt) return;
 
-            const athleteName = document.getElementById('active-athlete-select').value.trim();
-            const container = document.getElementById('chat-messages');
+            const athleteName = document.getElementById('athlete-select').value.trim();
+            const stream = document.getElementById('chat-stream');
 
-            // Burbuja del usuario
+            // Burbuja Usuario
             const userBubble = document.createElement('div');
-            userBubble.className = 'bubble bubble-user';
+            userBubble.className = 'msg-bubble msg-user';
             userBubble.innerText = prompt;
-            container.appendChild(userBubble);
+            stream.appendChild(userBubble);
 
             input.value = '';
-            container.scrollTop = container.scrollHeight;
+            stream.scrollTop = stream.scrollHeight;
 
-            // Burbuja de espera del bot
+            // Burbuja Bot Espera
             const botBubble = document.createElement('div');
-            botBubble.className = 'bubble bubble-bot';
-            botBubble.innerHTML = '<span style="color:#64748B;">🤖 Consultando base de datos ANyD y evidencia...</span>';
-            container.appendChild(botBubble);
-            container.scrollTop = container.scrollHeight;
+            botBubble.className = 'msg-bubble msg-bot';
+            botBubble.innerHTML = '<span style="color:#64748b;">🤖 Procesando con evidencia clínica ANyD y Tanita MC-580...</span>';
+            stream.appendChild(botBubble);
+            stream.scrollTop = stream.scrollHeight;
 
             try {
                 const res = await fetch('/api/ai/copilot', {
@@ -452,32 +1135,160 @@
                 });
                 const data = await res.json();
 
-                botBubble.innerHTML = data.reply_html || formatMarkdownSimple(data.reply || 'Sin respuesta.');
-                container.scrollTop = container.scrollHeight;
-            } catch (e) {
-                botBubble.innerHTML = '<span style="color:#EF4444;">Error conectando con el servidor. Comprueba la conexión.</span>';
-                container.scrollTop = container.scrollHeight;
+                let bodyHtml = data.reply_html || formatMarkdownFallback(data.reply || 'Sin respuesta.');
+
+                // Acciones inferiores (Copiar / WhatsApp)
+                let actionButtons = `
+                    <div class="msg-action-bar">
+                        <button class="btn-msg-copy" onclick="copyBubbleText(this)">
+                            📋 Copiar Informe
+                        </button>
+                `;
+
+                if (data.type === 'whatsapp_message' || prompt.toLowerCase().includes('whatsapp') || prompt.toLowerCase().includes('mensaje')) {
+                    actionButtons += `
+                        <button class="btn-msg-copy whatsapp" onclick="copyWhatsAppRaw(this)">
+                            📱 Copiar para WhatsApp Web
+                        </button>
+                    `;
+                }
+
+                actionButtons += `</div>`;
+                botBubble.innerHTML = bodyHtml + actionButtons;
+
+                // Guardar texto crudo para WhatsApp si aplica
+                if (data.data && data.data.raw_message) {
+                    botBubble.dataset.rawWhatsapp = data.data.raw_message;
+                }
+
+                stream.scrollTop = stream.scrollHeight;
+            } catch (err) {
+                botBubble.innerHTML = '<span style="color:#ef4444;">Error conectando con el servidor. Comprueba la sesión.</span>';
+                stream.scrollTop = stream.scrollHeight;
             }
         }
 
-        function formatMarkdownSimple(text) {
+        function formatMarkdownFallback(text) {
             if (!text) return '';
-            let formatted = text
+            return text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/\n\n/g, '<br><br>')
-                .replace(/\n/g, '<br>')
-                .replace(/• /g, '&bull; ');
-            return formatted;
+                .replace(/\n/g, '<br>');
         }
 
-        function clearChat() {
-            const container = document.getElementById('chat-messages');
-            container.innerHTML = `
-                <div class="bubble bubble-bot">
-                    <strong>Conversación reiniciada.</strong> ¿En qué puedo ayudarte hoy, Román?
+        function copyBubbleText(btn) {
+            const bubble = btn.closest('.msg-bubble');
+            const clone = bubble.cloneNode(true);
+            const actionBar = clone.querySelector('.msg-action-bar');
+            if (actionBar) actionBar.remove();
+            
+            navigator.clipboard.writeText(clone.innerText.trim()).then(() => {
+                showToast("📋 Informe copiado al portapapeles");
+            });
+        }
+
+        function copyWhatsAppRaw(btn) {
+            const bubble = btn.closest('.msg-bubble');
+            let textToCopy = bubble.dataset.rawWhatsapp;
+            if (!textToCopy) {
+                const pre = bubble.querySelector('pre');
+                textToCopy = pre ? pre.innerText : bubble.innerText;
+            }
+            navigator.clipboard.writeText(textToCopy.trim()).then(() => {
+                showToast("📱 Mensaje de WhatsApp copiado. ¡Listo para pegar!");
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-notification');
+            toast.innerText = msg;
+            toast.style.display = 'flex';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        function resetChatStream() {
+            const stream = document.getElementById('chat-stream');
+            stream.innerHTML = `
+                <div class="msg-bubble msg-bot">
+                    <h3>Conversación Reiniciada</h3>
+                    <p style="margin-top:4px;">Workstation preparado. Selecciona una herramienta táctica o escribe tu consulta.</p>
                 </div>
             `;
+        }
+
+        // --- MODAL DE CAMBIO DE CONTRASEÑA ---
+        function openPasswordModal() {
+            document.getElementById('curr-pwd').value = '';
+            document.getElementById('new-pwd').value = '';
+            document.getElementById('confirm-pwd').value = '';
+            const alertBox = document.getElementById('modal-alert-box');
+            alertBox.style.display = 'none';
+            document.getElementById('password-modal').style.display = 'flex';
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').style.display = 'none';
+        }
+
+        async function submitChangePassword() {
+            const curr = document.getElementById('curr-pwd').value.trim();
+            const newP = document.getElementById('new-pwd').value.trim();
+            const conf = document.getElementById('confirm-pwd').value.trim();
+            const alertBox = document.getElementById('modal-alert-box');
+            const submitBtn = document.getElementById('btn-save-pwd');
+
+            if (newP !== conf) {
+                alertBox.className = 'modal-alert error';
+                alertBox.innerText = 'La nueva contraseña y la confirmación no coinciden.';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            if (newP.length < 6) {
+                alertBox.className = 'modal-alert error';
+                alertBox.innerText = 'La nueva contraseña debe tener al menos 6 caracteres.';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Actualizando contraseña...';
+
+            try {
+                const res = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_password: curr,
+                        new_password: newP
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    alertBox.className = 'modal-alert success';
+                    alertBox.innerText = '✅ ¡Contraseña actualizada con éxito!';
+                    alertBox.style.display = 'block';
+                    setTimeout(() => {
+                        closePasswordModal();
+                        showToast("🔑 Contraseña actualizada correctamente");
+                    }, 1500);
+                } else {
+                    alertBox.className = 'modal-alert error';
+                    alertBox.innerText = data.detail || 'Error al actualizar la contraseña.';
+                    alertBox.style.display = 'block';
+                }
+            } catch (err) {
+                alertBox.className = 'modal-alert error';
+                alertBox.innerText = 'Error conectando con el servidor.';
+                alertBox.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Guardar Nueva Contraseña';
+            }
         }
     </script>
 </body>

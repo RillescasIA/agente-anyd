@@ -1534,6 +1534,104 @@ def page_agente_standalone(request: Request, client: Optional[str] = None):
         }
     )
 
+@app.get("/api/athlete-summary")
+def api_athlete_summary(name: str):
+    """Retorna métricas clave, última Tanita, bonos y citas para el card táctico del deportista."""
+    clean_name = name.strip()
+    if not clean_name:
+        return {"success": False, "error": "Nombre no especificado"}
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT id, fullname, phone, email, note FROM clients
+    WHERE LOWER(fullname) = ? OR LOWER(fullname) LIKE ?
+    LIMIT 1
+    """, (clean_name.lower(), f"%{clean_name.lower()}%"))
+    client = cursor.fetchone()
+
+    if not client:
+        conn.close()
+        return {"success": False, "error": "Deportista no encontrado"}
+
+    client_id = client["id"]
+    client_fullname = client["fullname"]
+
+    # Última Tanita
+    cursor.execute("""
+    SELECT id, weight, fat_percent, ffm, muscle_mass, visceral_fat, bmr_cunningham, measurement_date, created_at
+    FROM tanita_measurements
+    WHERE client_id = ? OR LOWER(client_name) LIKE ?
+    ORDER BY id DESC LIMIT 1
+    """, (client_id, f"%{client_fullname.lower()}%"))
+    tanita = cursor.fetchone()
+
+    # Bonos activos
+    cursor.execute("""
+    SELECT id, tipo_bono, total_sessions, used_sessions, status
+    FROM bonos
+    WHERE (client_id = ? OR LOWER(client_name) LIKE ?) AND status = 'Activo'
+    ORDER BY id DESC LIMIT 1
+    """, (client_id, f"%{client_fullname.lower()}%"))
+    bono = cursor.fetchone()
+
+    # Próxima cita
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute("""
+    SELECT appointment_date, appointment_time, modality, status
+    FROM appointments
+    WHERE (client_id = ? OR LOWER(client_name) LIKE ?) AND appointment_date >= ? AND status != 'Cancelada'
+    ORDER BY appointment_date ASC, appointment_time ASC LIMIT 1
+    """, (client_id, f"%{client_fullname.lower()}%", today_str))
+    next_appt = cursor.fetchone()
+
+    conn.close()
+
+    tanita_data = None
+    if tanita:
+        tanita_data = {
+            "weight": tanita["weight"],
+            "fat_percent": tanita["fat_percent"],
+            "ffm": tanita["ffm"],
+            "muscle_mass": tanita["muscle_mass"],
+            "visceral_fat": tanita["visceral_fat"],
+            "bmr_cunningham": tanita["bmr_cunningham"],
+            "measurement_date": tanita["measurement_date"] or str(tanita["created_at"])[:10]
+        }
+
+    bono_data = None
+    if bono:
+        remaining = bono["total_sessions"] - bono["used_sessions"]
+        bono_data = {
+            "tipo_bono": bono["tipo_bono"],
+            "total_sessions": bono["total_sessions"],
+            "used_sessions": bono["used_sessions"],
+            "remaining": remaining
+        }
+
+    appt_data = None
+    if next_appt:
+        appt_data = {
+            "date": next_appt["appointment_date"],
+            "time": next_appt["appointment_time"],
+            "modality": next_appt["modality"]
+        }
+
+    return {
+        "success": True,
+        "client": {
+            "id": client["id"],
+            "fullname": client["fullname"],
+            "phone": client["phone"] or "",
+            "email": client["email"] or "",
+            "note": client["note"] or ""
+        },
+        "tanita": tanita_data,
+        "bono": bono_data,
+        "next_appointment": appt_data
+    }
+
 # --- ENDPOINTS GESTIÓN DE FESTIVOS Y CIERRES (ALCORCÓN Y NACIONALES) ---
 
 class AddHolidayRequest(BaseModel):

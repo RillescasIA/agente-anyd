@@ -249,6 +249,41 @@ def markdown_to_html(md: str) -> str:
 def process_copilot_query(prompt: str, active_athlete_name: Optional[str] = None) -> Dict[str, Any]:
     text = prompt.strip().lower()
 
+    # Comprobación de Habilidades Clínicas Especializadas ANyD
+    try:
+        import clinical_skills
+        if any(k in text for k in ["ferritina", "analitica", "analítica", "sangre", "hierro", "vitamina d", "cpk", "transaminasas", "reds", "biomarcador"]):
+            c_res = clinical_skills.analyze_blood_biomarkers(prompt, active_athlete_name)
+            if c_res.get("success"):
+                reply_text = c_res["reply_markdown"]
+                return {"success": True, "reply": reply_text, "response": reply_text, "reply_html": markdown_to_html(reply_text), "type": "blood_biomarkers", "data": c_res}
+
+        if any(k in text for k in ["sudor", "sudoracion", "sudoración", "sweat", "tasa sudor", "tasa de sudor"]):
+            c_res = clinical_skills.calculate_sweat_rate_hydration(prompt, active_athlete_name)
+            if c_res.get("success"):
+                reply_text = c_res["reply_markdown"]
+                return {"success": True, "reply": reply_text, "response": reply_text, "reply_html": markdown_to_html(reply_text), "type": "sweat_rate", "data": c_res}
+
+        if any(k in text for k in ["wearable", "strava", "garmin", "trainingpeaks", "tss", "kilojulio", "kj"]):
+            c_res = clinical_skills.sync_wearable_tss(prompt, active_athlete_name)
+            if c_res.get("success"):
+                reply_text = c_res["reply_markdown"]
+                return {"success": True, "reply": reply_text, "response": reply_text, "reply_html": markdown_to_html(reply_text), "type": "wearable_sync", "data": c_res}
+
+        if any(k in text for k in ["mercadona", "lidl", "supermercado", "nova", "ultraprocesado", "comprar", "open food facts"]):
+            c_res = clinical_skills.audit_supermarket_product(prompt)
+            if c_res.get("success"):
+                reply_text = c_res["reply_markdown"]
+                return {"success": True, "reply": reply_text, "response": reply_text, "reply_html": markdown_to_html(reply_text), "type": "supermarket_audit", "data": c_res}
+
+        if any(k in text for k in ["whatsapp", "mensaje al paciente", "recordatorio tanita", "mensaje tanita", "mensaje seguimiento", "mensaje pauta", "mensaje dossier"]):
+            c_res = clinical_skills.generate_whatsapp_patient_message(prompt, active_athlete_name)
+            if c_res.get("success"):
+                reply_text = c_res["reply_markdown"]
+                return {"success": True, "reply": reply_text, "response": reply_text, "reply_html": markdown_to_html(reply_text), "type": "whatsapp_message", "data": c_res}
+    except Exception as e:
+        print(f"[COPILOT ERROR] Error en clinical_skills: {e}")
+
     # 0. Comprobar si es una consulta sobre gasto energético, deporte, METs o pautas ISSN / suplementación
     sport_keywords = [
         "coste", "gasto", "caloria", "caloría", "kcal", "mets", "actividad", "ejercicio",
