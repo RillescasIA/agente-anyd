@@ -30,12 +30,13 @@ app = FastAPI(title="ANyD Booking & Bono Manager")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # ==========================================
-# MIDDLEWARE DE AUTENTICACIÓN Y SEGURIDAD
+# MIDDLEWARE DE SEGURIDAD HTTPS Y CABECERAS HSTS
 # ==========================================
 
 PUBLIC_EXACT_PATHS = {
     "/login",
     "/logout",
+    "/bloquear",
     "/reservar",
     "/calendar.ics",
     "/calendar/sync.ics",
@@ -49,6 +50,26 @@ PUBLIC_PREFIXES = (
     "/api/check-client",
     "/api/webhook/woocommerce"
 )
+
+@app.middleware("http")
+async def security_and_https_middleware(request: Request, call_next):
+    # 1. Enforzar HTTPS si la conexión entrante viene por HTTP inseguro (proxy Render / Cloudflare)
+    proto = request.headers.get("x-forwarded-proto", "").lower()
+    host = request.headers.get("host", "").lower()
+    if proto == "http" and "localhost" not in host and "127.0.0.1" not in host:
+        https_url = str(request.url).replace("http://", "https://", 1)
+        return RedirectResponse(url=https_url, status_code=301)
+
+    response: Response = await call_next(request)
+
+    # 2. Inyección de Cabeceras Estrictas de Seguridad y HSTS (RFC 6797)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    return response
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
@@ -79,7 +100,7 @@ async def auth_middleware(request: Request, call_next):
                 content={"detail": "No autenticado. Por favor, inicia sesión en /login"}
             )
         # Si es una página web, redirigir a /login
-        next_param = path if path not in ["/", "/login", "/logout"] else "/admin"
+        next_param = path if path not in ["/", "/login", "/logout", "/bloquear"] else "/admin"
         return RedirectResponse(url=f"/login?next={next_param}", status_code=303)
 
     request.state.user = user
@@ -266,20 +287,23 @@ def api_dashboard_stats():
 # ==========================================
 
 @app.get("/login", response_class=HTMLResponse)
-def page_login(request: Request, next: Optional[str] = "/admin", error: Optional[str] = None):
-    # Si ya tiene sesión activa válida, redirigir directamente
+def page_login(request: Request, next: Optional[str] = "/admin", error: Optional[str] = None, locked: Optional[int] = 0):
+    # Si ya tiene sesión activa válida y no se solicitó bloqueo explícito, redirigir directamente
     session_token = request.cookies.get("anyd_session")
-    if auth_manager.verify_session_token(session_token):
+    if not locked and auth_manager.verify_session_token(session_token):
         return RedirectResponse(url=next or "/admin", status_code=303)
 
     logo_b64 = dossier_pdf_generator.get_logo_base64()
     stored_user, _ = auth_manager.get_stored_credentials()
+    info_msg = "Estación de trabajo bloqueada por seguridad. Introduce tu contraseña para reanudar la consulta." if locked else None
+
     return templates.TemplateResponse(
         request=request,
         name="login.html",
         context={
             "next_url": next or "/admin",
             "error": error,
+            "info_message": info_msg,
             "logo_base64": logo_b64,
             "default_username": stored_user
         }
@@ -299,7 +323,12 @@ async def handle_login(request: Request):
         token = auth_manager.create_session_token(username, remember_me=remember)
         response = RedirectResponse(url=next_url, status_code=303)
         max_age = 30 * 86400 if remember else 2 * 86400
-        is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+        host_header = request.headers.get("host", "").lower()
+        is_https = (
+            request.url.scheme == "https"
+            or request.headers.get("x-forwarded-proto") == "https"
+            or "agente.anyd.es" in host_header
+        )
         response.set_cookie(
             key="anyd_session",
             value=token,
@@ -326,6 +355,14 @@ async def handle_login(request: Request):
 @app.get("/logout")
 def handle_logout():
     response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(key="anyd_session")
+    return response
+
+@app.get("/bloquear")
+@app.get("/lock")
+def handle_bloquear():
+    """Bloquea inmediatamente la sesión clínica y redirige a la pantalla de login seguro."""
+    response = RedirectResponse(url="/login?locked=1", status_code=303)
     response.delete_cookie(key="anyd_session")
     return response
 

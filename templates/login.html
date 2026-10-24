@@ -248,6 +248,13 @@
     </div>
     {% endif %}
 
+    {% if info_message %}
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; padding:10px 14px; border-radius:8px; font-size:12px; font-weight:600; margin-bottom:20px; display:flex; align-items:center; gap:8px; text-align:left;">
+        <span>🔒</span>
+        <span>{{ info_message }}</span>
+    </div>
+    {% endif %}
+
     <form method="POST" action="/login">
         <input type="hidden" name="next" value="{{ next_url or '/admin' }}">
 
@@ -270,8 +277,8 @@
 
         <div class="options-row">
             <label class="checkbox-label">
-                <input type="checkbox" name="remember" value="1" checked>
-                <span>Mantener sesión iniciada</span>
+                <input type="checkbox" name="remember" value="1">
+                <span>Mantener sesión iniciada en este equipo</span>
             </label>
         </div>
 
