@@ -266,6 +266,22 @@ def extract_tanita_body_composition(client_name: str, folder_path: Optional[str]
                 data["bmr_tanita"] = round(float(t_row["bmr_tanita"]))
             if t_row["bmi"]:
                 data["bmi"] = round(float(t_row["bmi"]), 1)
+            if "sum_skinfolds" in t_row.keys() and t_row["sum_skinfolds"]:
+                data["sum_skinfolds"] = float(t_row["sum_skinfolds"])
+            if "waist_cm" in t_row.keys() and t_row["waist_cm"]:
+                data["waist_cm"] = float(t_row["waist_cm"])
+            if "hip_cm" in t_row.keys() and t_row["hip_cm"]:
+                data["hip_cm"] = float(t_row["hip_cm"])
+            if "skinfolds_json" in t_row.keys() and t_row["skinfolds_json"]:
+                try:
+                    data["skinfolds"] = json.loads(t_row["skinfolds_json"])
+                except Exception:
+                    pass
+            if "perimeters_json" in t_row.keys() and t_row["perimeters_json"]:
+                try:
+                    data["perimeters"] = json.loads(t_row["perimeters_json"])
+                except Exception:
+                    pass
             data["source"] = "Tanita MC-580 (Registro SQLite)"
 
         conn.close()

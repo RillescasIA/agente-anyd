@@ -878,19 +878,67 @@
             </div>
         </section>
 
-        <!-- ================= FASE 2: ANTROPOMETRÍA TANITA MC-580 ================= -->
+        <!-- ================= FASE 2: ANTROPOMETRÍA TANITA MC-580 & PLICOMETRÍA ISAK ================= -->
         <section id="step-content-2" class="wizard-step hidden">
+            
+            <!-- PANEL SUPERIOR: MODOS DE CAPTURA BIOMÉTRICA -->
+            <div class="card" style="background: linear-gradient(135deg, #F8FAFC 0%, #F0F9FF 100%); border-left: 4px solid var(--anyd-blue); margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 20px;">⚖️</span>
+                            <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">
+                                Modos de Captura Biométrica: Tanita MC-580 y Manual
+                            </h3>
+                        </div>
+                        <p style="margin: 4px 0 0 0; font-size: 12.5px; color: #64748B;">
+                            Vuelca la lectura de la báscula de bioimpedancia automáticamente (en directo por USB o vía archivo SD/CSV) o introduce los valores a mano.
+                        </p>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <!-- Botón 1: USB / COM en Directo -->
+                        <button type="button" id="btn-tanita-live" onclick="capturarTanitaLive()" class="btn-anyd btn-primary" style="font-size: 12px; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;" title="Captura directa desde la báscula Tanita conectada al PC por puerto USB/COM">
+                            <span id="tanita-live-spinner" style="display:none;">⏳</span>
+                            <span>⚡ Báscula en Directo (USB)</span>
+                        </button>
+                        
+                        <!-- Botón 2: Importar CSV / Tarjeta SD -->
+                        <button type="button" onclick="triggerTanitaCsvUpload()" class="btn-anyd btn-outline" style="font-size: 12px; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px; background: white;" title="Cargar exportación CSV de la tarjeta SD de Tanita MC-580 o Suite">
+                            <span>📁 Cargar CSV / SD</span>
+                        </button>
+
+                        <!-- Botón 3: Cargar Histórico Previo -->
+                        <button type="button" onclick="autoFetchTanitaMeasurement()" class="btn-anyd btn-outline" style="font-size: 12px; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px; background: white;" title="Buscar último pesaje guardado en base de datos para este paciente">
+                            <span>🔄 Buscar Histórico</span>
+                        </button>
+
+                        <!-- Botón 4: Test Demo Simulado -->
+                        <button type="button" onclick="simularTanita()" class="btn-anyd btn-outline" style="font-size: 11px; padding: 7px 10px; background: #F8FAFC; color: #64748B;" title="Simula una pesada real de atleta en consulta para pruebas sin báscula física">
+                            <span>🧪 Test Demo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input file oculto para CSV -->
+                <input type="file" id="tanita-csv-file" accept=".csv,.txt" style="display: none;" onchange="subirTanitaCSV(this)">
+
+                <!-- Alerta/Feedback dinámico de captura -->
+                <div id="tanita-capture-status" style="display: none; margin-top: 12px; font-size: 12px; padding: 8px 12px; border-radius: 6px; font-weight: 600;"></div>
+            </div>
+
+            <!-- TARJETA 1: BIOIMPEDANCIA TANITA MC-580 -->
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--anyd-border); padding-bottom:10px;">
-                    <h2 class="card-title" style="margin:0; border:none; padding:0;">
-                        ⚖️ Valoración Antropométrica (Bioimpedancia Tanita MC-580)
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--anyd-border); padding-bottom:10px;">
+                    <h2 class="card-title" style="margin:0; border:none; padding:0; display:flex; align-items:center; gap:8px;">
+                        <span>📊</span> Bioimpedancia Multifrecuencia (Tanita MC-580)
                     </h2>
-                    <button type="button" onclick="autoFetchTanitaMeasurement()" class="btn-anyd btn-outline" style="font-size:12px; padding:6px 12px;">
-                        📡 Capturar Última Lectura Tanita
-                    </button>
+                    <span class="chip" style="background:#E0F2FE; color:#0369A1; font-weight:700;">
+                        Estándar Clínico ANyD
+                    </span>
                 </div>
                 <p style="font-size:12.5px; color:#64748B; margin-bottom:16px;">
-                    Introduce los datos medidos en la báscula de bioimpedancia Tanita MC-580. La <strong>Masa Libre de Grasa (FFM)</strong> es la clave metabólica para la fórmula de Cunningham.
+                    La <strong>Masa Libre de Grasa (FFM)</strong> es la clave metabólica que alimenta la fórmula de <strong>Cunningham (1980/1991)</strong>, garantizando un cálculo de gasto energético en reposo exacto y libre de sobreestimaciones.
                 </p>
 
                 <div class="grid-4">
@@ -904,11 +952,11 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Masa Libre de Grasa - FFM (kg) *</label>
-                        <input type="number" id="t-ffm" class="form-control" value="66.4" step="0.1" style="font-weight:700; color:#0369A1;" oninput="recalculateMetabolism()">
-                        <div class="form-hint">Cálculo automático: Peso × (1 - %Grasa)</div>
+                        <input type="number" id="t-ffm" class="form-control" value="66.4" step="0.1" style="font-weight:800; color:#0369A1; background:#F0F9FF; border-color:#BAE6FD;" oninput="recalculateMetabolism()">
+                        <div class="form-hint">Cálculo: Peso × (1 - %Grasa/100)</div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Masa Muscular (kg)</label>
+                        <label class="form-label">Masa Muscular Esquelética (kg)</label>
                         <input type="number" id="t-muscle" class="form-control" value="63.1" step="0.1">
                     </div>
                 </div>
@@ -919,26 +967,165 @@
                         <input type="number" id="t-water" class="form-control" value="62.5" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Grasa Visceral (1 - 12)</label>
+                        <label class="form-label">Grasa Visceral (Nivel 1 - 12)</label>
                         <input type="number" id="t-visceral" class="form-control" value="3" min="1" max="15">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Masa Ósea (kg)</label>
+                        <label class="form-label">Masa Ósea Estimada (kg)</label>
                         <input type="number" id="t-bone" class="form-control" value="3.3" step="0.1">
                     </div>
                     <div class="form-group">
                         <label class="form-label">IMC Calculado (kg/m²)</label>
-                        <input type="number" id="t-bmi" class="form-control" value="24.1" step="0.1" readonly style="background:#F1F5F9;">
+                        <input type="number" id="t-bmi" class="form-control" value="24.1" step="0.1" readonly style="background:#F1F5F9; font-weight:700;">
                     </div>
                 </div>
             </div>
 
+            <!-- TARJETA 2: PLICOMETRÍA ISAK (PLIEGUES CUTÁNEOS EN MM) -->
+            <div class="card" style="border-top: 3px solid #0086cd;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--anyd-border); padding-bottom:10px; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h2 class="card-title" style="margin:0; border:none; padding:0; display:flex; align-items:center; gap:8px;">
+                            <span>📐</span> Plicometría ISAK (Pliegues Cutáneos en mm)
+                        </h2>
+                        <div style="font-size:12px; color:#64748B; margin-top:2px;">
+                            Medición de panículo adiposo con plicómetro / caliper para estimar suma de pliegues y masa grasa subcutánea.
+                        </div>
+                    </div>
+                    <!-- Badges dinámicos de sumatorios -->
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <div class="chip" style="background:#EFF6FF; color:#1E40AF; font-size:11.5px; padding:4px 10px;">
+                            &sum; 6 Pliegues: <strong id="res-sum-6" style="margin-left:4px;">62.9</strong> mm
+                        </div>
+                        <div class="chip" style="background:#F3E8FF; color:#6B21A8; font-size:11.5px; padding:4px 10px;">
+                            &sum; 8 Pliegues: <strong id="res-sum-8" style="margin-left:4px;">78.9</strong> mm
+                        </div>
+                        <div class="chip" style="background:#ECFDF5; color:#065F46; font-size:11.5px; padding:4px 10px;">
+                            Grasa Plicometría: <strong id="res-fat-skinfold" style="margin-left:4px;">12.8%</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-4">
+                    <div class="form-group">
+                        <label class="form-label">Tríceps (mm)</label>
+                        <input type="number" id="sk-triceps" class="form-control" value="8.5" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Pliegue vertical posterior</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subescapular (mm)</label>
+                        <input type="number" id="sk-subscapular" class="form-control" value="9.8" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Ángulo inferior escápula</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bíceps (mm)</label>
+                        <input type="number" id="sk-biceps" class="form-control" value="4.2" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Parte anterior del brazo</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cresta Ilíaca (mm)</label>
+                        <input type="number" id="sk-iliac" class="form-control" value="10.4" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Sobre cresta ilíaca superior</div>
+                    </div>
+                </div>
+
+                <div class="grid-4" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Supraespinal (mm)</label>
+                        <input type="number" id="sk-supraspinale" class="form-control" value="7.1" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Espina ilíaca anterosup.</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Abdominal (mm)</label>
+                        <input type="number" id="sk-abdominal" class="form-control" value="13.2" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">A 5 cm del ombligo</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Muslo Anterior (mm)</label>
+                        <input type="number" id="sk-thigh" class="form-control" value="11.5" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Punto medio muslo</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pantorrilla Medial (mm)</label>
+                        <input type="number" id="sk-calf" class="form-control" value="7.8" step="0.5" oninput="onSkinfoldsChange()">
+                        <div class="form-hint">Perímetro máximo medial</div>
+                    </div>
+                </div>
+
+                <div id="skinfold-comparison-badge" style="margin-top:12px; font-size:12px; color:#475569; background:#F8FAFC; border:1px solid var(--anyd-border); border-radius:6px; padding:6px 12px; display:inline-block;">
+                    Tanita: <strong>13.2%</strong> vs Plicometría: <strong>12.8%</strong> (Δ -0.4%)
+                </div>
+            </div>
+
+            <!-- TARJETA 3: PERÍMETROS CORPORALES (CM) -->
+            <div class="card" style="border-top: 3px solid #10B981;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--anyd-border); padding-bottom:10px; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h2 class="card-title" style="margin:0; border:none; padding:0; display:flex; align-items:center; gap:8px;">
+                            <span>📏</span> Perímetros Corporales (cm) e Índice Cintura / Cadera
+                        </h2>
+                        <div style="font-size:12px; color:#64748B; margin-top:2px;">
+                            Circunferencias corporales para control de hipertrofia muscular y estratificación de riesgo según la OMS.
+                        </div>
+                    </div>
+                    <!-- Indicador ICC -->
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span style="font-size:12px; color:#475569; font-weight:700;">ICC: <strong id="res-icc-val" style="color:#0F172A; font-size:14px;">0.81</strong></span>
+                        <span id="res-icc-badge" class="chip" style="background:#DCFCE7; color:#166534; font-size:11px; padding:4px 8px;">
+                            Riesgo Bajo / Androide Deportivo 🟢
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid-4">
+                    <div class="form-group">
+                        <label class="form-label">Cintura Mínima (cm) *</label>
+                        <input type="number" id="per-waist" class="form-control" value="78.5" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint">Punto más estrecho del torso</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cadera Máxima / Glúteo (cm) *</label>
+                        <input type="number" id="per-hip" class="form-control" value="97.0" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint">Prominencia glútea máxima</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Brazo Relajado (cm)</label>
+                        <input type="number" id="per-arm-rel" class="form-control" value="32.0" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint">Punto medio acromio-radial</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Brazo en Flexión (cm)</label>
+                        <input type="number" id="per-arm-flex" class="form-control" value="34.8" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint" id="res-arm-delta">+2.8 cm flexión</div>
+                    </div>
+                </div>
+
+                <div class="grid-3" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label class="form-label">Muslo Medial (cm)</label>
+                        <input type="number" id="per-thigh" class="form-control" value="56.0" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint">Punto medio trocánter-tibial</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pantorrilla Máxima (cm)</label>
+                        <input type="number" id="per-calf" class="form-control" value="38.0" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint">Circunferencia máxima del gemelo</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pecho / Tórax (cm)</label>
+                        <input type="number" id="per-chest" class="form-control" value="99.0" step="0.5" oninput="onPerimetersChange()">
+                        <div class="form-hint">Nivel mesoesternal en reposo</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA 4: DIAGNÓSTICO CLÍNICO INTEGRADO -->
             <div class="card" style="background:#F0FDF4; border-color:#BBF7D0;">
                 <h3 style="font-size:14px; font-weight:800; color:#166534; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    ✅ Diagnóstico Clínico de Composición Corporal
+                    ✅ Diagnóstico Clínico de Composición Corporal Integrada
                 </h3>
                 <div id="tanita-diagnostic-text" style="font-size:12.5px; color:#14532D; line-height:1.5;">
-                    Deportista con <strong>76.5 kg</strong> y <strong>13.2% de grasa</strong>. Su Masa Libre de Grasa (FFM) es de <strong>66.4 kg</strong>, situándose en un estado muscular óptimo para periodización de carbohidratos.
+                    Deportista con <strong>76.5 kg</strong> y <strong>13.2% de grasa corporal</strong> (Bioimpedancia Tanita MC-580). Su Masa Libre de Grasa (FFM) es de <strong>66.4 kg</strong>, garantizando una excelente base metabólica y requerimientos proteicos estables | &sum; 6 Pliegues ISAK: <strong>62.9 mm</strong> | Índice Cintura/Cadera (ICC): <strong>0.81</strong>.
                 </div>
             </div>
 
@@ -1398,10 +1585,243 @@
             const weight = document.getElementById('t-weight').value;
             const fat = document.getElementById('t-fat-percent').value;
             const ffm = document.getElementById('t-ffm').value;
+            const sum6 = document.getElementById('res-sum-6') ? document.getElementById('res-sum-6').innerText : '';
+            const icc = document.getElementById('res-icc-val') ? document.getElementById('res-icc-val').innerText : '';
+
             const diagEl = document.getElementById('tanita-diagnostic-text');
             if (diagEl) {
-                diagEl.innerHTML = `${name} presenta <strong>${weight} kg</strong> con <strong>${fat}% de grasa corporal</strong>. Su Masa Libre de Grasa (FFM) es de <strong>${ffm} kg</strong>, lo que garantiza una excelente capacidad metabólica y requerimientos proteicos estables.`;
+                let extra = '';
+                if (sum6 && parseFloat(sum6) > 0) {
+                    extra += ` | &sum; 6 Pliegues ISAK: <strong>${sum6} mm</strong>`;
+                }
+                if (icc && parseFloat(icc) > 0) {
+                    extra += ` | Índice Cintura/Cadera (ICC): <strong>${icc}</strong>`;
+                }
+                diagEl.innerHTML = `${name} presenta <strong>${weight} kg</strong> con <strong>${fat}% de grasa corporal</strong> (Bioimpedancia Tanita MC-580). Su Masa Libre de Grasa (FFM) es de <strong>${ffm} kg</strong>, garantizando una excelente base metabólica y requerimientos proteicos estables${extra}.`;
             }
+        }
+
+        // ==================== FUNCIONES TANITA & ANTROPOMETRÍA ISAK ====================
+        function populateTanitaFields(meas) {
+            if (!meas) return;
+            if (meas.weight) document.getElementById('t-weight').value = parseFloat(meas.weight).toFixed(1);
+            if (meas.fat_percent) document.getElementById('t-fat-percent').value = parseFloat(meas.fat_percent).toFixed(1);
+            if (meas.ffm) document.getElementById('t-ffm').value = parseFloat(meas.ffm).toFixed(1);
+            if (meas.muscle_mass) document.getElementById('t-muscle').value = parseFloat(meas.muscle_mass).toFixed(1);
+            if (meas.water_percent) document.getElementById('t-water').value = parseFloat(meas.water_percent).toFixed(1);
+            if (meas.visceral_fat) document.getElementById('t-visceral').value = parseInt(meas.visceral_fat);
+            if (meas.bone_mass) document.getElementById('t-bone').value = parseFloat(meas.bone_mass).toFixed(1);
+            if (meas.bmi) document.getElementById('t-bmi').value = parseFloat(meas.bmi).toFixed(1);
+            onTanitaWeightFatChange();
+            if (typeof onSkinfoldsChange === 'function') onSkinfoldsChange();
+            if (typeof onPerimetersChange === 'function') onPerimetersChange();
+        }
+
+        async function capturarTanitaLive() {
+            const spinner = document.getElementById('tanita-live-spinner');
+            const statusEl = document.getElementById('tanita-capture-status');
+            if (spinner) spinner.style.display = 'inline-block';
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#EFF6FF';
+                statusEl.style.color = '#1E40AF';
+                statusEl.innerHTML = '📡 Conectando con receptor Tanita MC-580 (USB/Serie)...';
+            }
+
+            try {
+                const res = await fetch('/api/tanita/live');
+                const data = await res.json();
+
+                if (data.latest_measurement && data.latest_measurement.weight) {
+                    populateTanitaFields(data.latest_measurement);
+                    if (statusEl) {
+                        statusEl.style.background = '#ECFDF5';
+                        statusEl.style.color = '#065F46';
+                        statusEl.innerHTML = `✅ <strong>Lectura capturada en directo:</strong> ${data.latest_measurement.weight} kg, ${data.latest_measurement.fat_percent}% grasa (${data.latest_measurement.timestamp || 'Ahora'}).`;
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.style.background = '#FFFBEB';
+                        statusEl.style.color = '#B45309';
+                        statusEl.innerHTML = `⚠️ <strong>Sin lectura pendiente en la báscula física:</strong> El puerto ${data.active_port || 'COM'} está listo. Súbete a la báscula y cuando pite vuelve a pulsar este botón. <em>(O pulsa '🧪 Test Demo' si estás probando la plataforma sin el cable conectado).</em>`;
+                    }
+                }
+            } catch (err) {
+                if (statusEl) {
+                    statusEl.style.background = '#FEF2F2';
+                    statusEl.style.color = '#991B1B';
+                    statusEl.innerHTML = `❌ Error comunicando con el servicio Tanita: ${err.message}`;
+                }
+            } finally {
+                if (spinner) spinner.style.display = 'none';
+            }
+        }
+
+        function triggerTanitaCsvUpload() {
+            const fileInput = document.getElementById('tanita-csv-file');
+            if (fileInput) fileInput.click();
+        }
+
+        async function subirTanitaCSV(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const statusEl = document.getElementById('tanita-capture-status');
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#EFF6FF';
+                statusEl.style.color = '#1E40AF';
+                statusEl.innerHTML = `⏳ Analizando archivo CSV de Tanita: ${file.name}...`;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/tanita/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success && data.measurement) {
+                    populateTanitaFields(data.measurement);
+                    if (statusEl) {
+                        statusEl.style.background = '#ECFDF5';
+                        statusEl.style.color = '#065F46';
+                        statusEl.innerHTML = `✅ <strong>CSV procesado:</strong> ${data.measurement.weight} kg, ${data.measurement.fat_percent}% grasa volcados correctamente.`;
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.style.background = '#FEF2F2';
+                        statusEl.style.color = '#991B1B';
+                        statusEl.innerHTML = `⚠️ Aviso: ${data.message || 'No se pudieron extraer métricas del archivo.'}`;
+                    }
+                }
+            } catch (e) {
+                if (statusEl) {
+                    statusEl.style.background = '#FEF2F2';
+                    statusEl.style.color = '#991B1B';
+                    statusEl.innerHTML = `❌ Error al subir CSV de Tanita: ${e.message}`;
+                }
+            }
+            input.value = '';
+        }
+
+        async function simularTanita() {
+            const statusEl = document.getElementById('tanita-capture-status');
+            try {
+                const res = await fetch('/api/tanita/simulate', { method: 'POST' });
+                const data = await res.json();
+                if (data.success && data.measurement) {
+                    populateTanitaFields(data.measurement);
+                    if (statusEl) {
+                        statusEl.style.display = 'block';
+                        statusEl.style.background = '#EFF6FF';
+                        statusEl.style.color = '#1E40AF';
+                        statusEl.innerHTML = `🧪 <strong>Lectura de prueba simulada cargada:</strong> ${data.measurement.weight} kg | ${data.measurement.fat_percent}% grasa | FFM: ${data.measurement.ffm} kg.`;
+                    }
+                }
+            } catch (e) {
+                alert("Error al simular lectura Tanita: " + e.message);
+            }
+        }
+
+        function onSkinfoldsChange() {
+            const tri = parseFloat(document.getElementById('sk-triceps').value) || 0;
+            const sub = parseFloat(document.getElementById('sk-subscapular').value) || 0;
+            const bi = parseFloat(document.getElementById('sk-biceps').value) || 0;
+            const iliac = parseFloat(document.getElementById('sk-iliac').value) || 0;
+            const supra = parseFloat(document.getElementById('sk-supraspinale').value) || 0;
+            const abd = parseFloat(document.getElementById('sk-abdominal').value) || 0;
+            const thigh = parseFloat(document.getElementById('sk-thigh').value) || 0;
+            const calf = parseFloat(document.getElementById('sk-calf').value) || 0;
+
+            const sum6 = tri + sub + supra + abd + thigh + calf;
+            const sum8 = sum6 + bi + iliac;
+
+            const elSum6 = document.getElementById('res-sum-6');
+            const elSum8 = document.getElementById('res-sum-8');
+            const elFat = document.getElementById('res-fat-skinfold');
+
+            if (elSum6) elSum6.innerText = sum6.toFixed(1);
+            if (elSum8) elSum8.innerText = sum8.toFixed(1);
+
+            const gender = (document.getElementById('p-gender') && document.getElementById('p-gender').value) || 'M';
+            let fatEst = 0;
+            if (gender === 'F') {
+                fatEst = (0.1548 * sum6) + 3.580;
+            } else {
+                fatEst = (0.1051 * sum6) + 2.585;
+            }
+            if (fatEst < 4) fatEst = 4;
+            if (elFat) elFat.innerText = fatEst.toFixed(1) + '%';
+
+            const tanitaFat = parseFloat(document.getElementById('t-fat-percent').value) || 0;
+            const compEl = document.getElementById('skinfold-comparison-badge');
+            if (compEl && tanitaFat > 0 && sum6 > 0) {
+                const diff = (fatEst - tanitaFat).toFixed(1);
+                const sign = diff > 0 ? `+${diff}` : `${diff}`;
+                compEl.innerHTML = `Tanita: <strong>${tanitaFat}%</strong> vs Plicometría: <strong>${fatEst.toFixed(1)}%</strong> (Δ ${sign}%)`;
+            }
+            updateTanitaDiagnosticText();
+        }
+
+        function onPerimetersChange() {
+            const waist = parseFloat(document.getElementById('per-waist').value) || 0;
+            const hip = parseFloat(document.getElementById('per-hip').value) || 0;
+            const armRel = parseFloat(document.getElementById('per-arm-rel').value) || 0;
+            const armFlex = parseFloat(document.getElementById('per-arm-flex').value) || 0;
+
+            const iccEl = document.getElementById('res-icc-val');
+            const badgeEl = document.getElementById('res-icc-badge');
+            const armDeltaEl = document.getElementById('res-arm-delta');
+
+            if (armRel > 0 && armFlex > 0 && armDeltaEl) {
+                const delta = (armFlex - armRel).toFixed(1);
+                armDeltaEl.innerText = `+${delta} cm flexión`;
+            }
+
+            if (waist > 0 && hip > 0 && iccEl && badgeEl) {
+                const icc = waist / hip;
+                iccEl.innerText = icc.toFixed(2);
+                const gender = (document.getElementById('p-gender') && document.getElementById('p-gender').value) || 'M';
+
+                if (gender === 'M') {
+                    if (icc < 0.90) {
+                        badgeEl.className = 'chip';
+                        badgeEl.style.background = '#DCFCE7';
+                        badgeEl.style.color = '#166534';
+                        badgeEl.innerText = 'Riesgo Bajo / Androide Deportivo 🟢';
+                    } else if (icc <= 0.99) {
+                        badgeEl.className = 'chip';
+                        badgeEl.style.background = '#FEF3C7';
+                        badgeEl.style.color = '#92400E';
+                        badgeEl.innerText = 'Riesgo Moderado 🟡';
+                    } else {
+                        badgeEl.className = 'chip';
+                        badgeEl.style.background = '#FEE2E2';
+                        badgeEl.style.color = '#991B1B';
+                        badgeEl.innerText = 'Riesgo Elevado 🔴';
+                    }
+                } else {
+                    if (icc < 0.85) {
+                        badgeEl.className = 'chip';
+                        badgeEl.style.background = '#DCFCE7';
+                        badgeEl.style.color = '#166534';
+                        badgeEl.innerText = 'Riesgo Bajo / Ginoide Saludable 🟢';
+                    } else if (icc <= 0.89) {
+                        badgeEl.className = 'chip';
+                        badgeEl.style.background = '#FEF3C7';
+                        badgeEl.style.color = '#92400E';
+                        badgeEl.innerText = 'Riesgo Moderado 🟡';
+                    } else {
+                        badgeEl.className = 'chip';
+                        badgeEl.style.background = '#FEE2E2';
+                        badgeEl.style.color = '#991B1B';
+                        badgeEl.innerText = 'Riesgo Elevado 🔴';
+                    }
+                }
+            }
+            updateTanitaDiagnosticText();
         }
 
         // MOTOR FISIOLÓGICO: FÓRMULA DE CUNNINGHAM (1980/1991)
@@ -1580,6 +2000,28 @@
                 visceral_fat: parseInt(document.getElementById('t-visceral').value) || 3,
                 bmr_cunningham: bmr,
                 tdee_kcal: tdee,
+                skinfolds: {
+                    triceps: parseFloat(document.getElementById('sk-triceps').value) || 0,
+                    subscapular: parseFloat(document.getElementById('sk-subscapular').value) || 0,
+                    biceps: parseFloat(document.getElementById('sk-biceps').value) || 0,
+                    iliac_crest: parseFloat(document.getElementById('sk-iliac').value) || 0,
+                    supraspinale: parseFloat(document.getElementById('sk-supraspinale').value) || 0,
+                    abdominal: parseFloat(document.getElementById('sk-abdominal').value) || 0,
+                    thigh: parseFloat(document.getElementById('sk-thigh').value) || 0,
+                    calf: parseFloat(document.getElementById('sk-calf').value) || 0
+                },
+                perimeters: {
+                    waist: parseFloat(document.getElementById('per-waist').value) || 0,
+                    hip: parseFloat(document.getElementById('per-hip').value) || 0,
+                    arm_relaxed: parseFloat(document.getElementById('per-arm-rel').value) || 0,
+                    arm_flexed: parseFloat(document.getElementById('per-arm-flex').value) || 0,
+                    thigh: parseFloat(document.getElementById('per-thigh').value) || 0,
+                    calf: parseFloat(document.getElementById('per-calf').value) || 0,
+                    chest: parseFloat(document.getElementById('per-chest').value) || 0
+                },
+                sum_skinfolds: parseFloat(document.getElementById('res-sum-6').innerText) || 0,
+                waist_cm: parseFloat(document.getElementById('per-waist').value) || 0,
+                hip_cm: parseFloat(document.getElementById('per-hip').value) || 0,
                 weekly_plan: generatedWeeklyPlan,
                 photo_base64: patientPhotoBase64
             };
@@ -1659,8 +2101,29 @@
             document.getElementById('photo-placeholder-view').style.display = 'none';
             document.getElementById('btn-delete-avatar').style.display = 'flex';
 
+            if (document.getElementById('sk-triceps')) {
+                document.getElementById('sk-triceps').value = 8.5;
+                document.getElementById('sk-subscapular').value = 9.8;
+                document.getElementById('sk-biceps').value = 4.2;
+                document.getElementById('sk-iliac').value = 10.4;
+                document.getElementById('sk-supraspinale').value = 7.1;
+                document.getElementById('sk-abdominal').value = 13.2;
+                document.getElementById('sk-thigh').value = 11.5;
+                document.getElementById('sk-calf').value = 7.8;
+                onSkinfoldsChange();
+            }
+            if (document.getElementById('per-waist')) {
+                document.getElementById('per-waist').value = 78.5;
+                document.getElementById('per-hip').value = 97.0;
+                document.getElementById('per-arm-rel').value = 32.0;
+                document.getElementById('per-arm-flex').value = 34.8;
+                document.getElementById('per-thigh').value = 56.0;
+                document.getElementById('per-calf').value = 38.0;
+                document.getElementById('per-chest').value = 99.0;
+                onPerimetersChange();
+            }
             onTanitaWeightFatChange();
-            alert("✅ Datos y fotografía del deportista de prueba cargados correctamente.");
+            alert("✅ Datos completos (Tanita, Pliegues ISAK, Perímetros y Foto) cargados correctamente.");
         }
 
         async function autoFetchTanitaMeasurement() {
@@ -1678,8 +2141,43 @@
                     if (last.fat_percent) document.getElementById('t-fat-percent').value = last.fat_percent;
                     if (last.muscle_mass) document.getElementById('t-muscle').value = last.muscle_mass;
                     if (last.ffm) document.getElementById('t-ffm').value = last.ffm;
+                    if (last.water_percent) document.getElementById('t-water').value = last.water_percent;
+                    if (last.visceral_fat) document.getElementById('t-visceral').value = last.visceral_fat;
+                    if (last.bone_mass) document.getElementById('t-bone').value = last.bone_mass;
+
+                    // Restaurar pliegues si existen en el histórico
+                    if (last.skinfolds_json) {
+                        try {
+                            const sk = JSON.parse(last.skinfolds_json);
+                            if (sk.triceps) document.getElementById('sk-triceps').value = sk.triceps;
+                            if (sk.subscapular) document.getElementById('sk-subscapular').value = sk.subscapular;
+                            if (sk.biceps) document.getElementById('sk-biceps').value = sk.biceps;
+                            if (sk.iliac_crest) document.getElementById('sk-iliac').value = sk.iliac_crest;
+                            if (sk.supraspinale) document.getElementById('sk-supraspinale').value = sk.supraspinale;
+                            if (sk.abdominal) document.getElementById('sk-abdominal').value = sk.abdominal;
+                            if (sk.thigh) document.getElementById('sk-thigh').value = sk.thigh;
+                            if (sk.calf) document.getElementById('sk-calf').value = sk.calf;
+                            onSkinfoldsChange();
+                        } catch(e) {}
+                    }
+
+                    // Restaurar perímetros si existen en el histórico
+                    if (last.perimeters_json) {
+                        try {
+                            const per = JSON.parse(last.perimeters_json);
+                            if (per.waist) document.getElementById('per-waist').value = per.waist;
+                            if (per.hip) document.getElementById('per-hip').value = per.hip;
+                            if (per.arm_relaxed) document.getElementById('per-arm-rel').value = per.arm_relaxed;
+                            if (per.arm_flexed) document.getElementById('per-arm-flex').value = per.arm_flexed;
+                            if (per.thigh) document.getElementById('per-thigh').value = per.thigh;
+                            if (per.calf) document.getElementById('per-calf').value = per.calf;
+                            if (per.chest) document.getElementById('per-chest').value = per.chest;
+                            onPerimetersChange();
+                        } catch(e) {}
+                    }
+
                     onTanitaWeightFatChange();
-                    alert(`✅ Lectura recuperada de Tanita MC-580 (${last.measurement_date || 'Reciente'}).`);
+                    alert(`✅ Medición recuperada de Tanita MC-580 (${last.measurement_date || 'Reciente'}).`);
                 } else {
                     alert("No se encontraron mediciones previas de Tanita para este deportista.");
                 }

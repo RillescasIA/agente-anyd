@@ -207,10 +207,18 @@ def init_db():
         FOREIGN KEY (client_id) REFERENCES clients (id)
     )""")
 
-    try:
-        cursor.execute("ALTER TABLE clients ADD COLUMN photo_url TEXT")
-    except Exception:
-        pass
+    for col_def in [
+        ("clients", "photo_url", "TEXT"),
+        ("tanita_measurements", "skinfolds_json", "TEXT"),
+        ("tanita_measurements", "perimeters_json", "TEXT"),
+        ("tanita_measurements", "sum_skinfolds", "REAL"),
+        ("tanita_measurements", "waist_cm", "REAL"),
+        ("tanita_measurements", "hip_cm", "REAL"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
+        except Exception:
+            pass
 
     uploads_dir = os.path.join(BASE_DIR, "static", "uploads", "patients")
     os.makedirs(uploads_dir, exist_ok=True)
@@ -914,7 +922,7 @@ def get_client_history(name: Optional[str] = None, email: Optional[str] = None, 
 
     # Histórico de pesajes Tanita MC-580
     cursor.execute("""
-    SELECT id, measurement_date, weight, bmi, fat_percent, fat_mass, muscle_mass, ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, created_at
+    SELECT id, measurement_date, weight, bmi, fat_percent, fat_mass, muscle_mass, ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, skinfolds_json, perimeters_json, sum_skinfolds, waist_cm, hip_cm, created_at
     FROM tanita_measurements
     WHERE (client_id = ? OR LOWER(client_name) LIKE ?)
     ORDER BY measurement_date DESC, id DESC
@@ -1823,6 +1831,11 @@ class CompleteNuevoPacienteRequest(BaseModel):
     visceral_fat: Optional[int] = 3
     bmr_cunningham: Optional[float] = 1950.0
     tdee_kcal: Optional[float] = 2700.0
+    skinfolds: Optional[Dict[str, float]] = None
+    perimeters: Optional[Dict[str, float]] = None
+    sum_skinfolds: Optional[float] = None
+    waist_cm: Optional[float] = None
+    hip_cm: Optional[float] = None
     weekly_plan: Optional[Dict[str, Any]] = None
 
 @app.get("/nuevo-paciente", response_class=HTMLResponse)
@@ -1911,14 +1924,19 @@ def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
     bmi = round(req.weight_kg / (((req.height_cm or 175.0) / 100) ** 2), 1) if req.height_cm and req.height_cm > 0 else 24.0
     fat_mass = round((req.weight_kg or 75.0) * ((req.fat_percent or 12.0) / 100), 2)
 
+    skinfolds_str = json.dumps(req.skinfolds) if req.skinfolds else None
+    perimeters_str = json.dumps(req.perimeters) if req.perimeters else None
+
     cursor.execute("""
         INSERT INTO tanita_measurements (
             client_id, client_name, measurement_date, weight, bmi, fat_percent, fat_mass,
-            muscle_mass, ffm, water_percent, visceral_fat, bmr_cunningham
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            muscle_mass, ffm, water_percent, visceral_fat, bmr_cunningham,
+            skinfolds_json, perimeters_json, sum_skinfolds, waist_cm, hip_cm
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         client_id, client_name_clean, today_str, req.weight_kg or 75.0, bmi, req.fat_percent or 12.0, fat_mass,
-        req.muscle_kg or 63.0, req.ffm_kg or 66.0, req.water_percent or 62.0, req.visceral_fat or 3, req.bmr_cunningham or 1950.0
+        req.muscle_kg or 63.0, req.ffm_kg or 66.0, req.water_percent or 62.0, req.visceral_fat or 3, req.bmr_cunningham or 1950.0,
+        skinfolds_str, perimeters_str, req.sum_skinfolds, req.waist_cm, req.hip_cm
     ))
     conn.commit()
     conn.close()
@@ -1958,6 +1976,11 @@ def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
         "ffm_kg": req.ffm_kg or 66.0,
         "muscle_kg": req.muscle_kg or 63.0,
         "sport": req.sport or "Deporte",
+        "sum_skinfolds": req.sum_skinfolds,
+        "skinfolds": req.skinfolds,
+        "perimeters": req.perimeters,
+        "waist_cm": req.waist_cm,
+        "hip_cm": req.hip_cm,
         "goal": req.goal or "Pérdida de grasa / Rendimiento",
         "bmr_cunningham": int(req.bmr_cunningham or 1950),
         "tdee_kcal": int(req.tdee_kcal or 2600)
