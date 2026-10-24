@@ -1737,12 +1737,15 @@
             const ageStr = parseInt(ageVal || 30).toString();
 
             const enc = new TextEncoder();
+            const heightPad = (parseFloat(heightVal) || 178.0).toFixed(1).padStart(5, '0');
+            const agePad = parseInt(ageVal || 30).toString().padStart(2, '0');
+            const tarePad = (parseFloat(tareVal) || 0.2).toFixed(1).padStart(4, '0');
             const commands = [
-                `D1 ${genderCode}\r\n`,
-                `D2 ${bodyCode}\r\n`,
-                `D3 ${heightStr}\r\n`,
-                `D4 ${ageStr}\r\n`,
-                `D0 ${tareStr}\r\n`,
+                `D1${genderCode}\r\n`,
+                `D2${bodyCode}\r\n`,
+                `D3${heightPad}\r\n`,
+                `D4${agePad}\r\n`,
+                `D0${tarePad}\r\n`,
                 `G1\r\n`
             ];
 

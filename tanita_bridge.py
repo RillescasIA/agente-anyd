@@ -5,11 +5,13 @@
 PUENTE BIDIRECCIONAL TANITA MC-580 · AGENTE ANYD NUTRICIONISTAS
 Román Illescas Quiroga (Col. MAD00274)
 =============================================================================
-1. Detecta automáticamente la báscula en el puerto USB (COM3 Prolific).
-2. Recibe órdenes desde https://agente.anyd.es/api/tanita/pending-command
-   y envía a la báscula los datos del paciente (Sexo, Altura, Edad, Tara)
-   para que la pantalla de la Tanita se encienda y configure automáticamente.
-3. Captura la pesada final tras el análisis BIA y la envía en tiempo real a la web.
+Protocolo Oficial Tanita RS-232 / USB:
+- D1{1/2} : Sexo (1=Hombre, 2=Mujer)
+- D2{2/0} : Modo (2=Atleta, 0=Estándar)
+- D3{altura:05.1f} : Altura en cm (ej: D3178.0)
+- D4{edad:02d} : Edad (ej: D430)
+- D0{tara:04.1f} : Tara de ropa (ej: D000.2)
+- G1 : Dispara la medición y pasa a estado S6 ("SUBA A LA BÁSCULA")
 =============================================================================
 """
 
@@ -119,37 +121,36 @@ def parse_tanita_line(raw_str):
 
 def send_patient_to_scale(ser, gender=1, body_type=2, height_cm=178.0, age=30, tare_kg=0.2):
     """
-    Envía los comandos protocolarios Tanita para inicializar la báscula con los datos del paciente:
-    - D1: Sexo (1=Hombre, 2=Mujer)
-    - D2: Tipo (2=Atleta, 0=Estándar)
-    - D3: Altura en cm (ej: 178.0)
-    - D4: Edad (ej: 30)
-    - D0: Tara de ropa (ej: 00.2)
-    - G1: Iniciar rutina de pesaje y encender pantalla
+    Envía los comandos oficiales Tanita (sin espacios) para eliminar la 'P' intermitente
+    y poner la báscula en estado S6 ('SUBA A LA BÁSCULA').
     """
     tare_str = f"{float(tare_kg):04.1f}"
+    height_str = f"{float(height_cm):05.1f}"
+    age_str = f"{int(age):02d}"
+
     cmds = [
-        f"D1 {gender}\r\n".encode(),
-        f"D2 {body_type}\r\n".encode(),
-        f"D3 {float(height_cm):.1f}\r\n".encode(),
-        f"D4 {int(age)}\r\n".encode(),
-        f"D0 {tare_str}\r\n".encode(),
+        f"D1{gender}\r\n".encode(),
+        f"D2{body_type}\r\n".encode(),
+        f"D3{height_str}\r\n".encode(),
+        f"D4{age_str}\r\n".encode(),
+        f"D0{tare_str}\r\n".encode(),
         b"G1\r\n"
     ]
     for c in cmds:
         ser.write(c)
-        time.sleep(0.12)
+        time.sleep(0.1)
         if ser.in_waiting:
             ser.read(ser.in_waiting)
-    print(f"\n[TANITA] >>> DATOS ENVIADOS A LA BÁSCULA CON ÉXITO <<<")
-    print(f"  Sexo: {'Hombre' if gender==1 else 'Mujer'} | Altura: {height_cm} cm | Edad: {age} | Tara: {tare_kg} kg")
-    print(f"  ¡La pantalla de la Tanita MC-580 se ha encendido! Sube al paciente a la plataforma.")
+
+    print(f"\n[TANITA MC-580] >>> 'P' RESUELTA: DATOS DE PACIENTE CARGADOS <<<")
+    print(f"  Sexo: {'Hombre' if gender==1 else 'Mujer'} | Altura: {height_cm} cm | Edad: {age} años | Tara: {tare_kg} kg")
+    print(f"  Estado Báscula: S6 (SUBA A LA BÁSCULA). ¡Sube al deportista a la plataforma!")
 
 def check_pending_web_command(ser):
-    """Consulta si desde la web https://agente.anyd.es se ha pulsado iniciar pesaje."""
+    """Consulta si desde la web se ha ordenado un pesaje."""
     try:
         req = urllib.request.Request(PENDING_CMD_URL, headers={"User-Agent": "TanitaBridge/1.0"})
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data.get("has_command") and data.get("command"):
                 cmd = data["command"]
@@ -165,7 +166,7 @@ def check_pending_web_command(ser):
         pass
 
 def send_measurement_to_cloud(measurement):
-    """Envía la medición final a la web para rellenar la ficha."""
+    """Envía la medición a la nube para rellenar la ficha."""
     payload = json.dumps({"measurement": measurement}).encode("utf-8")
     req = urllib.request.Request(
         FEED_URL,
@@ -174,7 +175,7 @@ def send_measurement_to_cloud(measurement):
     )
     try:
         with urllib.request.urlopen(req, timeout=8) as response:
-            print(f"[OK] ¡Medición sincronizada con agente.anyd.es!")
+            print(f"[OK] ¡Medición sincronizada con https://agente.anyd.es!")
             return True
     except Exception as e:
         print(f"[AVISO] Error enviando a la nube: {e}")
@@ -182,17 +183,13 @@ def send_measurement_to_cloud(measurement):
 
 def main():
     print("=" * 70)
-    print("  ANyD Nutricionistas · Puente de Enlace Bidireccional Tanita MC-580")
+    print("  ANyD Nutricionistas · Puente Bidireccional Tanita MC-580")
     print("  Román Illescas Quiroga (Col. MAD00274)")
     print("=" * 70)
 
     port = find_tanita_port()
     if not port:
-        print("\n[ALERTA] No se detectó ninguna báscula Tanita conectada al USB.")
-        print("Puertos encontrados en este PC:")
-        for p in serial.tools.list_ports.comports():
-            print(f" - {p.device}: {p.description}")
-        print("\nConecta el cable USB de la Tanita y vuelve a ejecutar este programa.")
+        print("\n[ALERTA] No se detectó la báscula Tanita en los puertos USB.")
         input("\nPulsa ENTER para salir...")
         return
 
@@ -202,13 +199,15 @@ def main():
     try:
         ser = serial.Serial(port, baudrate=9600, timeout=0.5)
         print(f"[OK] ¡Conexión establecida con {port}!")
-        print("\n>>> LISTO EN SEGUNDO PLANO <<<")
-        print("- Cuando en https://agente.anyd.es/nuevo-paciente pulses 'Iniciar Pesaje',")
-        print("  los datos del paciente (altura, edad, sexo) se reflejarán en la báscula al instante.")
-        print("- Cuando el paciente termine el pesaje, los datos se volcarán solos en la web.\n")
+        print("\n>>> PUENTE ACTIVO EN SEGUNDO PLANO <<<")
+        print("- Si en la pantalla de la Tanita parpadea la 'P', significa que está esperando")
+        print("  los datos del paciente (Sexo, Altura, Edad).")
+        print("- Al pulsar 'Iniciar Pesaje' en la web, los datos se inyectan solos, la 'P'")
+        print("  desaparece y la báscula pide subir al paciente.")
+        print("- Al terminar la medición, los números se rellenan automáticamente en la web.\n")
     except Exception as e:
         print(f"[ERROR] No se pudo abrir {port}: {e}")
-        print("Asegúrate de cerrar Dietowin o SuiteBiológica si están abiertas.")
+        print("Asegúrate de que Dietowin / SuiteBiológica está cerrada.")
         input("\nPulsa ENTER para salir...")
         return
 
@@ -217,13 +216,11 @@ def main():
 
     try:
         while True:
-            # 1. Comprobar órdenes desde la web cada 1.5 segundos
             now = time.time()
-            if now - last_poll_time > 1.5:
+            if now - last_poll_time > 1.2:
                 check_pending_web_command(ser)
                 last_poll_time = now
 
-            # 2. Leer datos que envíe la báscula al terminar el pesaje
             if ser.in_waiting > 0:
                 raw_bytes = ser.read(ser.in_waiting)
                 chunk = raw_bytes.decode("utf-8", errors="replace")
