@@ -315,27 +315,20 @@ async def handle_login(request: Request):
     username = str(form_data.get("username", "")).strip()
     password = str(form_data.get("password", "")).strip()
     next_url = str(form_data.get("next", "/admin") or "/admin")
-    remember = bool(form_data.get("remember"))
 
     stored_user, stored_hash = auth_manager.get_stored_credentials()
 
     if username.lower() == stored_user.lower() and auth_manager.verify_password(password, stored_hash):
-        token = auth_manager.create_session_token(username, remember_me=remember)
+        token = auth_manager.create_session_token(username, duration_hours=4)
         response = RedirectResponse(url=next_url, status_code=303)
-        max_age = 30 * 86400 if remember else 2 * 86400
-        host_header = request.headers.get("host", "").lower()
-        is_https = (
-            request.url.scheme == "https"
-            or request.headers.get("x-forwarded-proto") == "https"
-            or "agente.anyd.es" in host_header
-        )
+        # Cookie de sesión estricta (sin max_age persistente): se destruye al cerrar el navegador.
+        # Siempre obligatoriamente bajo HTTPS y con flags de seguridad HttpOnly y SameSite=Lax.
         response.set_cookie(
             key="anyd_session",
             value=token,
-            max_age=max_age,
             httponly=True,
             samesite="lax",
-            secure=is_https
+            secure=True
         )
         return response
     else:

@@ -18,7 +18,8 @@ from typing import Optional, Dict, Any, Tuple
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-SECRET_KEY = os.environ.get("SESSION_SECRET_KEY", "anyd_security_secret_key_mad00274_col_2026")
+# Clave secreta rotada para invalidar de inmediato todas las sesiones previas
+SECRET_KEY = os.environ.get("SESSION_SECRET_KEY", "anyd_clinical_vault_locked_mad00274_v4")
 
 DEFAULT_USERNAME = "admin"
 DEFAULT_PASSWORD = "AnydNutri2026!"
@@ -89,10 +90,12 @@ def set_admin_credentials(username: str, new_password: str) -> bool:
         return False
 
 
-def create_session_token(username: str, remember_me: bool = True) -> str:
-    """Crea un token de sesión firmado criptográficamente con HMAC-SHA256."""
-    days = 30 if remember_me else 2
-    exp_timestamp = int(time.time()) + (days * 86400)
+def create_session_token(username: str, duration_hours: int = 4) -> str:
+    """
+    Crea un token de sesión de corta duración para la consulta activa (máximo 4 horas).
+    Garantiza que la sesión expire rápidamente y no quede abierta indefinidamente.
+    """
+    exp_timestamp = int(time.time()) + (duration_hours * 3600)
     payload_dict = {
         "u": username,
         "exp": exp_timestamp,
