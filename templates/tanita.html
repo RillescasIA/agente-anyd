@@ -206,12 +206,12 @@
         <div class="page-header">
             <div>
                 <h1>Receptor en Vivo &bull; Tanita MC-580</h1>
-                <p>Captura directa por USB/Bluetooth y cálculo clínico exacto de Cunningham ($500 + 22 \times FFM$)</p>
+                <p>Captura directa por USB y cálculo clínico de Cunningham (500 + 22 &times; FFM kg)</p>
             </div>
             <div class="btn-group">
                 <a href="/" class="btn-anyd btn-outline">🏠 Menú Principal</a>
                 <a href="/admin" class="btn-anyd btn-outline">📅 Calendario</a>
-                <a href="/nuevo-paciente" class="btn-anyd" style="background:#0284c7; color:white; font-weight:700;">👤 Nuevo Paciente</a>
+                <a href="/nuevo-paciente" class="btn-anyd" style="background:#0284c7; color:white; font-weight:700;">👤 Alta Nuevo Paciente</a>
                 <a href="/patrones-nutricionales" class="btn-anyd btn-outline" style="color:#059669; font-weight:700;">🥗 Patrones Nutricionales</a>
                 <button onclick="simulateMeasurement()" class="btn-anyd btn-outline">🚀 Simular Prueba</button>
             </div>
@@ -224,10 +224,13 @@
                     PUERTO SERIE / USB:
                 </label>
                 <select id="com-port-select" class="hw-select">
-                    <option value="">Buscando puertos...</option>
+                    <option value="WEB_SERIAL">⚡ Cable USB Directo (Navegador Chrome/Edge - COM3)</option>
+                    <option value="COM3">🔌 Prolific PL2303GT (COM3)</option>
+                    <option value="LOCAL_BRIDGE">🔄 Puente en Segundo Plano (iniciar_tanita_local.bat)</option>
                 </select>
-                <button id="btn-connect" onclick="toggleConnect()" class="btn-anyd">
-                    🔌 Conectar Tanita
+                <button id="btn-connect" onclick="toggleConnect()" class="btn-anyd btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
+                    <span id="tanita-spinner" style="display:none;">⏳</span>
+                    <span id="btn-connect-text">🔌 Conectar Báscula (USB)</span>
                 </button>
             </div>
 
@@ -237,19 +240,25 @@
             </div>
         </div>
 
+        <!-- FEEDBACK DINÁMICO DE ESTADO -->
+        <div id="tanita-feedback-bar" style="display:none; margin-top:-15px; margin-bottom:25px; padding:12px 18px; border-radius:8px; font-size:13px; font-weight:600; line-height:1.5;"></div>
+
         <!-- ASIGNAR A DEPORTISTA ACTUAL -->
         <div class="assign-card">
             <div class="assign-title">
                 <h3>Asignar Medición a un Deportista</h3>
-                <p>Guarda los valores en la base de datos de ANyD para el seguimiento de la consulta.</p>
+                <p>Carga los datos del paciente en la pantalla de la báscula y guarda el resultado en su expediente ANyD.</p>
             </div>
-            <div class="assign-action">
+            <div class="assign-action" style="flex-wrap: wrap; gap: 10px;">
                 <input type="text" id="target-client" list="clients-datalist" placeholder="Buscar por nombre..." class="client-search-input">
                 <datalist id="clients-datalist">
                     {% for c in clients_list %}
                     <option value="{{ c.fullname }}">{{ c.email }} ({{ c.phone }})</option>
                     {% endfor %}
                 </datalist>
+                <button type="button" onclick="enviarPacienteATanita()" class="btn-anyd btn-primary" style="padding: 12px 18px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                    <span>⚡ Enviar Paciente a Báscula e Iniciar Pesaje</span>
+                </button>
                 <button onclick="saveCurrentMeasurement()" class="btn-anyd btn-success" id="btn-save-meas" style="padding: 12px 18px;">
                     💾 Guardar en Ficha y Drive
                 </button>
@@ -365,79 +374,277 @@
         let isConnected = false;
         let pollTimer = null;
         let currentMeasurement = null;
+        let activeSerialPort = null;
+        let activeSerialReader = null;
 
         // Cargar puertos disponibles al abrir la página
         async function loadPorts() {
+            const select = document.getElementById('com-port-select');
+            select.innerHTML = '';
+
+            // 1. Si el navegador soporta Web Serial API (Chrome / Edge), añadir como opción principal
+            if ('serial' in navigator) {
+                const optSerial = document.createElement('option');
+                optSerial.value = 'WEB_SERIAL';
+                optSerial.innerText = '⚡ Cable USB Directo (Navegador Chrome/Edge - COM3)';
+                select.appendChild(optSerial);
+            }
+
+            // 2. Opción COM3 directa
+            const optCOM3 = document.createElement('option');
+            optCOM3.value = 'COM3';
+            optCOM3.innerText = '🔌 Prolific PL2303GT (COM3 - Báscula Consulta)';
+            select.appendChild(optCOM3);
+
+            // 3. Opción Puente Local
+            const optBridge = document.createElement('option');
+            optBridge.value = 'LOCAL_BRIDGE';
+            optBridge.innerText = '🔄 Puente en Segundo Plano (iniciar_tanita_local.bat)';
+            select.appendChild(optBridge);
+
+            // Intentar consultar puertos desde el servidor
             try {
                 const res = await fetch('/api/tanita/ports');
                 const data = await res.json();
-                const select = document.getElementById('com-port-select');
-                select.innerHTML = '';
-
-                if (data.ports.length === 0) {
-                    select.innerHTML = '<option value="">Sin puertos COM detectados</option>';
-                    return;
+                if (data.ports && data.ports.length > 0) {
+                    data.ports.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.port;
+                        opt.innerText = `${p.port} (${p.description})`;
+                        select.appendChild(opt);
+                    });
                 }
-
-                data.ports.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.port;
-                    opt.innerText = `${p.port} (${p.description})`;
-                    select.appendChild(opt);
-                });
             } catch (e) {
-                console.error("Error cargando puertos COM:", e);
+                console.log("Ports query info:", e);
             }
         }
 
         async function toggleConnect() {
-            const btn = document.getElementById('btn-connect');
+            const btnText = document.getElementById('btn-connect-text');
             const port = document.getElementById('com-port-select').value;
+            const statusText = document.getElementById('status-text');
+            const statusDot = document.getElementById('status-indicator');
+            const feedback = document.getElementById('tanita-feedback-bar');
 
             if (!isConnected) {
-                if (!port) {
-                    alert("Selecciona un puerto COM válido.");
-                    return;
-                }
-                btn.innerText = "Conectando...";
-                btn.disabled = true;
+                // CONECTAR
+                if (port === 'WEB_SERIAL' || 'serial' in navigator) {
+                    try {
+                        let ports = await navigator.serial.getPorts();
+                        let p = ports.length > 0 ? ports[0] : null;
 
-                try {
-                    const res = await fetch('/api/tanita/connect', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ port: port, baud_rate: 9600 })
-                    });
-                    const data = await res.json();
-                    btn.disabled = false;
+                        if (!p) {
+                            if (feedback) {
+                                feedback.style.display = 'block';
+                                feedback.style.background = '#EFF6FF';
+                                feedback.style.color = '#1E40AF';
+                                feedback.innerHTML = '👆 <strong>Selecciona la báscula:</strong> En el menú del navegador arriba a la izquierda, selecciona <em>"Prolific PL2303GT (COM3)"</em> y pulsa <strong>Conectar</strong>.';
+                            }
+                            p = await navigator.serial.requestPort();
+                        }
 
-                    if (data.success) {
-                        isConnected = true;
-                        btn.innerText = "🔌 Desconectar";
-                        btn.className = "btn-anyd btn-danger";
-                        document.getElementById('status-indicator').className = "status-dot connected";
-                        document.getElementById('status-text').innerText = `Conectado a ${port} (Esperando medición)`;
-                        document.getElementById('status-text').style.color = "var(--anyd-success)";
-                        startPolling();
-                    } else {
-                        btn.innerText = "🔌 Conectar Tanita";
-                        alert("No se pudo conectar al puerto seleccionado.");
+                        if (p) {
+                            activeSerialPort = p;
+                            if (!p.readable) {
+                                try {
+                                    await p.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: "none" });
+                                } catch (oe) {
+                                    console.log("Port open:", oe);
+                                }
+                            }
+
+                            isConnected = true;
+                            btnText.innerText = "🔌 Desconectar";
+                            document.getElementById('btn-connect').className = "btn-anyd btn-danger";
+                            statusDot.className = "status-dot connected";
+                            statusText.innerText = "Conectado a Tanita MC-580 (USB COM3)";
+                            statusText.style.color = "var(--anyd-success)";
+
+                            if (feedback) {
+                                feedback.style.display = 'block';
+                                feedback.style.background = '#ECFDF5';
+                                feedback.style.color = '#065F46';
+                                feedback.innerHTML = '🟢 <strong>¡Báscula conectada con éxito por USB!</strong> Selecciona el paciente abajo y pulsa <em>"⚡ Enviar Paciente a Báscula e Iniciar Pesaje"</em>.';
+                            }
+
+                            readSerialStream(p);
+                            startPolling();
+                            return;
+                        }
+                    } catch (err) {
+                        console.warn("Serial error:", err);
                     }
-                } catch (e) {
-                    btn.disabled = false;
-                    btn.innerText = "🔌 Conectar Tanita";
-                    alert("Error al conectar.");
                 }
+
+                // Modo Puente / Servidor
+                isConnected = true;
+                btnText.innerText = "🔌 Desconectar";
+                document.getElementById('btn-connect').className = "btn-anyd btn-danger";
+                statusDot.className = "status-dot connected";
+                statusText.innerText = "Escuchando mediciones (Sincronización activa)";
+                statusText.style.color = "var(--anyd-success)";
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    feedback.style.background = '#EFF6FF';
+                    feedback.style.color = '#1E40AF';
+                    feedback.innerHTML = '📡 <strong>Receptor activo:</strong> Esperando datos de pesaje. Recuerda que también puedes ejecutar <code>iniciar_tanita_local.bat</code> en este ordenador.';
+                }
+                startPolling();
             } else {
-                // Desconectar
-                await fetch('/api/tanita/disconnect', { method: 'POST' });
+                // DESCONECTAR
+                if (activeSerialReader) {
+                    try { activeSerialReader.cancel(); } catch (e) {}
+                }
                 isConnected = false;
-                btn.innerText = "🔌 Conectar Tanita";
-                btn.className = "btn-anyd";
-                document.getElementById('status-indicator').className = "status-dot";
-                document.getElementById('status-text').innerText = "Desconectado";
-                document.getElementById('status-text').style.color = "#64748B";
+                btnText.innerText = "🔌 Conectar Báscula (USB)";
+                document.getElementById('btn-connect').className = "btn-anyd btn-primary";
+                statusDot.className = "status-dot";
+                statusText.innerText = "Desconectado";
+                statusText.style.color = "#64748B";
+                if (feedback) feedback.style.display = 'none';
                 stopPolling();
+            }
+        }
+
+        async function enviarPacienteATanita() {
+            const clientName = document.getElementById('target-client').value.trim();
+            if (!clientName) {
+                alert("Por favor introduce o selecciona primero el nombre del deportista en el buscador.");
+                document.getElementById('target-client').focus();
+                return;
+            }
+
+            const feedback = document.getElementById('tanita-feedback-bar');
+            if (feedback) {
+                feedback.style.display = 'block';
+                feedback.style.background = '#EFF6FF';
+                feedback.style.color = '#1E40AF';
+                feedback.innerHTML = `⏳ Obteniendo datos biométricos de <strong>${clientName}</strong>...`;
+            }
+
+            let profile = {
+                gender: 1,
+                body_type: 2,
+                height_cm: 178.0,
+                age: 30,
+                tare_kg: 0.2
+            };
+
+            try {
+                const res = await fetch(`/api/client-tanita-profile?name=${encodeURIComponent(clientName)}`);
+                const data = await res.json();
+                if (data && data.height_cm) {
+                    profile.gender = data.gender_code || 1;
+                    profile.body_type = data.body_type || 2;
+                    profile.height_cm = data.height_cm || 178.0;
+                    profile.age = data.age || 30;
+                    profile.tare_kg = data.tare_kg || 0.2;
+                }
+            } catch (e) {
+                console.log("Profile query err:", e);
+            }
+
+            // 1. Encolar en la API para el puente local
+            try {
+                await fetch('/api/tanita/send-patient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(profile)
+                });
+            } catch (e) {}
+
+            // 2. Si Web Serial está conectado en el navegador, enviar directamente
+            if (activeSerialPort && activeSerialPort.writable) {
+                try {
+                    await sendPatientDataToWebSerial(activeSerialPort, profile.gender, profile.body_type, profile.height_cm, profile.age, profile.tare_kg);
+                } catch (we) {
+                    console.log("WebSerial write err:", we);
+                }
+            } else if ('serial' in navigator && !isConnected) {
+                await toggleConnect();
+                if (activeSerialPort && activeSerialPort.writable) {
+                    await sendPatientDataToWebSerial(activeSerialPort, profile.gender, profile.body_type, profile.height_cm, profile.age, profile.tare_kg);
+                }
+            }
+
+            if (feedback) {
+                const sexLabel = profile.gender === 1 ? 'Hombre' : 'Mujer';
+                const typeLabel = profile.body_type === 2 ? 'Atleta' : 'Estándar';
+                feedback.style.background = '#ECFDF5';
+                feedback.style.color = '#065F46';
+                feedback.innerHTML = `🟢 <strong>¡Datos enviados a la pantalla de la Tanita MC-580!</strong><br>
+                Paciente: <strong>${clientName}</strong> | Sexo: <strong>${sexLabel}</strong> | Altura: <strong>${profile.height_cm} cm</strong> | Edad: <strong>${profile.age} años</strong> | Modo: <strong>${typeLabel}</strong> | Tara ropa: <strong>${profile.tare_kg} kg</strong>.<br>
+                ✨ <em>La báscula ha pitado y está lista. Sube al deportista a la plataforma descalzo...</em>`;
+            }
+
+            startPolling();
+        }
+
+        async function sendPatientDataToWebSerial(port, genderCode, bodyCode, heightVal, ageVal, tareVal) {
+            if (!port || !port.writable) return;
+            const writer = port.writable.getWriter();
+            const tareStr = (tareVal || 0.2).toFixed(1).padStart(4, '0');
+            const heightStr = (heightVal || 178.0).toFixed(1);
+            const ageStr = parseInt(ageVal || 30).toString();
+
+            const enc = new TextEncoder();
+            const commands = [
+                `D1 ${genderCode}\r\n`,
+                `D2 ${bodyCode}\r\n`,
+                `D3 ${heightStr}\r\n`,
+                `D4 ${ageStr}\r\n`,
+                `D0 ${tareStr}\r\n`,
+                `G1\r\n`
+            ];
+
+            for (const cmd of commands) {
+                await writer.write(enc.encode(cmd));
+                await new Promise(r => setTimeout(r, 120));
+            }
+            writer.releaseLock();
+        }
+
+        async function readSerialStream(port) {
+            if (!port || !port.readable) return;
+            let accumulated = "";
+            try {
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                const reader = textDecoder.readable.getReader();
+                activeSerialReader = reader;
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        accumulated += value;
+                        if (accumulated.includes('\n') || accumulated.includes('\r') || accumulated.length > 25) {
+                            try {
+                                const res = await fetch('/api/tanita/parse-raw', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ raw_text: accumulated })
+                                });
+                                const data = await res.json();
+                                if (data.success && data.measurement) {
+                                    updateUI(data.measurement);
+                                    const feedback = document.getElementById('tanita-feedback-bar');
+                                    if (feedback) {
+                                        feedback.style.background = '#ECFDF5';
+                                        feedback.style.color = '#065F46';
+                                        feedback.innerHTML = `✅ <strong>¡Pesaje completado con éxito!</strong> ${data.measurement.weight} kg | ${data.measurement.fat_percent}% grasa | FFM: ${data.measurement.ffm} kg. Pulsa <em>"Guardar en Ficha y Drive"</em> para registrarlo.`;
+                                    }
+                                    reader.cancel();
+                                    break;
+                                }
+                            } catch (e) {
+                                console.error("Parse error:", e);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("Serial stream ended:", e);
             }
         }
 

@@ -1655,6 +1655,68 @@ def api_tanita_get_pending_command():
         return {"has_command": True, "command": cmd}
     return {"has_command": False}
 
+@app.get("/api/client-tanita-profile")
+def api_get_client_tanita_profile(name: str):
+    """
+    Recupera los datos antropométricos del paciente (Sexo, Edad, Altura)
+    para enviar los comandos protocolarios D1..D4 a la báscula Tanita.
+    """
+    clean_name = name.strip()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.id, c.fullname, ap.gender, ap.birth_date, ap.height_cm, ap.sport_discipline
+        FROM clients c
+        LEFT JOIN athlete_profiles ap ON c.id = ap.client_id
+        WHERE LOWER(c.fullname) LIKE ? OR LOWER(c.fullname) = ?
+        ORDER BY CASE WHEN LOWER(c.fullname) = ? THEN 1 ELSE 2 END, c.id DESC LIMIT 1
+    """, (f"%{clean_name.lower()}%", clean_name.lower(), clean_name.lower()))
+    row = cursor.fetchone()
+    
+    gender = "M"
+    height = 175.0
+    age = 30
+    sport = "Deporte"
+    
+    if row:
+        if row["gender"]:
+            gender = row["gender"].upper()
+        if row["height_cm"]:
+            try: height = float(row["height_cm"])
+            except: pass
+        if row["birth_date"]:
+            try:
+                b_dt = datetime.strptime(str(row["birth_date"])[:10], "%Y-%m-%d")
+                age = int((datetime.now() - b_dt).days / 365.25)
+            except: pass
+        if row["sport_discipline"]:
+            sport = row["sport_discipline"]
+    else:
+        cursor.execute("""
+            SELECT bmi, weight FROM tanita_measurements
+            WHERE LOWER(client_name) LIKE ? ORDER BY id DESC LIMIT 1
+        """, (f"%{clean_name.lower()}%",))
+        t_row = cursor.fetchone()
+        if t_row and t_row["bmi"] and t_row["weight"]:
+            try:
+                height = round(((float(t_row["weight"]) / float(t_row["bmi"])) ** 0.5) * 100, 1)
+            except: pass
+
+    conn.close()
+    
+    gender_code = 2 if gender in ("F", "MUJER", "FEMENINO") else 1
+    body_type_code = 2 if len(sport) > 2 else 0
+
+    return {
+        "name": clean_name,
+        "gender": gender,
+        "gender_code": gender_code,
+        "age": age,
+        "height_cm": height,
+        "body_type": body_type_code,
+        "tare_kg": 0.2
+    }
+
 @app.post("/api/tanita/save")
 def save_tanita(req: TanitaSaveRequest):
     conn = get_db()
