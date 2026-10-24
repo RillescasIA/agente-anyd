@@ -1577,6 +1577,44 @@ async def upload_tanita(file: UploadFile = File(...)):
     except Exception as e:
         return {"success": False, "message": f"Error leyendo el archivo: {e}"}
 
+class TanitaFeedRequest(BaseModel):
+    measurement: dict
+
+@app.post("/api/tanita/feed")
+def feed_tanita_measurement(req: TanitaFeedRequest):
+    """
+    Recibe una medición desde el puente local Tanita o Web Serial y la almacena en memoria
+    para que esté disponible inmediatamente en /api/tanita/live.
+    """
+    tanita_receiver.tanita_instance.latest_measurement = req.measurement
+    tanita_receiver.tanita_instance.is_listening = True
+    tanita_receiver.tanita_instance.active_port = "USB/COM Directo"
+    return {"success": True, "measurement": req.measurement}
+
+class TanitaRawParseRequest(BaseModel):
+    raw_text: str
+
+@app.post("/api/tanita/parse-raw")
+def parse_tanita_raw(req: TanitaRawParseRequest):
+    """
+    Parsea una trama de texto en crudo recibida por Web Serial directamente desde el navegador o relay.
+    """
+    raw_str = req.raw_text.strip()
+    if not raw_str:
+        return {"success": False, "message": "Cadena de texto vacía."}
+    
+    meas = tanita_receiver.tanita_instance.parse_tanita_string(raw_str)
+    if not meas or not meas.get("weight"):
+        meas = tanita_receiver.tanita_instance.parse_csv_file(raw_str)
+        
+    if meas and meas.get("weight"):
+        tanita_receiver.tanita_instance.latest_measurement = meas
+        tanita_receiver.tanita_instance.is_listening = True
+        tanita_receiver.tanita_instance.active_port = "Web Serial API (Navegador)"
+        return {"success": True, "measurement": meas}
+        
+    return {"success": False, "message": "No se encontraron datos biométricos válidos en la trama de la báscula."}
+
 @app.post("/api/tanita/save")
 def save_tanita(req: TanitaSaveRequest):
     conn = get_db()
