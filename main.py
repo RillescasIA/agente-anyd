@@ -49,7 +49,8 @@ PUBLIC_PREFIXES = (
     "/api/available-slots",
     "/api/book-appointment",
     "/api/check-client",
-    "/api/webhook/woocommerce"
+    "/api/webhook/woocommerce",
+    "/api/tanita/"
 )
 
 @app.middleware("http")
