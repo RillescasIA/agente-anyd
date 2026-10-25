@@ -9,8 +9,23 @@ BACKUP_DIR = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\backups"
 
 excel_lock = threading.Lock()
 
+def determine_num_sessions(tipo_bono):
+    """Calcula las sesiones de consulta según el tipo de bono."""
+    tipo = str(tipo_bono or "").upper()
+    if "6" in tipo:
+        return 6
+    elif "5" in tipo or "COMPET" in tipo:
+        return 5
+    elif "3" in tipo:
+        return 3
+    elif "SUELTA" in tipo or "INDIVIDUAL" in tipo or "REVISION" in tipo or "1" in tipo:
+        return 1
+    return 3
+
 def make_backup():
     try:
+        if not os.path.exists(EXCEL_PATH):
+            return None
         os.makedirs(BACKUP_DIR, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = os.path.join(BACKUP_DIR, f"Bonos_activos_backup_{timestamp}.xlsx")
@@ -20,17 +35,29 @@ def make_backup():
         print(f"Error creando backup: {e}")
         return None
 
-def add_purchase_to_excel(centro, nombre, tipo_bono, fecha_compra, n_pedido, importe, forma_pago, nutri="Román", num_sesiones=3):
+def add_purchase_to_excel(centro, nombre, tipo_bono, fecha_compra, n_pedido, importe, forma_pago, nutri="Román", num_sesiones=None):
     """
-    Inserta una nueva compra en la hoja 'Bonos activos' de Excel.
+    Inserta una nueva compra en la hoja 'Bonos activos' de Excel
+    y crea las celdas de consultas en blanco (' ') según el tipo de bono.
     """
+    if not os.path.exists(EXCEL_PATH):
+        print(f"[AVISO EXCEL] Archivo '{EXCEL_PATH}' no encontrado en este entorno. Se omite escritura en disco.")
+        return False
+
+    if not num_sesiones:
+        num_sesiones = determine_num_sessions(tipo_bono)
+
     with excel_lock:
         make_backup()
         wb = openpyxl.load_workbook(EXCEL_PATH)
         sheet = wb["Bonos activos"]
 
-        # Buscar la primera fila vacía después de los encabezados (fila 2 en adelante)
-        # En la hoja, las nuevas compras suelen añadirse al principio (fila 2) o al final.
+        # Asegurar encabezados Consulta 5 y Consulta 6 en fila 1 si faltan
+        if not sheet.cell(row=1, column=14).value:
+            sheet.cell(row=1, column=14, value="Consulta 5")
+        if not sheet.cell(row=1, column=15).value:
+            sheet.cell(row=1, column=15, value="Consulta 6")
+
         # Insertamos en la fila 2 para que quede como la compra más reciente
         sheet.insert_rows(2)
 
@@ -54,13 +81,13 @@ def add_purchase_to_excel(centro, nombre, tipo_bono, fecha_compra, n_pedido, imp
         sheet.cell(row=2, column=8, value=forma_pago or "Online")
         sheet.cell(row=2, column=9, value=nutri or "Román")
 
-        # Celdas de consultas en blanco ' '
+        # Celdas de consultas en blanco ' ' según el tipo de bono
         for c in range(num_sesiones):
             sheet.cell(row=2, column=10 + c, value=" ")
 
         wb.save(EXCEL_PATH)
         wb.close()
-        print(f"Compra registrada en Excel: {nombre} - {tipo_bono} (Pedido: {n_pedido})")
+        print(f"[EXCEL OK] Compra registrada en Excel: {nombre} - {tipo_bono} (Pedido: {n_pedido}) -> {num_sesiones} celdas creadas.")
         return True
 
 def record_consultation_in_excel(n_pedido=None, nombre=None, date_str=None, nutri="Román"):
@@ -68,6 +95,10 @@ def record_consultation_in_excel(n_pedido=None, nombre=None, date_str=None, nutr
     Registra la asistencia 'Román DD/MM/AAAA' en la primera consulta disponible.
     Si se completan todas las consultas, traslada la fila a 'Bonos agotados'.
     """
+    if not os.path.exists(EXCEL_PATH):
+        print(f"[AVISO EXCEL] Archivo '{EXCEL_PATH}' no encontrado en este entorno. Se omite firma de consulta.")
+        return False, False
+
     if not date_str:
         date_str = datetime.now().strftime("%d/%m/%Y")
 
@@ -90,20 +121,13 @@ def record_consultation_in_excel(n_pedido=None, nombre=None, date_str=None, nutr
                 break
 
         if not target_row:
-            print(f"No se encontró el bono activo en Excel para: Pedido={n_pedido}, Nombre={nombre}")
+            print(f"[EXCEL] No se encontró el bono activo en Excel para: Pedido={n_pedido}, Nombre={nombre}")
             wb.close()
-            return False
+            return False, False
 
         # Determinar número de consultas según el tipo de bono
         tipo_bono = str(sheet_activos.cell(row=target_row, column=3).value or "").upper()
-        if "3" in tipo_bono:
-            max_sesiones = 3
-        elif "5" in tipo_bono or "COMPET" in tipo_bono:
-            max_sesiones = 5
-        elif "6" in tipo_bono:
-            max_sesiones = 6
-        else:
-            max_sesiones = 3
+        max_sesiones = determine_num_sessions(tipo_bono)
 
         # Buscar la primera consulta vacía
         assigned = False
@@ -121,17 +145,19 @@ def record_consultation_in_excel(n_pedido=None, nombre=None, date_str=None, nutr
         is_exhausted = (consultas_hechas >= max_sesiones)
 
         if is_exhausted:
+            # Marcar estado como 'Agotado'
+            sheet_activos.cell(row=target_row, column=7, value="Agotado")
             # Copiar fila a 'Bonos agotados'
-            row_values = [sheet_activos.cell(row=target_row, column=c).value for c in range(1, sheet_activos.max_column + 1)]
+            row_values = [sheet_activos.cell(row=target_row, column=c).value for c in range(1, max(16, sheet_activos.max_column + 1))]
             sheet_agotados.insert_rows(2)
             for c_idx, val in enumerate(row_values):
                 sheet_agotados.cell(row=2, column=c_idx + 1, value=val)
 
             # Eliminar de activos
             sheet_activos.delete_rows(target_row)
-            print(f"Bono de {nombre or n_pedido} agotado (todas las {max_sesiones} consultas hechas). Movido a 'Bonos agotados'.")
+            print(f"[EXCEL OK] Bono de {nombre or n_pedido} agotado (todas las {max_sesiones} consultas hechas). Movido a 'Bonos agotados'.")
         else:
-            print(f"Consulta registrada para {nombre or n_pedido}: '{nutri} {date_str}'. Sesiones: {consultas_hechas}/{max_sesiones}")
+            print(f"[EXCEL OK] Consulta registrada para {nombre or n_pedido}: '{nutri} {date_str}'. Sesiones: {consultas_hechas}/{max_sesiones}")
 
         wb.save(EXCEL_PATH)
         wb.close()

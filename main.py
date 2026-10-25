@@ -50,7 +50,8 @@ PUBLIC_PREFIXES = (
     "/api/book-appointment",
     "/api/check-client",
     "/api/webhook/woocommerce",
-    "/api/tanita/"
+    "/api/tanita/",
+    "/api/bonos/"
 )
 
 @app.middleware("http")
@@ -1518,7 +1519,124 @@ async def woocommerce_webhook(request: Request):
 
     return {"status": "ok", "order_id": order_id, "client": full_name}
 
+
+# --- ENDPOINTS GESTIÓN DE BONOS Y COMPRAS (FASE 1 AGENTE ANYD) ---
+
+class CreateBonoRequest(BaseModel):
+    client_name: str
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    tipo_bono: str = "Deportiva 3"
+    total_sessions: Optional[int] = None
+    price: Optional[float] = 159.0
+    forma_pago: Optional[str] = "Transferencia"
+    order_id: Optional[str] = None
+    fecha_compra: Optional[str] = None
+    centro: Optional[str] = "ANYD"
+    nutri: Optional[str] = "Román"
+
+@app.post("/api/bonos/crear")
+def api_crear_bono(req: CreateBonoRequest):
+    """
+    Fase 1 del Agente ANyD: Registra una nueva compra de bono.
+    Crea la fila y las celdas de consultas en el archivo Excel 'Bonos activos_claude.xlsx'
+    en función del tipo de bono, y lo archiva en la base de datos de pacientes.
+    """
+    client_name = req.client_name.strip()
+    if not client_name:
+        raise HTTPException(status_code=400, detail="El nombre del deportista es obligatorio.")
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    num_sessions = req.total_sessions or excel_manager.determine_num_sessions(req.tipo_bono)
+
+    order_id = req.order_id
+    if not order_id:
+        cursor.execute("SELECT MAX(CAST(order_id AS INTEGER)) FROM bonos WHERE order_id GLOB '[0-9]*'")
+        row = cursor.fetchone()
+        max_id = row[0] if (row and row[0]) else 25783
+        order_id = str(max_id + 1)
+
+    fecha = req.fecha_compra or datetime.now().strftime("%Y-%m-%d")
+
+    excel_created = excel_manager.add_purchase_to_excel(
+        centro=req.centro or "ANYD",
+        nombre=client_name,
+        tipo_bono=req.tipo_bono,
+        fecha_compra=fecha,
+        n_pedido=order_id,
+        importe=req.price or 0.0,
+        forma_pago=req.forma_pago or "Transferencia",
+        nutri=req.nutri or "Román",
+        num_sesiones=num_sessions
+    )
+
+    parts = client_name.split(" ", 1)
+    fname = parts[0]
+    lname = parts[1] if len(parts) > 1 else ""
+
+    email = (req.email or "").strip().lower()
+    phone = (req.phone or "").strip()
+
+    cursor.execute("""
+    INSERT INTO clients (firstname, lastname, fullname, email, phone)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(email) DO UPDATE SET
+        fullname = excluded.fullname,
+        phone = COALESCE(NULLIF(excluded.phone, ''), clients.phone)
+    """, (fname, lname, client_name, email if email else None, phone if phone else None))
+
+    cursor.execute("SELECT id FROM clients WHERE fullname = ? ORDER BY id DESC LIMIT 1", (client_name,))
+    c_row = cursor.fetchone()
+    client_id = c_row["id"] if c_row else None
+
+    cursor.execute("""
+    INSERT INTO bonos (order_id, client_id, client_name, client_email, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 'Activo', ?, ?, ?)
+    ON CONFLICT(order_id) DO UPDATE SET
+        client_name = excluded.client_name,
+        tipo_bono = excluded.tipo_bono,
+        total_sessions = excluded.total_sessions,
+        price = excluded.price,
+        forma_pago = excluded.forma_pago
+    """, (order_id, client_id, client_name, email, req.tipo_bono, num_sessions, str(fecha)[:10], float(req.price or 0.0), req.centro or "ANYD", req.forma_pago or "Transferencia", req.nutri or "Román"))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "order_id": order_id,
+        "client_id": client_id,
+        "client_name": client_name,
+        "tipo_bono": req.tipo_bono,
+        "total_sessions": num_sessions,
+        "cells_created": num_sessions,
+        "excel_created": excel_created,
+        "message": f"Bono {req.tipo_bono} creado con éxito. Se han configurado {num_sessions} celdas de consultas en Excel."
+    }
+
+@app.get("/api/bonos/activos-recientes")
+def api_bonos_activos_recientes():
+    """Devuelve los bonos activos recientes para selección en 1-clic."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT b.id, b.order_id, b.client_name, b.client_email, b.tipo_bono, 
+               b.total_sessions, b.used_sessions, b.purchase_date, b.price, b.forma_pago,
+               c.phone, c.id as client_id
+        FROM bonos b
+        LEFT JOIN clients c ON b.client_id = c.id
+        WHERE b.status = 'Activo' AND b.used_sessions < b.total_sessions
+        ORDER BY b.id DESC LIMIT 40
+    """)
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return {"bonos": rows}
+
 # --- ENDPOINTS TANITA MC-580 ---
+
 
 class TanitaConnectRequest(BaseModel):
     port: str
@@ -1957,6 +2075,10 @@ class CompleteNuevoPacienteRequest(BaseModel):
     gender: Optional[str] = "M"
     height_cm: Optional[float] = 175.0
     bono_type: Optional[str] = ""
+    order_id: Optional[str] = ""
+    bono_price: Optional[float] = 159.0
+    bono_payment: Optional[str] = "Transferencia"
+    bono_action: Optional[str] = "auto"
     sport: Optional[str] = ""
     level: Optional[str] = ""
     weekly_hours: Optional[float] = 0.0
@@ -2133,6 +2255,70 @@ def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
         overrides=overrides
     )
 
+    # 5. Gestión de Bono y Sellado de Consulta en Excel (Fase 1)
+    bono_record_info = None
+    if req.bono_type and req.bono_type.strip():
+        tipo_bono = req.bono_type.strip()
+        num_sessions = excel_manager.determine_num_sessions(tipo_bono)
+        order_id = req.order_id or ""
+
+        # Si no hay orden o es nueva, asegurar compra en Excel y DB
+        if not order_id:
+            conn_temp = get_db()
+            c_temp = conn_temp.cursor()
+            c_temp.execute("SELECT MAX(CAST(order_id AS INTEGER)) FROM bonos WHERE order_id GLOB '[0-9]*'")
+            max_r = c_temp.fetchone()
+            max_id = max_r[0] if (max_r and max_r[0]) else 25783
+            order_id = str(max_id + 1)
+
+            excel_manager.add_purchase_to_excel(
+                centro="ANYD",
+                nombre=client_name_clean,
+                tipo_bono=tipo_bono,
+                fecha_compra=today_str,
+                n_pedido=order_id,
+                importe=req.bono_price or 159.0,
+                forma_pago=req.bono_payment or "Transferencia",
+                nutri="Román",
+                num_sesiones=num_sessions
+            )
+
+            c_temp.execute("""
+            INSERT INTO bonos (order_id, client_id, client_name, client_email, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
+            VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 'Activo', 'ANYD', ?, 'Román')
+            ON CONFLICT(order_id) DO NOTHING
+            """, (order_id, client_id, client_name_clean, email_clean, tipo_bono, num_sessions, today_str, float(req.bono_price or 159.0), req.bono_payment or "Transferencia"))
+            conn_temp.commit()
+            conn_temp.close()
+
+        # Firmar / sellar la primera consulta en Excel con 'Román DD/MM/AAAA'
+        today_formatted = datetime.now().strftime("%d/%m/%Y")
+        excel_stamped, is_exhausted = excel_manager.record_consultation_in_excel(
+            n_pedido=order_id,
+            nombre=client_name_clean,
+            date_str=today_formatted,
+            nutri="Román"
+        )
+
+        # Actualizar used_sessions en DB
+        conn_up = get_db()
+        c_up = conn_up.cursor()
+        c_up.execute("""
+            UPDATE bonos 
+            SET used_sessions = used_sessions + 1,
+                status = CASE WHEN used_sessions + 1 >= total_sessions THEN 'Agotado' ELSE 'Activo' END
+            WHERE order_id = ? OR (client_id = ? AND status = 'Activo')
+        """, (order_id, client_id))
+        conn_up.commit()
+        conn_up.close()
+
+        bono_record_info = {
+            "order_id": order_id,
+            "tipo_bono": tipo_bono,
+            "excel_stamped": excel_stamped,
+            "is_exhausted": is_exhausted
+        }
+
     return {
         "success": True,
         "client_id": client_id,
@@ -2140,7 +2326,8 @@ def api_completar_nuevo_paciente(req: CompleteNuevoPacienteRequest):
         "pdf_url": dossier_res.get("pdf_url"),
         "html_url": dossier_res.get("html_url"),
         "drive_folder": dossier_res.get("drive_folder"),
-        "message": "Alta de paciente completada y dossier oficial de 20 páginas compilado en Google Drive."
+        "bono_info": bono_record_info,
+        "message": "Alta de paciente completada, dossier compilado y consulta sellada en Excel."
     }
 
 class PatientPhotoUploadRequest(BaseModel):

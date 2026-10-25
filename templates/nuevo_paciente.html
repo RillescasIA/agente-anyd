@@ -579,6 +579,81 @@
         }
 
         .hidden { display: none !important; }
+
+        /* FASE 1: TARJETAS Y PESTAÑAS DE COMPRA DE BONO */
+        .btn-bono-tab {
+            flex: 1;
+            padding: 10px 14px;
+            background: #E2E8F0;
+            color: #475569;
+            font-size: 12.5px;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .btn-bono-tab.active {
+            background: var(--anyd-blue);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 134, 205, 0.25);
+        }
+        .bono-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .bono-card {
+            background: white;
+            border: 2px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 12px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .bono-card:hover {
+            border-color: #BAE6FD;
+            transform: translateY(-2px);
+        }
+        .bono-card.active {
+            border-color: var(--anyd-blue);
+            background: #F0F9FF;
+            box-shadow: 0 0 0 2px rgba(0, 134, 205, 0.2);
+        }
+        .bono-badge {
+            position: absolute;
+            top: -8px;
+            right: 8px;
+            background: var(--anyd-blue);
+            color: white;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        .bono-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: #0F172A;
+            margin-top: 4px;
+        }
+        .bono-price {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--anyd-blue);
+            margin: 4px 0 2px 0;
+        }
+        .bono-desc {
+            font-size: 10px;
+            color: #64748B;
+            line-height: 1.2;
+        }
+
     </style>
 </head>
 <body>
@@ -638,7 +713,7 @@
         <div class="stepper">
             <div class="step-item active" id="step-btn-1" onclick="goToStep(1)">
                 <div class="step-bubble">1</div>
-                <span class="step-label">Anamnesis</span>
+                <span class="step-label">1. Compra de Bono</span>
             </div>
             <div class="step-item" id="step-btn-2" onclick="goToStep(2)">
                 <div class="step-bubble">2</div>
@@ -668,6 +743,114 @@
 
         <!-- ================= FASE 1: ALTA Y ANAMNESIS CLÍNICO-DEPORTIVA ================= -->
         <section id="step-content-1" class="wizard-step">
+
+            <!-- FASE 1 CORE: COMPRA Y REGISTRO DE BONO (GÉNESIS DEL EXPEDIENTE EN EXCEL) -->
+            <div class="card" style="background: linear-gradient(135deg, #F0F9FF 0%, #FFFFFF 100%); border-left: 5px solid var(--anyd-blue); margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #BAE6FD; padding-bottom:8px;">
+                    <h2 class="card-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0; color:#0369A1; font-size:16px;">
+                        🎟️ Fase 1: Compra y Asignación de Bono · Génesis en Excel
+                    </h2>
+                    <span style="font-size:11px; background:#0284C7; color:white; font-weight:700; padding:3px 10px; border-radius:12px;">
+                        Bonos activos_claude.xlsx
+                    </span>
+                </div>
+                
+                <p style="font-size:12.5px; color:#475569; margin-bottom:14px; line-height:1.5;">
+                    El alta y seguimiento en ANyD Nutricionistas parte siempre de la <strong>compra de un bono</strong>. Al registrarlo, se genera de forma inmediata la fila del deportista en el archivo maestro <code>Bonos activos_claude.xlsx</code> con sus <strong>celdas de consultas en blanco</strong> listas para su sellado.
+                </p>
+
+                <!-- Pestañas de Selección de Modo -->
+                <div style="display:flex; gap:10px; margin-bottom:16px;">
+                    <button type="button" id="tab-bono-online" class="btn-bono-tab active" onclick="switchBonoMode('online')">
+                        ⚡ Vincular a Bono Comprado Online (WooCommerce / anyd.es)
+                    </button>
+                    <button type="button" id="tab-bono-consulta" class="btn-bono-tab" onclick="switchBonoMode('consulta')">
+                        ➕ Registrar Nueva Compra de Bono en Consulta
+                    </button>
+                </div>
+
+                <!-- MODO 1: VINCULAR BONO ONLINE RECIENTE -->
+                <div id="box-bono-online">
+                    <label class="form-label" style="color:#0369A1; font-weight:700;">Selecciona un Bono Reciente Pendiente de Iniciar:</label>
+                    <div style="display:flex; gap:10px;">
+                        <select id="sel-bonos-recientes" class="form-control" onchange="onSelectRecentBono(this.value)">
+                            <option value="">-- Cargando bonos activos... --</option>
+                        </select>
+                        <button type="button" class="btn-anyd btn-outline" onclick="loadRecentBonos()" title="Recargar lista">🔄</button>
+                    </div>
+                    <div id="bono-online-preview" style="display:none; margin-top:10px; padding:10px 14px; background:#FFFFFF; border:1px solid #BAE6FD; border-radius:8px; font-size:12px; color:#0F172A;"></div>
+                </div>
+
+                <!-- MODO 2: NUEVA COMPRA EN CONSULTA -->
+                <div id="box-bono-consulta" style="display:none;">
+                    <label class="form-label" style="color:#0369A1; font-weight:700;">Tipo de Bono Adquirido:</label>
+                    <!-- Selector con Tarjetas Visuales de Bonos Reales de ANyD -->
+                    <div class="bono-cards-grid">
+                        <div class="bono-card active" onclick="selectBonoCard('Deportiva 3', 159, 3, this)">
+                            <div class="bono-badge">3 Celdas</div>
+                            <div class="bono-name">Deportiva 3</div>
+                            <div class="bono-price">159 €</div>
+                            <div class="bono-desc">3 Consultas · Seguimiento</div>
+                        </div>
+                        <div class="bono-card" onclick="selectBonoCard('COMPETICIÓN', 284, 5, this)">
+                            <div class="bono-badge" style="background:#8B5CF6;">5 Celdas</div>
+                            <div class="bono-name">COMPETICIÓN</div>
+                            <div class="bono-price">284 €</div>
+                            <div class="bono-desc">5 Consultas · Alta Intensidad</div>
+                        </div>
+                        <div class="bono-card" onclick="selectBonoCard('Deportiva 5', 249, 5, this)">
+                            <div class="bono-badge">5 Celdas</div>
+                            <div class="bono-name">Deportiva 5</div>
+                            <div class="bono-price">249 €</div>
+                            <div class="bono-desc">5 Consultas · Periodización</div>
+                        </div>
+                        <div class="bono-card" onclick="selectBonoCard('Bono Clínica 5', 244, 5, this)">
+                            <div class="bono-badge" style="background:#10B981;">5 Celdas</div>
+                            <div class="bono-name">Bono Clínica 5</div>
+                            <div class="bono-price">244 €</div>
+                            <div class="bono-desc">5 Consultas · Patología / Salud</div>
+                        </div>
+                        <div class="bono-card" onclick="selectBonoCard('Consulta Suelta', 65, 1, this)">
+                            <div class="bono-badge" style="background:#64748B;">1 Celda</div>
+                            <div class="bono-name">Consulta Suelta</div>
+                            <div class="bono-price">65 €</div>
+                            <div class="bono-desc">1 Sesión Individual / Revisión</div>
+                        </div>
+                    </div>
+
+                    <!-- Parámetros de Facturación y Pago -->
+                    <div class="grid-3" style="margin-top:12px;">
+                        <div class="form-group">
+                            <label class="form-label">Importe (€)</label>
+                            <input type="number" id="p-bono-price" class="form-control" value="159" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Forma de Pago</label>
+                            <select id="p-bono-payment" class="form-control">
+                                <option value="Transferencia">Transferencia Bancaria</option>
+                                <option value="Efectivo">Efectivo en Consulta</option>
+                                <option value="Tarjeta">Datáfono / Tarjeta</option>
+                                <option value="Bizum">Bizum Profesional</option>
+                                <option value="Online">Online (anyd.es / Stripe)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nº Pedido (Serie Consecutiva)</label>
+                            <input type="text" id="p-bono-order-id" class="form-control" placeholder="Automático (ej. 25784)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PREVISUALIZACIÓN DE IMPACTO EN EXCEL -->
+                <div style="margin-top:14px; padding:12px 14px; background:#FFFFFF; border:1px solid #BAE6FD; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div style="font-size:12px; color:#334155;">
+                        📊 <strong>Impacto en Excel:</strong> Se abrirán <strong id="lbl-bono-cells" style="color:#0284C7; font-size:13px;">3 celdas</strong> (<span id="lbl-bono-cols">Consulta 1, Consulta 2, Consulta 3</span>) en <code>Bonos activos_claude.xlsx</code>.
+                    </div>
+                    <button type="button" class="btn-anyd btn-outline" style="font-size:11px; padding:6px 12px; border-color:#0284C7; color:#0284C7;" onclick="registrarBonoDirecto()">
+                        💾 Registrar Bono en Excel Ahora
+                    </button>
+                </div>
+            </div>
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
                     <h2 class="card-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
@@ -740,14 +923,13 @@
                 </div>
 
                 <div class="form-group" style="margin-top:4px;">
-                    <label class="form-label">Bono Asignado / Modalidad de Consulta</label>
-                    <select id="p-bono-type" class="form-control">
-                        <option value="Bono 4 Sesiones ANyD (Seguimiento Deportivo)">Bono 4 Sesiones ANyD (Seguimiento Deportivo)</option>
-                        <option value="1ª Consulta Nutrición Deportiva + Plan 7 Días">1ª Consulta Nutrición Deportiva + Plan 7 Días</option>
-                        <option value="Bono CF Catedral Nutrición">Bono CF Catedral Nutrición</option>
-                        <option value="Bono Tracius Nutrición">Bono Tracius Nutrición</option>
-                        <option value="Consulta OnLine (Videollamada)">Consulta OnLine (Videollamada)</option>
-                        <option value="Sin bono activo / Consulta suelta">Sin bono activo / Consulta suelta</option>
+                    <label class="form-label">Bono Oficial Seleccionado (Sincronizado con Excel)</label>
+                    <select id="p-bono-type" class="form-control" onchange="onBonoSelectChange(this.value)">
+                        <option value="Deportiva 3" selected>Deportiva 3 (3 Consultas · 159 € · 3 Celdas en Excel)</option>
+                        <option value="COMPETICIÓN">COMPETICIÓN (5 Consultas · 284 € · 5 Celdas en Excel)</option>
+                        <option value="Deportiva 5">Deportiva 5 (5 Consultas · 249 € · 5 Celdas en Excel)</option>
+                        <option value="Bono Clínica 5">Bono Clínica 5 (5 Consultas · 244 € · 5 Celdas en Excel)</option>
+                        <option value="Consulta Suelta">Consulta Suelta (1 Consulta · 65 € · 1 Celda en Excel)</option>
                     </select>
                 </div>
             </div>
@@ -1366,6 +1548,9 @@
                 <p style="font-size:13.5px; color:#475569; max-width:650px; margin:0 auto 24px auto;">
                     El paciente ha sido registrado en la base de datos oficial de ANyD, su medición Tanita MC-580 ha sido archivada y se ha generado su <strong>Dossier Oficial de 20 páginas con la Hoja de la Nevera A4 y la Lista de la Compra</strong> en Google Drive.
                 </p>
+                <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:12px 18px; max-width:650px; margin:0 auto 24px auto; text-align:left; font-size:12.5px; color:#166534;">
+                    📊 <strong>Excel Sincronizado (<code>Bonos activos_claude.xlsx</code>):</strong> Se ha sellado automáticamente la <strong>Consulta 1</strong> con la firma de Román Illescas y la fecha de hoy. El saldo del bono se ha actualizado con rigor contable.
+                </div>
 
                 <!-- BOTONERA DE ACCIÓN FINAL DIRECTA -->
                 <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:24px;">
@@ -1397,6 +1582,202 @@
     </main>
 
     <script>
+
+        // ================= GESTIÓN FASE 1: COMPRA DE BONO Y EXCEL =================
+        let currentBonoMode = 'online';
+        let selectedBonoType = 'Deportiva 3';
+        let selectedBonoPrice = 159;
+        let selectedBonoSessions = 3;
+        let recentBonosCache = [];
+
+        function switchBonoMode(mode) {
+            currentBonoMode = mode;
+            const btnOnline = document.getElementById('tab-bono-online');
+            const btnConsulta = document.getElementById('tab-bono-consulta');
+            const boxOnline = document.getElementById('box-bono-online');
+            const boxConsulta = document.getElementById('box-bono-consulta');
+
+            if (mode === 'online') {
+                btnOnline.classList.add('active');
+                btnConsulta.classList.remove('active');
+                boxOnline.style.display = 'block';
+                boxConsulta.style.display = 'none';
+            } else {
+                btnOnline.classList.remove('active');
+                btnConsulta.classList.add('active');
+                boxOnline.style.display = 'none';
+                boxConsulta.style.display = 'block';
+            }
+        }
+
+        function selectBonoCard(name, price, sessions, el) {
+            selectedBonoType = name;
+            selectedBonoPrice = price;
+            selectedBonoSessions = sessions;
+
+            document.querySelectorAll('.bono-card').forEach(c => c.classList.remove('active'));
+            if (el) el.classList.add('active');
+
+            const priceInput = document.getElementById('p-bono-price');
+            if (priceInput) priceInput.value = price;
+
+            const selectEl = document.getElementById('p-bono-type');
+            if (selectEl) selectEl.value = name;
+
+            updateExcelPreview(name, sessions);
+        }
+
+        function onBonoSelectChange(val) {
+            selectedBonoType = val;
+            let price = 159;
+            let sessions = 3;
+            if (val === 'COMPETICIÓN') { price = 284; sessions = 5; }
+            else if (val === 'Deportiva 5') { price = 249; sessions = 5; }
+            else if (val === 'Bono Clínica 5') { price = 244; sessions = 5; }
+            else if (val === 'Consulta Suelta') { price = 65; sessions = 1; }
+
+            selectedBonoPrice = price;
+            selectedBonoSessions = sessions;
+
+            const priceInput = document.getElementById('p-bono-price');
+            if (priceInput) priceInput.value = price;
+
+            document.querySelectorAll('.bono-card').forEach(c => {
+                const cardName = c.querySelector('.bono-name')?.innerText?.trim();
+                if (cardName === val) {
+                    c.classList.add('active');
+                } else {
+                    c.classList.remove('active');
+                }
+            });
+
+            updateExcelPreview(val, sessions);
+        }
+
+        function updateExcelPreview(name, sessions) {
+            const lblCells = document.getElementById('lbl-bono-cells');
+            const lblCols = document.getElementById('lbl-bono-cols');
+            if (lblCells) lblCells.innerText = `${sessions} celdas`;
+
+            if (lblCols) {
+                const colNames = [];
+                for (let i = 1; i <= sessions; i++) {
+                    colNames.push(`Consulta ${i}`);
+                }
+                lblCols.innerText = colNames.join(', ');
+            }
+        }
+
+        async function loadRecentBonos() {
+            const sel = document.getElementById('sel-bonos-recientes');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Cargando bonos activos... --</option>';
+
+            try {
+                const res = await fetch('/api/bonos/activos-recientes');
+                const data = await res.json();
+                recentBonosCache = data.bonos || [];
+
+                if (recentBonosCache.length === 0) {
+                    sel.innerHTML = '<option value="">Sin bonos pendientes detectados en la tienda</option>';
+                    return;
+                }
+
+                sel.innerHTML = '<option value="">-- Selecciona un deportista o pedido reciente (' + recentBonosCache.length + ' activos) --</option>';
+                recentBonosCache.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.order_id || b.id;
+                    const rem = (b.total_sessions || 3) - (b.used_sessions || 0);
+                    opt.textContent = `${b.client_name} · ${b.tipo_bono} (Pedido #${b.order_id}) [${rem}/${b.total_sessions || 3} sesiones disponibles]`;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                sel.innerHTML = '<option value="">Error al consultar bonos recientes</option>';
+            }
+        }
+
+        function onSelectRecentBono(orderId) {
+            if (!orderId) {
+                const prev = document.getElementById('bono-online-preview');
+                if (prev) prev.style.display = 'none';
+                return;
+            }
+
+            const bono = recentBonosCache.find(b => String(b.order_id) === String(orderId) || String(b.id) === String(orderId));
+            if (!bono) return;
+
+            // Autocompletar datos del paciente
+            const nameEl = document.getElementById('p-fullname');
+            if (nameEl && bono.client_name) nameEl.value = bono.client_name;
+
+            const emailEl = document.getElementById('p-email');
+            if (emailEl && bono.client_email) emailEl.value = bono.client_email;
+
+            const phoneEl = document.getElementById('p-phone');
+            if (phoneEl && bono.phone) phoneEl.value = bono.phone;
+
+            const orderInput = document.getElementById('p-bono-order-id');
+            if (orderInput) orderInput.value = bono.order_id || '';
+
+            const selectEl = document.getElementById('p-bono-type');
+            if (selectEl && bono.tipo_bono) {
+                selectEl.value = bono.tipo_bono;
+                onBonoSelectChange(bono.tipo_bono);
+            }
+
+            const prev = document.getElementById('bono-online-preview');
+            if (prev) {
+                prev.style.display = 'block';
+                const rem = (bono.total_sessions || 3) - (bono.used_sessions || 0);
+                prev.innerHTML = `✅ <strong>Bono Vinculado:</strong> Pedido #${bono.order_id} | <strong>${bono.client_name}</strong> | ${bono.tipo_bono} | Saldo: <strong>${rem} de ${bono.total_sessions} sesiones disponibles</strong>.`;
+            }
+        }
+
+        async function registrarBonoDirecto() {
+            const name = document.getElementById('p-fullname').value.trim();
+            if (!name) {
+                alert("Por favor indica al menos el Nombre y Apellidos del deportista.");
+                document.getElementById('p-fullname').focus();
+                return;
+            }
+
+            const email = document.getElementById('p-email').value.trim();
+            const phone = document.getElementById('p-phone').value.trim();
+            const tipo = document.getElementById('p-bono-type').value || selectedBonoType;
+            const price = parseFloat(document.getElementById('p-bono-price').value) || selectedBonoPrice;
+            const formaPago = document.getElementById('p-bono-payment').value || "Transferencia";
+            const orderId = document.getElementById('p-bono-order-id').value.trim();
+
+            try {
+                const res = await fetch('/api/bonos/crear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_name: name,
+                        email: email,
+                        phone: phone,
+                        tipo_bono: tipo,
+                        price: price,
+                        forma_pago: formaPago,
+                        order_id: orderId || null
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.order_id) {
+                        document.getElementById('p-bono-order-id').value = data.order_id;
+                    }
+                    alert(`✅ ¡Bono registrado con éxito!
+
+Se han creado ${data.cells_created} celdas de consultas en 'Bonos activos_claude.xlsx' para ${data.client_name} (Pedido #${data.order_id}).`);
+                } else {
+                    alert("Aviso: " + (data.message || "Error al registrar el bono."));
+                }
+            } catch (e) {
+                alert("Error de conexión al registrar el bono en Excel.");
+            }
+        }
+
         // ESTADO GLOBAL DEL WIZARD
         let currentStep = 1;
         let generatedWeeklyPlan = null;
@@ -2128,7 +2509,11 @@
                 age: parseInt(document.getElementById('p-age').value) || 30,
                 gender: document.getElementById('p-gender').value,
                 height_cm: parseFloat(document.getElementById('p-height').value) || 178,
-                bono_type: document.getElementById('p-bono-type').value,
+                bono_type: document.getElementById('p-bono-type').value || selectedBonoType,
+                order_id: document.getElementById('p-bono-order-id') ? document.getElementById('p-bono-order-id').value.trim() : '',
+                bono_price: parseFloat(document.getElementById('p-bono-price') ? document.getElementById('p-bono-price').value : 159) || 159,
+                bono_payment: document.getElementById('p-bono-payment') ? document.getElementById('p-bono-payment').value : 'Transferencia',
+                bono_action: currentBonoMode,
                 sport: sport,
                 level: document.getElementById('p-level').value,
                 weekly_hours: parseFloat(document.getElementById('p-weekly-hours').value) || 6,
@@ -2337,6 +2722,7 @@
             const url = clientName ? `/agente?client=${encodeURIComponent(clientName)}` : '/agente';
             window.open(url, 'AgenteANyD_Exclusivo', `width=${w},height=${h},top=50,left=${left},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
         }
+        document.addEventListener("DOMContentLoaded", () => { loadRecentBonos(); });
     </script>
 </body>
 </html>
