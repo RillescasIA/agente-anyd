@@ -850,6 +850,21 @@
                         💾 Registrar Bono en Excel Ahora
                     </button>
                 </div>
+            
+                <!-- NAVEGACIÓN RÁPIDA: AGENDAR O IR A FICHA EXISTENTE -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px; padding-top:12px; border-top:1px dashed #BAE6FD;">
+                    <div style="font-size:12px; color:#475569;">
+                        ⚡ <strong>Ruta Clínica:</strong> Si el deportista ya existe en la clínica, puedes ir directo a su ficha; si acaba de comprar el bono, agenda su cita presencial u online.
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <a href="/admin" target="_blank" class="btn-anyd btn-outline" style="font-size:11px; padding:6px 12px; text-decoration:none;">
+                            📅 Agendar Cita (Presencial / Online)
+                        </a>
+                        <a href="/consulta" class="btn-anyd btn-outline" style="font-size:11px; padding:6px 12px; color:#0369A1; border-color:#0369A1; text-decoration:none;">
+                            🩺 Buscar Deportista en Ficha Clínica 360°
+                        </a>
+                    </div>
+                </div>
             </div>
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
@@ -1062,6 +1077,34 @@
 
         <!-- ================= FASE 2: ANTROPOMETRÍA TANITA MC-580 & PLICOMETRÍA ISAK ================= -->
         <section id="step-content-2" class="wizard-step hidden">
+
+            <!-- MODULADOR DE CONSULTA: VALORACIÓN FÍSICA VS CONSULTA ONLINE / SEGUIMIENTO -->
+            <div class="card" style="background: white; border: 1.5px solid #CBD5E1; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🩺</span>
+                    <div>
+                        <strong style="font-size: 13.5px; color: #0F172A;">Modalidad Antropométrica en esta Sesión</strong>
+                        <div style="font-size: 11.5px; color: #64748B;">
+                            Presencial (Báscula Tanita MC-580 + 8 Pliegues ISAK) o Consulta Online / Revisión sin medición física.
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="btn-antropo-presencial" class="btn-anyd btn-primary" onclick="toggleAntropometria(true)" style="font-size: 11.5px; padding: 7px 14px; font-weight:700;">
+                        ✓ Medición Física Completa (Presencial)
+                    </button>
+                    <button type="button" id="btn-antropo-online" class="btn-anyd btn-outline" onclick="toggleAntropometria(false)" style="font-size: 11.5px; padding: 7px 14px;">
+                        🌐 Omitir Medición Física (Online / Sensaciones)
+                    </button>
+                </div>
+            </div>
+
+            <!-- AVISO DE CONSULTA ONLINE / SIN MEDICIÓN (VISIBLE SOLO CUANDO SE OMITE) -->
+            <div id="box-antropo-online-alert" style="display:none; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 12.5px; color: #1E40AF;">
+                <strong>🌐 Modo Consulta Online / Revisión de Pauta Activo:</strong> Se omiten las mediciones de báscula física y plicometría en esta sesión. Se mantendrán los valores de peso de referencia (<span id="online-ref-weight">76.5 kg</span>) y FFM previa para recalibrar el metabolismo Cunningham y los macronutrientes.
+            </div>
+
+            <div id="antropometria-full-content">
             
             <!-- PANEL SUPERIOR: MODOS DE CAPTURA BIOMÉTRICA -->
             <div class="card" style="background: linear-gradient(135deg, #F8FAFC 0%, #F0F9FF 100%); border-left: 4px solid var(--anyd-blue); margin-bottom: 20px;">
@@ -1582,6 +1625,34 @@
     </main>
 
     <script>
+
+        
+        // ================= MODALIDAD ANTROPOMETRÍA (PRESENCIAL VS ONLINE) =================
+        let antropometriaRealizada = true;
+
+        function toggleAntropometria(realizar) {
+            antropometriaRealizada = realizar;
+            const btnPresencial = document.getElementById('btn-antropo-presencial');
+            const btnOnline = document.getElementById('btn-antropo-online');
+            const boxAlert = document.getElementById('box-antropo-online-alert');
+            const fullContent = document.getElementById('antropometria-full-content');
+            const refWeightEl = document.getElementById('online-ref-weight');
+
+            const currentWeight = document.getElementById('t-weight') ? document.getElementById('t-weight').value : '76.5';
+            if (refWeightEl) refWeightEl.innerText = `${currentWeight} kg`;
+
+            if (realizar) {
+                if (btnPresencial) { btnPresencial.classList.add('btn-primary'); btnPresencial.classList.remove('btn-outline'); }
+                if (btnOnline) { btnOnline.classList.remove('btn-primary'); btnOnline.classList.add('btn-outline'); }
+                if (boxAlert) boxAlert.style.display = 'none';
+                if (fullContent) fullContent.style.display = 'block';
+            } else {
+                if (btnPresencial) { btnPresencial.classList.remove('btn-primary'); btnPresencial.classList.add('btn-outline'); }
+                if (btnOnline) { btnOnline.classList.add('btn-primary'); btnOnline.classList.remove('btn-outline'); }
+                if (boxAlert) boxAlert.style.display = 'block';
+                if (fullContent) fullContent.style.display = 'none';
+            }
+        }
 
         // ================= GESTIÓN FASE 1: COMPRA DE BONO Y EXCEL =================
         let currentBonoMode = 'online';

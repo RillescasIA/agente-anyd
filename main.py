@@ -1190,6 +1190,15 @@ def book_appointment(req: BookingRequest):
     INSERT INTO appointments (bono_id, client_id, client_name, client_email, client_phone, appointment_date, appointment_time, duration_minutes, modality, status, reminder_sent)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Agendada', 0)
     """, (req.bono_id, req.client_id, req.client_name, req.client_email, phone, req.date, req.time, dur, req.modality))
+
+    # Regla ANyD: La reserva de consulta se contabiliza de inmediato en el saldo del bono
+    if req.bono_id:
+        cursor.execute("""
+        UPDATE bonos
+        SET used_sessions = used_sessions + 1,
+            status = CASE WHEN used_sessions + 1 >= total_sessions THEN 'Agotado' ELSE 'Activo' END
+        WHERE id = ?
+        """, (req.bono_id,))
     
     # Obtener sesiones restantes del bono
     cursor.execute("SELECT total_sessions, used_sessions FROM bonos WHERE id = ?", (req.bono_id,))
@@ -1414,12 +1423,36 @@ def bulk_set_duration(req: BulkDurationRequest):
 
 @app.post("/api/cancel-appointment")
 def cancel_appointment(req: ActionAppointmentRequest):
+    """
+    Cancela una cita. Si la cita tenía un bono asignado, libera y devuelve
+    la sesión al saldo del bono del deportista según la regla clínica de ANyD.
+    """
     conn = get_db()
     cursor = conn.cursor()
+
+    cursor.execute("SELECT id, bono_id, status FROM appointments WHERE id = ?", (req.id,))
+    appt = cursor.fetchone()
+    if not appt:
+        conn.close()
+        return {"success": False, "message": "Cita no encontrada."}
+
+    prev_status = appt["status"]
+    bono_id = appt["bono_id"]
+
     cursor.execute("UPDATE appointments SET status = 'Cancelada' WHERE id = ?", (req.id,))
+
+    # Si estaba activa y tenía bono, liberar la sesión al saldo
+    if bono_id and prev_status != "Cancelada":
+        cursor.execute("""
+        UPDATE bonos
+        SET used_sessions = MAX(0, used_sessions - 1),
+            status = 'Activo'
+        WHERE id = ?
+        """, (bono_id,))
+
     conn.commit()
     conn.close()
-    return {"success": True, "message": "Cita cancelada correctamente."}
+    return {"success": True, "message": "Cita cancelada y sesión liberada/devuelta al bono del deportista."}
 
 @app.post("/api/update-notes")
 def update_notes(req: ActionAppointmentRequest):
