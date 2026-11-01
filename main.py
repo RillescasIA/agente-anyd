@@ -22,6 +22,9 @@ import clinical_manager
 import dossier_pdf_generator
 import auth_manager
 import security_shield
+import email_order_scanner
+import whatsapp_service
+import analytics_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -51,7 +54,10 @@ PUBLIC_PREFIXES = (
     "/api/check-client",
     "/api/webhook/woocommerce",
     "/api/tanita/",
-    "/api/bonos/"
+    "/api/bonos/",
+    "/api/imap/",
+    "/api/analytics/",
+    "/api/whatsapp/"
 )
 
 @app.middleware("http")
@@ -1667,6 +1673,79 @@ def api_bonos_activos_recientes():
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return {"bonos": rows}
+
+
+# --- ENDPOINTS IMAP DE ESCANEO DE PEDIDOS (info@anyd.es) ---
+
+@app.get("/api/imap/status")
+def api_imap_status():
+    """Consulta el estado de la conexión IMAP con mail.anyd.es."""
+    cfg = email_order_scanner.load_imap_config()
+    return {
+        "server": cfg.get("imap_server"),
+        "port": cfg.get("imap_port"),
+        "user": cfg.get("imap_user"),
+        "live_mode": cfg.get("enable_live_imap"),
+        "configured": bool(cfg.get("imap_password"))
+    }
+
+@app.post("/api/imap/scan-orders")
+def api_imap_scan_orders(mark_as_read: bool = False, max_messages: int = 25):
+    """
+    Sondea la cuenta info@anyd.es en mail.anyd.es:993,
+    extrae nuevos pedidos de WooCommerce y los registra en Excel y en la BD.
+    """
+    res = email_order_scanner.scan_imap_orders(mark_as_read=mark_as_read, max_messages=max_messages)
+    return res
+
+
+# --- ENDPOINTS DE ANALÍTICA, INGRESOS Y CONTROL DE SESIONES ---
+
+@app.get("/api/analytics/financial-sessions")
+def api_analytics_financial_sessions(period: str = "month", limit: int = 12):
+    """
+    Calcula simultáneamente:
+    1. Criterio de Caja Cobrada (ventas de bonos).
+    2. Criterio de Producción por Sesión Impartida (sesiones completadas).
+    3. Sesiones totales, presenciales, online y canceladas.
+    4. Alertas de bonos próximos a agotarse (1 o 0 sesiones) con enlace wa.me.
+    """
+    if period not in ["month", "week"]:
+        period = "month"
+    return analytics_manager.get_financial_and_sessions_analytics(period=period, limit=limit)
+
+
+# --- ENDPOINTS WHATSAPP 1-CLIC ---
+
+class WhatsAppLinkRequest(BaseModel):
+    client_name: str
+    phone: str
+    msg_type: str = "confirmation"
+    date_str: Optional[str] = ""
+    time_str: Optional[str] = ""
+    modality: Optional[str] = "Presencial"
+    service: Optional[str] = "Nutrición Deportiva"
+    bono_type: Optional[str] = "Bono ANyD"
+    remaining_sessions: Optional[int] = 1
+    total_sessions: Optional[int] = 3
+
+@app.post("/api/whatsapp/generate-link")
+def api_whatsapp_generate_link(req: WhatsAppLinkRequest):
+    """Genera enlace wa.me oficial con plantilla clínica formateada."""
+    payload = whatsapp_service.build_whatsapp_payload(
+        client_name=req.client_name,
+        phone=req.phone,
+        msg_type=req.msg_type,
+        date_str=req.date_str,
+        time_str=req.time_str,
+        modality=req.modality,
+        service=req.service,
+        bono_type=req.bono_type,
+        remaining_sessions=req.remaining_sessions,
+        total_sessions=req.total_sessions
+    )
+    return payload
+
 
 # --- ENDPOINTS TANITA MC-580 ---
 
