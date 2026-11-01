@@ -4,8 +4,8 @@ import shutil
 from datetime import datetime
 import threading
 
-EXCEL_PATH = r"G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx"
-BACKUP_DIR = r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\backups"
+EXCEL_PATH = os.environ.get("EXCEL_PATH", r"G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx")
+BACKUP_DIR = os.environ.get("BACKUP_DIR", r"g:\Mi unidad\1.- IA\IA Gemini\Agente anyd\backups")
 
 excel_lock = threading.Lock()
 

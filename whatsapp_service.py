@@ -96,6 +96,30 @@ def get_tanita_protocol_msg(client_name, time_str):
     )
     return msg
 
+def get_rgpd_consent_request_msg(client_name):
+    """
+    Plantilla oficial de solicitud de consentimiento informado RGPD (Art. 7 y Art. 9.2.a RGPD)
+    para el tratamiento de datos de salud, antropometría Tanita MC-580 e historia clínica.
+    """
+    first_name = (client_name or "").strip().split()[0] if client_name else "deportista"
+    
+    msg = (
+        f"¡Hola {first_name}! Te escribe Román Illescas de ANyD Nutricionistas (Col. MAD00274).\n\n"
+        f"Para poder prestarte el servicio de asesoramiento y planificación nutricional deportiva, "
+        f"gestionar tus citas y registrar tus mediciones clínicas en la báscula de bioimpedancia Tanita MC-580, "
+        f"conforme al RGPD (Reglamento UE 2016/679) y la Ley 41/2002 de Autonomía del Paciente, "
+        f"necesitamos tu consentimiento explícito:\n\n"
+        f"📋 INFORMACIÓN BÁSICA DE PROTECCIÓN DE DATOS (Capa 1):\n"
+        f"• Responsable: Román Illescas Quiroga (ANyD Nutricionistas)\n"
+        f"• Finalidad: Asesoramiento nutricional, elaboración de historia clínica y control de citas.\n"
+        f"• Legitimación: Consentimiento explícito e informado para datos de salud (Art. 9.2.a RGPD).\n"
+        f"• Conservación: Obligación legal sanitaria mínima de 5 años.\n"
+        f"• Derechos: Acceso, rectificación y supresión escribiendo a info@anyd.es.\n"
+        f"• Política detallada: https://anyd.es/politica-privacidad\n\n"
+        f"Para confirmar tu conformidad, por favor responde a este mensaje con la palabra: *ACEPTO*"
+    )
+    return msg
+
 def build_whatsapp_payload(client_name, phone, msg_type="reminder_48h", **kwargs):
     """Genera la estructura de enlace y texto lista para consumir desde el frontend o backend."""
     if msg_type == "confirmation":
@@ -116,6 +140,8 @@ def build_whatsapp_payload(client_name, phone, msg_type="reminder_48h", **kwargs
         )
     elif msg_type == "tanita_protocol":
         text = get_tanita_protocol_msg(client_name, kwargs.get("time_str", ""))
+    elif msg_type == "rgpd_consent":
+        text = get_rgpd_consent_request_msg(client_name)
     else:
         text = kwargs.get("custom_text", f"Hola {client_name}, te escribo de ANyD Nutricionistas.")
 

@@ -1747,6 +1747,83 @@ def api_whatsapp_generate_link(req: WhatsAppLinkRequest):
     return payload
 
 
+# --- ENDPOINTS RGPD Y CONSENTIMIENTO INFORMADO ---
+
+class RecordRgpdConsentRequest(BaseModel):
+    client_id: Optional[int] = None
+    client_name: Optional[str] = ""
+    phone: Optional[str] = ""
+    channel: str = "WhatsApp"
+    reply_text: str = "ACEPTO"
+
+@app.post("/api/rgpd/record-consent")
+def api_record_rgpd_consent(req: RecordRgpdConsentRequest):
+    """
+    Registra de forma trazable e inmutable el consentimiento explícito (Art. 7 y 9.2.a RGPD).
+    """
+    conn = get_db()
+    c = conn.cursor()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    client_id = req.client_id
+    if not client_id and req.phone:
+        clean_p = whatsapp_service.clean_phone(req.phone)
+        c.execute("SELECT id, fullname FROM clients WHERE phone LIKE ? OR phone LIKE ?", (f"%{req.phone[-9:]}%", f"%{clean_p}%"))
+        row = c.fetchone()
+        if row:
+            client_id = row["id"]
+            if not req.client_name:
+                req.client_name = row["fullname"]
+
+    # 1. Registrar auditoría inmutable en rgpd_consents
+    c.execute("""
+        INSERT INTO rgpd_consents (client_id, client_name, phone, channel, consent_type, status, patient_reply, timestamp)
+        VALUES (?, ?, ?, ?, 'Datos de Salud y Planificación Nutricional', 'Aceptado', ?, ?)
+    """, (client_id, req.client_name, req.phone, req.channel, req.reply_text, now_str))
+
+    # 2. Actualizar ficha del cliente si está identificado
+    if client_id:
+        c.execute("""
+            UPDATE clients 
+            SET rgpd_accepted = 1, rgpd_date = ?, rgpd_channel = ?, rgpd_evidence = ?
+            WHERE id = ?
+        """, (now_str, req.channel, f"Consentimiento WhatsApp: '{req.reply_text}'", client_id))
+
+    conn.commit()
+    conn.close()
+    return {
+        "success": True,
+        "client_id": client_id,
+        "recorded_at": now_str,
+        "channel": req.channel,
+        "status": "Aceptado"
+    }
+
+@app.get("/api/rgpd/status/{client_id}")
+def api_get_rgpd_status(client_id: int):
+    """Consulta el estado de consentimiento RGPD de un deportista."""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, fullname, phone, rgpd_accepted, rgpd_date, rgpd_channel FROM clients WHERE id = ?", (client_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+    c.execute("SELECT * FROM rgpd_consents WHERE client_id = ? ORDER BY id DESC LIMIT 5", (client_id,))
+    audit_trail = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    return {
+        "client_id": row["id"],
+        "fullname": row["fullname"],
+        "rgpd_accepted": bool(row["rgpd_accepted"]),
+        "rgpd_date": row["rgpd_date"],
+        "rgpd_channel": row["rgpd_channel"],
+        "audit_trail": audit_trail
+    }
+
+
 # --- ENDPOINTS TANITA MC-580 ---
 
 
