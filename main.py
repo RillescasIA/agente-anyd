@@ -2129,8 +2129,9 @@ def api_athlete_summary(name: str):
 class AddHolidayRequest(BaseModel):
     date: str
     name: str
-    scope: str = "Clínica Cerrada"
+    scope: str = "Bloqueo Clínica / Congreso"
     is_closed: int = 1
+    end_date: Optional[str] = None
 
 @app.get("/api/holidays")
 def api_get_holidays(start: Optional[str] = None, end: Optional[str] = None):
@@ -2138,8 +2139,35 @@ def api_get_holidays(start: Optional[str] = None, end: Optional[str] = None):
 
 @app.post("/api/holidays/add")
 def api_add_holiday(req: AddHolidayRequest):
-    ok = holidays_manager.add_custom_holiday(req.date, req.name, req.scope, req.is_closed)
-    return {"success": ok}
+    """
+    Bloquea un día o un rango completo de fechas (ej. Congresos, Fiestas, Vacaciones)
+    impidiendo reservas online y mostrando el bloqueo en FullCalendar.
+    """
+    try:
+        start_dt = datetime.strptime(req.date[:10], "%Y-%m-%d")
+        end_dt = datetime.strptime(req.end_date[:10], "%Y-%m-%d") if req.end_date else start_dt
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Utilice AAAA-MM-DD.")
+
+    if end_dt < start_dt:
+        raise HTTPException(status_code=400, detail="La fecha de fin no puede ser anterior a la de inicio.")
+
+    count = 0
+    cur_dt = start_dt
+    scope = req.scope or "Bloqueo Clínica / Congreso"
+    name = req.name.strip() if req.name else "Día Bloqueado (Congreso/Fiesta)"
+
+    while cur_dt <= end_dt:
+        cur_str = cur_dt.strftime("%Y-%m-%d")
+        holidays_manager.add_custom_holiday(cur_str, name, scope, req.is_closed)
+        count += 1
+        cur_dt += timedelta(days=1)
+
+    return {
+        "success": True,
+        "count": count,
+        "message": f"Se ha(n) bloqueado {count} día(s) con éxito por '{name}'."
+    }
 
 @app.delete("/api/holidays/{holiday_id}")
 def api_delete_holiday(holiday_id: int):

@@ -149,6 +149,135 @@
             }
         }
 
+
+        // ================= GESTIÓN DE BLOQUEO DE DÍAS Y CONGRESOS =================
+        function openBlockDayModal(defaultDate) {
+            const modal = document.getElementById('block-day-modal');
+            if (!modal) return;
+            const startInput = document.getElementById('blk-start-date');
+            const endInput = document.getElementById('blk-end-date');
+            const nameInput = document.getElementById('blk-name');
+
+            const todayStr = defaultDate || new Date().toISOString().substring(0, 10);
+            if (startInput) startInput.value = todayStr;
+            if (endInput) endInput.value = '';
+            if (nameInput) nameInput.value = '';
+
+            modal.classList.remove('hidden');
+            loadBlockedDaysList();
+        }
+
+        function closeBlockDayModal() {
+            const modal = document.getElementById('block-day-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function setBlkChip(txt) {
+            const nameInput = document.getElementById('blk-name');
+            if (nameInput) nameInput.value = txt;
+        }
+
+        async function handleBlockDaySubmit(e) {
+            e.preventDefault();
+            const startDate = document.getElementById('blk-start-date').value;
+            const endDate = document.getElementById('blk-end-date').value || null;
+            const name = document.getElementById('blk-name').value.trim();
+            if (!startDate || !name) return;
+
+            const btn = document.getElementById('btn-submit-block');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '⏳ Bloqueando...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/holidays/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: startDate,
+                        end_date: endDate,
+                        name: name,
+                        scope: 'Bloqueo Clínica / Congreso',
+                        is_closed: 1
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || 'Día(s) bloqueado(s) correctamente.', 'success');
+                    document.getElementById('blk-name').value = '';
+                    document.getElementById('blk-end-date').value = '';
+                    loadBlockedDaysList();
+                    if (typeof calendar !== 'undefined') calendar.refetchEvents();
+                } else {
+                    alert('Error al bloquear: ' + (data.detail || 'Operación no completada'));
+                }
+            } catch(err) {
+                alert('Error de conexión al guardar el bloqueo.');
+            } finally {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        }
+
+        async function loadBlockedDaysList() {
+            const tbody = document.getElementById('blocked-days-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:10px; color:#64748B;">Cargando bloqueos...</td></tr>';
+
+            try {
+                const res = await fetch('/api/holidays');
+                const data = await res.json();
+                const holidays = data.holidays || [];
+
+                const activeList = holidays.filter(h => h.date >= '2025-01-01');
+
+                if (activeList.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:10px; color:#64748B;">No hay días bloqueados registrados.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = activeList.map(h => {
+                    const isCustom = (h.scope || '').includes('Bloqueo') || (h.scope || '').includes('Clínica') || (h.scope || '').includes('Congreso');
+                    const typeBadge = isCustom ? 
+                        '<span style="background:#FEF2F2; color:#DC2626; font-size:10px; font-weight:700; padding:2px 6px; border-radius:10px; border:1px solid #FECACA;">Bloqueo Manual</span>' : 
+                        `<span style="background:#F1F5F9; color:#475569; font-size:10px; font-weight:700; padding:2px 6px; border-radius:10px;">${h.scope}</span>`;
+
+                    return `
+                        <tr style="border-bottom:1px solid #F1F5F9;">
+                            <td style="padding:8px 12px; font-weight:700; color:#1E293B;">${h.date}</td>
+                            <td style="padding:8px 12px; color:#0F172A;">${h.name}</td>
+                            <td style="padding:8px 12px;">${typeBadge}</td>
+                            <td style="padding:8px 12px; text-align:right;">
+                                <button type="button" onclick="deleteBlockDay(${h.id}, '${h.date}', '${h.name.replace(/'/g, "\\'")}')" class="btn-anyd" style="background:#FFF5F5; border:1px solid #FCA5A5; color:#DC2626; font-size:11px; padding:3px 8px;">
+                                    🗑️ Desbloquear
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:10px; color:#DC2626;">Error cargando bloqueos.</td></tr>';
+            }
+        }
+
+        async function deleteBlockDay(id, dateStr, name) {
+            if (!confirm(`¿Deseas desbloquear el día ${dateStr} (${name})?\n\nVolverá a estar disponible para reservas en la web.`)) return;
+
+            try {
+                const res = await fetch(`/api/holidays/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Día ${dateStr} desbloqueado.`, 'info');
+                    loadBlockedDaysList();
+                    if (typeof calendar !== 'undefined') calendar.refetchEvents();
+                } else {
+                    alert('Error al desbloquear el día.');
+                }
+            } catch(e) {
+                alert('Error de conexión al eliminar bloqueo.');
+            }
+        }
+
 </script>
     <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/es.global.min.js"></script>
 
@@ -708,24 +837,28 @@
                 <img src="/static/logo.png" alt="ANYD Nutricionistas" class="logo-img" onerror="this.src='/static/logo_sin_fondo.png'">
             </a>
             <ul class="nav-links">
-                <li class="nav-item"><a href="/" style="font-weight:700;">🏠 Menú</a></li>
-                <li class="nav-item {% if current_tab != 'past' %}active{% endif %}"><a href="/admin">📅 Calendario</a></li>
-
-                <li class="nav-item"><a href="/nuevo-paciente" style="color:white; background:#0284c7; font-weight:700; border-radius:6px; padding:6px 12px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">👤 Nuevo Paciente</a></li>
-                <li class="nav-item {% if current_tab == 'past' %}active{% endif %}"><a href="/admin?tab=past">🎟️ Histórico / Bonos (Excel)</a></li>
-                <li class="nav-item"><a href="/consulta" style="color:var(--anyd-blue); font-weight:700; background:rgba(0,134,205,0.08);">🩺 Estación Clínica</a></li>
-                <li class="nav-item"><a href="/patrones-nutricionales" style="color:#059669; font-weight:700;">🥗 Patrones Nutricionales</a></li>
-                <li class="nav-item"><a href="/tanita">⚖️ Tanita MC-580</a></li>
-                <li class="nav-item"><a href="/reservar" target="_blank">🔗 Reservas en línea</a></li>
-                <li class="nav-item"><a href="javascript:void(0)" onclick="openAnalyticsModal()" style="color:#059669; background:rgba(5, 150, 105, 0.08); font-weight:700;">📊 Métricas & Caja</a></li>
-                <li class="nav-item"><a href="javascript:void(0)" onclick="triggerImapScan()" style="color:#D97706; background:rgba(217, 119, 6, 0.08); font-weight:700;" title="Sondear info@anyd.es para capturar nuevos pedidos">📥 Leer Pedidos IMAP</a></li>
-                <li class="nav-item"><a href="javascript:void(0)" onclick="openGcalModal()" style="color:#0284c7; background:rgba(2, 132, 199, 0.08);">📲 Google Calendar (.ics)</a></li>
-                <li class="nav-item"><a href="javascript:void(0)" onclick="openAgentExclusiveWindow()" style="color:#4F46E5; background:rgba(79, 70, 229, 0.08); font-weight:700;" title="Abrir Agente Copiloto en Ventana Exclusiva">🤖 Agente Copiloto ⧉</a></li>
+                <li class="nav-item {% if current_tab != 'past' %}active{% endif %}">
+                    <a href="/admin">📅 Agenda & Citas</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/consulta">👥 Pacientes & Consulta 360°</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/patrones-nutricionales">🥗 Patrones Nutricionales</a>
+                </li>
+                <li class="nav-item {% if current_tab == 'past' %}active{% endif %}">
+                    <a href="/admin?tab=past">🎟️ Bonos & Finanzas</a>
+                </li>
             </ul>
         </div>
 
         <div class="topbar-right">
-            <span class="badge-unlimited">✓ PLAN PRO ILIMITADO (0€)</span>
+            <a href="/reservar" target="_blank" class="btn-anyd btn-outline" style="font-size:11.5px; padding:6px 12px; text-decoration:none;" title="Ver Portal de Reservas Web de Pacientes">
+                🌐 Portal Reservas ↗
+            </a>
+            <a href="javascript:void(0)" onclick="openAgentExclusiveWindow()" class="btn-anyd" style="background:#4F46E5; font-size:11.5px; padding:6px 12px; text-decoration:none; font-weight:700;" title="Abrir Agente Copiloto en Ventana Exclusiva">
+                🤖 Copiloto IA ⧉
+            </a>
             <div class="profile-chip">
                 <div class="avatar-circle">R</div>
                 <div>
@@ -733,7 +866,7 @@
                     <span style="color:#64748B; font-size:11px;">Col. MAD00274</span>
                 </div>
             </div>
-            <a href="/logout" title="Cerrar sesión segura" style="margin-left:6px; color:#DC2626; text-decoration:none; font-size:12px; font-weight:700; padding:8px 12px; border-radius:8px; background:#FEF2F2; border:1px solid #FECACA; display:flex; align-items:center; gap:5px; transition:all 0.2s;">
+            <a href="/logout" title="Cerrar sesión segura" style="margin-left:4px; color:#DC2626; text-decoration:none; font-size:11.5px; font-weight:700; padding:6px 10px; border-radius:8px; background:#FEF2F2; border:1px solid #FECACA; display:flex; align-items:center; gap:4px;">
                 <span>🚪</span> Salir
             </a>
         </div>
@@ -935,10 +1068,13 @@
         <!-- SIDEBAR IZQUIERDA (FILTROS Y CREAR) -->
         <aside class="sidebar">
             <button class="btn-create" onclick="openNewBookingModal()">
-                + CREAR NUEVO
+                + AGENDAR CONSULTA
+            </button>
+            <button class="btn-create" onclick="openBlockDayModal()" style="background:#FEF2F2; color:#B91C1C; border:1.5px solid #FCA5A5; font-weight:800; margin-top:8px; box-shadow:none;">
+                🚫 BLOQUEAR DÍA / CONGRESO
             </button>
             <a href="/nuevo-paciente" class="btn-create" style="background: linear-gradient(135deg, #0284c7 0%, #0086cd 100%); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);">
-                ✨ NUEVO PACIENTE (360°)
+                ✨ ALTA PACIENTE (360°)
             </a>
 
             <!-- FILTRO DE PERSONAL -->
@@ -1008,8 +1144,8 @@
                 <p style="color: #64748B; font-size: 11px; line-height: 1.4; margin-bottom: 8px;">
                     Festivos nacionales, de Madrid y locales de <strong>Alcorcón</strong> (San Dominguín y Ntra. Sra. de los Remedios) bloqueados.
                 </p>
-                <button onclick="showHolidaysModal()" class="btn-anyd btn-outline" style="width: 100%; font-size: 11px; padding: 5px 8px; justify-content: center;">
-                    📅 Ver Calendario Festivos
+                <button onclick="openBlockDayModal()" class="btn-anyd btn-outline" style="width: 100%; font-size: 11px; padding: 6px 8px; justify-content: center; font-weight: 700; color: #B91C1C; border-color: #FCA5A5;">
+                    🚫 Gestionar Bloqueos & Congresos
                 </button>
             </div>
 
@@ -1614,7 +1750,16 @@
                     if (info.event.extendedProps && info.event.extendedProps.is_holiday) {
                         const h = info.event.extendedProps;
                         const dateStr = info.event.startStr ? info.event.startStr.substring(0, 10) : '';
-                        alert(`⛔ CLÍNICA CERRADA POR FESTIVO\n\nFecha: ${dateStr}\nFestividad: ${h.holiday_name}\nÁmbito: ${h.scope}\n\nLas reservas están bloqueadas de forma oficial.`);
+                        const eventId = String(info.event.id || '');
+                        const numId = eventId.replace('holiday_', '');
+
+                        if (confirm(`⛔ DÍA BLOQUEADO: ${h.holiday_name}\nFecha: ${dateStr}\nÁmbito: ${h.scope}\n\n¿Deseas DESBLOQUEAR este día para permitir citas en la agenda y reservas online?`)) {
+                            if (numId && !isNaN(numId)) {
+                                deleteBlockDay(parseInt(numId), dateStr, h.holiday_name);
+                            } else {
+                                openBlockDayModal(dateStr);
+                            }
+                        }
                         return;
                     }
                     openEventModal(info.event);
@@ -2722,6 +2867,89 @@
                         </thead>
                         <tbody id="analytics-alerts-body">
                             <tr><td colspan="4" style="text-align:center; padding:14px; color:#64748B;">Comprobando saldos de bonos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL BLOQUEAR DÍA / CONGRESO / FIESTA -->
+    <div id="block-day-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 660px; width: 95%; max-height: 90vh; overflow-y: auto;">
+            <button class="modal-close" onclick="closeBlockDayModal()">&times;</button>
+            <div style="display:flex; align-items:center; gap:12px; border-bottom:1px solid #FEE2E2; padding-bottom:12px; margin-bottom:16px;">
+                <span style="font-size:26px;">🚫</span>
+                <div>
+                    <h2 class="modal-title" style="margin:0; font-size:18px; color:#991B1B;">
+                        Bloquear Día o Periodo (Congresos, Fiestas o Vacaciones)
+                    </h2>
+                    <span style="font-size:12px; color:#64748B;">
+                        Impide que los pacientes reserven cita en la web y marca el cierre en tu agenda.
+                    </span>
+                </div>
+            </div>
+
+            <!-- FORMULARIO DE BLOQUEO -->
+            <form onsubmit="handleBlockDaySubmit(event)" style="background:#FFF5F5; border:1.5px solid #FCA5A5; border-radius:10px; padding:16px; margin-bottom:20px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:700; color:#7F1D1D; display:block; margin-bottom:4px;">
+                            Fecha de Inicio *
+                        </label>
+                        <input type="date" id="blk-start-date" required style="width:100%; padding:8px 10px; border:1.5px solid #FCA5A5; border-radius:6px; font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:700; color:#7F1D1D; display:block; margin-bottom:4px;">
+                            Fecha de Fin (Opcional)
+                        </label>
+                        <input type="date" id="blk-end-date" style="width:100%; padding:8px 10px; border:1.5px solid #FCA5A5; border-radius:6px; font-size:13px;" placeholder="Dejar vacío si es 1 día">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:12px; font-weight:700; color:#7F1D1D; display:block; margin-bottom:4px;">
+                        Motivo del Bloqueo *
+                    </label>
+                    <input type="text" id="blk-name" required placeholder="Ej. Congreso Nutrición Deportiva SEDCA, Fiestas de Alcorcón, Vacaciones..." style="width:100%; padding:8px 10px; border:1.5px solid #FCA5A5; border-radius:6px; font-size:13px;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+                        <button type="button" onclick="setBlkChip('🏛️ Congreso Nutrición Deportiva')" class="btn-anyd btn-outline" style="font-size:10.5px; padding:3px 8px; background:white;">🏛️ Congreso Nutrición</button>
+                        <button type="button" onclick="setBlkChip('🎉 Fiesta Local / Festivo')" class="btn-anyd btn-outline" style="font-size:10.5px; padding:3px 8px; background:white;">🎉 Fiesta Local</button>
+                        <button type="button" onclick="setBlkChip('🏖️ Vacaciones')" class="btn-anyd btn-outline" style="font-size:10.5px; padding:3px 8px; background:white;">🏖️ Vacaciones</button>
+                        <button type="button" onclick="setBlkChip('🚗 Asuntos Propios')" class="btn-anyd btn-outline" style="font-size:10.5px; padding:3px 8px; background:white;">🚗 Asuntos Propios</button>
+                        <button type="button" onclick="setBlkChip('🎓 Formación / Master')" class="btn-anyd btn-outline" style="font-size:10.5px; padding:3px 8px; background:white;">🎓 Formación</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+                    <span style="font-size:11.5px; color:#991B1B;">
+                        🔒 Se bloquearán las reservas online de forma inmediata.
+                    </span>
+                    <button type="submit" id="btn-submit-block" class="btn-anyd" style="background:#DC2626; border-color:#DC2626; color:white; padding:8px 18px; font-size:12.5px; font-weight:700;">
+                        🚫 Bloquear Fecha(s)
+                    </button>
+                </div>
+            </form>
+
+            <!-- LISTADO DE BLOQUEOS Y FESTIVOS -->
+            <div>
+                <h3 style="font-size:13.5px; font-weight:800; color:#1E293B; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📋 Días y Periodos Bloqueados en el Sistema</span>
+                    <button type="button" onclick="loadBlockedDaysList()" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 8px;">🔄 Actualizar</button>
+                </h3>
+                <div style="max-height:240px; overflow-y:auto; border:1px solid #E2E8F0; border-radius:8px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                        <thead>
+                            <tr style="background:#F8FAFC; color:#475569; border-bottom:1px solid #E2E8F0;">
+                                <th style="padding:8px 12px;">Fecha</th>
+                                <th style="padding:8px 12px;">Motivo / Evento</th>
+                                <th style="padding:8px 12px;">Tipo</th>
+                                <th style="padding:8px 12px; text-align:right;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blocked-days-table-body">
+                            <tr><td colspan="4" style="text-align:center; padding:12px; color:#64748B;">Cargando bloqueos...</td></tr>
                         </tbody>
                     </table>
                 </div>
