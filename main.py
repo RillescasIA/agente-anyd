@@ -714,25 +714,28 @@ def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None):
         for h in holidays:
             if h.get("is_closed", 1):
                 h_date = h["date"]
+                colors = h.get("colors") or holidays_manager.get_holiday_colors(h.get("scope", ""), h.get("name", ""), h.get("color"))
                 events.append({
                     "id": f"holiday_{h['id']}",
-                    "title": f"⛔ CERRADO: {h['name']}",
+                    "title": f"{colors['icon']} {colors['concept'].upper()}: {h['name']}",
                     "start": f"{h_date}T09:00:00",
                     "end": f"{h_date}T21:00:00",
-                    "backgroundColor": "#FEE2E2",
-                    "borderColor": "#F87171",
-                    "textColor": "#991B1B",
+                    "backgroundColor": colors["bg"],
+                    "borderColor": colors["border"],
+                    "textColor": colors["text"],
                     "editable": False,
                     "startEditable": False,
                     "durationEditable": False,
                     "extendedProps": {
-                        "client_name": f"⛔ CERRADO: {h['name']}",
-                        "service": f"Festivo {h['scope']}",
+                        "client_name": f"{colors['icon']} {h['name']}",
+                        "service": f"{colors['concept']} ({h.get('scope', 'Bloqueo')})",
                         "duration_minutes": 720,
                         "is_holiday": True,
                         "holiday_name": h["name"],
-                        "scope": h["scope"],
-                        "notes": f"Clínica ANyD cerrada por festividad oficial ({h['scope']}). Bloqueado para reservas."
+                        "scope": h.get("scope", "Bloqueo"),
+                        "concept": colors["concept"],
+                        "color": colors["border"],
+                        "notes": f"Día bloqueado por {colors['concept']}: {h['name']}."
                     }
                 })
     except Exception as e:
@@ -2209,6 +2212,7 @@ class AddHolidayRequest(BaseModel):
     scope: str = "Bloqueo Clínica / Congreso"
     is_closed: int = 1
     end_date: Optional[str] = None
+    color: Optional[str] = None
 
 @app.get("/api/holidays")
 def api_get_holidays(start: Optional[str] = None, end: Optional[str] = None):
@@ -2236,7 +2240,7 @@ def api_add_holiday(req: AddHolidayRequest):
 
     while cur_dt <= end_dt:
         cur_str = cur_dt.strftime("%Y-%m-%d")
-        holidays_manager.add_custom_holiday(cur_str, name, scope, req.is_closed)
+        holidays_manager.add_custom_holiday(cur_str, name, scope, req.is_closed, req.color)
         count += 1
         cur_dt += timedelta(days=1)
 

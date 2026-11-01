@@ -35,11 +35,11 @@ def setup_test_database():
     for sql in table_sqls:
         test_c.execute(sql)
 
-    # Insertar 3 pacientes sintéticos de prueba
+    # Insertar pacientes sintéticos y datos de prueba de Román Illescas
     test_clients = [
+        ("Román", "Illescas", "Román Illescas", "rillescas@gmail.com", "+34616976729", "Nutricionista titular para pruebas de WhatsApp", 1, "2026-10-25 10:00:00", "WhatsApp", "Consentimiento WhatsApp: 'ACEPTO'"),
         ("Carlos", "Alcaraz Test", "Carlos Alcaraz Test", "alcaraz.test@anyd.es", "+34600000001", "Tenista profesional de prueba", 1, "2026-10-15 10:00:00", "WhatsApp", "Consentimiento WhatsApp: 'ACEPTO'"),
-        ("Marta", "García Test", "Marta García Test", "marta.test@anyd.es", "+34600000002", "Triatleta popular de prueba", 0, None, None, None),
-        ("Pablo", "Carreño Test", "Pablo Carreño Test", "pablo.test@anyd.es", "+34600000003", "Corredor de trail de prueba", 1, "2026-10-20 12:30:00", "WhatsApp", "Consentimiento WhatsApp: 'ACEPTO'")
+        ("Marta", "García Test", "Marta García Test", "marta.test@anyd.es", "+34600000002", "Triatleta popular de prueba (pendiente RGPD)", 0, None, None, None)
     ]
 
     for tc in test_clients:
@@ -50,9 +50,9 @@ def setup_test_database():
 
     # Insertar bonos de prueba
     test_bonos = [
-        ("TEST-9001", 1, "Carlos Alcaraz Test", "alcaraz.test@anyd.es", "Deportiva 3", 3, 1, "2026-10-10", 159.0, "Activo", "ANYD", "Online", "Román"),
-        ("TEST-9002", 2, "Marta García Test", "marta.test@anyd.es", "Deportiva 5", 5, 2, "2026-10-12", 249.0, "Activo", "ANYD", "Transferencia", "Román"),
-        ("TEST-9003", 3, "Pablo Carreño Test", "pablo.test@anyd.es", "Deportiva 3", 3, 3, "2026-09-01", 159.0, "Agotado", "ANYD", "Online", "Román")
+        ("TEST-ROMAN-01", 1, "Román Illescas", "rillescas@gmail.com", "Deportiva 3", 3, 1, "2026-10-20", 159.0, "Activo", "ANYD", "Online", "Román"),
+        ("TEST-9001", 2, "Carlos Alcaraz Test", "alcaraz.test@anyd.es", "Deportiva 3", 3, 2, "2026-10-10", 159.0, "Activo", "ANYD", "Online", "Román"),
+        ("TEST-9002", 3, "Marta García Test", "marta.test@anyd.es", "Deportiva 5", 5, 2, "2026-10-12", 249.0, "Activo", "ANYD", "Transferencia", "Román")
     ]
 
     for tb in test_bonos:
@@ -61,13 +61,14 @@ def setup_test_database():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, tb)
 
-    # Insertar citas de prueba (hoy + 2 días, hoy + 3 días)
-    d1 = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
-    d2 = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+    # Insertar citas de prueba en ventana de recordatorio 48h
+    d_tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    d_after = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
 
     test_appointments = [
-        (1, 1, "Carlos Alcaraz Test", "alcaraz.test@anyd.es", "+34600000001", d1, "17:00", "Presencial", "Agendada", 0, "Anyd Nutrición Deportiva"),
-        (2, 2, "Marta García Test", "marta.test@anyd.es", "+34600000002", d2, "18:30", "Online", "Agendada", 0, "Anyd Consulta OnLine")
+        (1, 1, "Román Illescas", "rillescas@gmail.com", "+34616976729", d_tomorrow, "17:30", "Presencial", "Agendada", 0, "Anyd Nutrición Deportiva"),
+        (1, 1, "Román Illescas", "rillescas@gmail.com", "+34616976729", d_after, "19:00", "Online", "Agendada", 0, "Anyd Consulta OnLine"),
+        (2, 2, "Carlos Alcaraz Test", "alcaraz.test@anyd.es", "+34600000001", d_after, "18:00", "Presencial", "Agendada", 0, "Anyd Nutrición Deportiva")
     ]
 
     for ta in test_appointments:
@@ -79,7 +80,7 @@ def setup_test_database():
     # Insertar registro de trazabilidad RGPD en rgpd_consents
     test_c.execute("""
         INSERT INTO rgpd_consents (client_id, client_name, phone, channel, consent_type, status, patient_reply, timestamp)
-        VALUES (1, 'Carlos Alcaraz Test', '+34600000001', 'WhatsApp', 'Datos de Salud y Planificación Nutricional', 'Aceptado', 'ACEPTO', '2026-10-15 10:00:00')
+        VALUES (1, 'Román Illescas', '+34616976729', 'WhatsApp', 'Datos de Salud y Planificación Nutricional', 'Aceptado', 'ACEPTO', '2026-10-25 10:00:00')
     """)
 
     test_conn.commit()

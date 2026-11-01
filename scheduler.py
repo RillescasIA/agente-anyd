@@ -43,6 +43,15 @@ def get_target_appointment_dates(today_dt=None):
         dates.append((today_dt + timedelta(days=2)).strftime("%Y-%m-%d")) # Domingo
         dates.append((today_dt + timedelta(days=3)).strftime("%Y-%m-%d")) # Lunes
         dates.append((today_dt + timedelta(days=4)).strftime("%Y-%m-%d")) # Martes
+    elif weekday == 5:
+        # Sábado: Citas de domingo, lunes y martes (por si hay reservas de fin de semana)
+        dates.append((today_dt + timedelta(days=1)).strftime("%Y-%m-%d"))
+        dates.append((today_dt + timedelta(days=2)).strftime("%Y-%m-%d"))
+        dates.append((today_dt + timedelta(days=3)).strftime("%Y-%m-%d"))
+    elif weekday == 6:
+        # Domingo: Citas de lunes y martes (captura reservas pendientes de fin de semana y pruebas)
+        dates.append((today_dt + timedelta(days=1)).strftime("%Y-%m-%d"))
+        dates.append((today_dt + timedelta(days=2)).strftime("%Y-%m-%d"))
 
     return dates
 
