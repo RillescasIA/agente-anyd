@@ -8,7 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;500;600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js">    </script>
+    <script>
         // ================= GESTIÓN IMAP & ANALÍTICA DE INGRESOS =================
         let currentAnalyticsPeriod = 'month';
 
@@ -65,14 +66,15 @@
             }
 
             const tbody = document.getElementById('analytics-table-body');
-            const alertsBody = document.getElementById('analytics-alerts-body');
+            const remindersBody = document.getElementById('analytics-reminders-body') || document.getElementById('analytics-alerts-body');
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:14px; color:#64748B;">Calculando métricas...</td></tr>';
 
             try {
                 const res = await fetch(`/api/analytics/financial-sessions?period=${period}&limit=12`);
                 const data = await res.json();
                 const report = data.report || [];
-                const alerts = data.bono_alerts || [];
+                const reminders = data.pending_reminders || [];
+                const bonosSummary = data.bonos_summary || { activos: 0, agotados: 0 };
 
                 // KPIs Globales (suma de los periodos visibles)
                 let sumCaja = 0;
@@ -96,7 +98,9 @@
                 document.getElementById('kpi-produccion-total').innerText = `${sumProd.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} €`;
                 document.getElementById('kpi-sesiones-realizadas').innerText = `${sumHechas}`;
                 document.getElementById('kpi-desglose-modality').innerText = `${sumPres} presenciales / ${sumOnl} online`;
-                document.getElementById('kpi-alertas-count').innerText = `${alerts.length}`;
+                
+                const kpiRemEl = document.getElementById('kpi-reminders-count') || document.getElementById('kpi-alertas-count');
+                if (kpiRemEl) kpiRemEl.innerText = `${reminders.length}`;
 
                 // Tabla de periodos
                 if (report.length === 0) {
@@ -115,34 +119,38 @@
                     `).join('');
                 }
 
-                // Tabla de Alertas de Bonos
-                if (alerts.length === 0) {
-                    alertsBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:14px; color:#059669; font-weight:600;">✓ Todos los bonos activos disponen de 2 o más sesiones.</td></tr>';
-                } else {
-                    alertsBody.innerHTML = alerts.map(a => {
-                        const badgeColor = a.remaining === 0 ? '#DC2626' : '#D97706';
-                        const badgeBg = a.remaining === 0 ? '#FEF2F2' : '#FFFBEB';
-                        const badgeText = a.remaining === 0 ? 'AGOTADO (0 ses)' : 'ÚLTIMA (1 ses)';
-                        return `
-                            <tr style="border-bottom:1px solid #F1F5F9;">
-                                <td style="padding:8px 12px; font-weight:700; color:#1E293B;">
-                                    ${a.client_name}
-                                    ${a.phone ? `<div style="font-size:10.5px; color:#64748B; font-weight:normal;">${a.phone}</div>` : ''}
-                                </td>
-                                <td style="padding:8px 12px; color:#475569;">${a.tipo_bono} (Pedido #${a.order_id || '--'})</td>
-                                <td style="padding:8px 12px; text-align:center;">
-                                    <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:10px; background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeColor};">
-                                        ${badgeText}
-                                    </span>
-                                </td>
-                                <td style="padding:8px 12px; text-align:right;">
-                                    <a href="${a.whatsapp_link}" target="_blank" class="btn-anyd" style="background:#25D366; border-color:#25D366; font-size:11px; padding:4px 10px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-                                        💬 Avisar WhatsApp
-                                    </a>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
+                // Tabla de Recordatorios de Cita a 48h (Anticipo a Viernes si cae en Fin de Semana)
+                if (remindersBody) {
+                    if (reminders.length === 0) {
+                        remindersBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:14px; color:#059669; font-weight:600;">✓ No hay recordatorios de cita pendientes para enviar hoy (Anticipo a viernes completado).</td></tr>';
+                    } else {
+                        remindersBody.innerHTML = reminders.map(r => {
+                            const isPresencial = (r.modality || '').toLowerCase().includes('presencial');
+                            const modBadge = isPresencial
+                                ? '<span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:10px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;">Presencial (Tanita MC-580)</span>'
+                                : '<span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:10px; background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0;">Online (Videollamada)</span>';
+                            return `
+                                <tr style="border-bottom:1px solid #F1F5F9;">
+                                    <td style="padding:8px 12px; font-weight:700; color:#1E293B;">
+                                        ${r.client_name}
+                                        ${r.phone ? `<div style="font-size:10.5px; color:#64748B; font-weight:normal;">${r.phone}</div>` : ''}
+                                    </td>
+                                    <td style="padding:8px 12px; color:#1E293B; font-weight:600;">
+                                        📅 ${r.appointment_date} <span style="color:#0284c7; font-weight:700;">${r.appointment_time || ''}</span>
+                                    </td>
+                                    <td style="padding:8px 12px;">
+                                        ${modBadge}
+                                        <div style="font-size:10.5px; color:#64748B; margin-top:2px;">${r.service || 'Nutrición Deportiva'}</div>
+                                    </td>
+                                    <td style="padding:8px 12px; text-align:right;">
+                                        <a href="${r.whatsapp_link}" target="_blank" class="btn-anyd" style="background:#25D366; border-color:#25D366; font-size:11px; padding:5px 12px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; font-weight:700; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                                            💬 Enviar Recordatorio
+                                        </a>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
                 }
             } catch (e) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:14px; color:#DC2626;">Error cargando métricas.</td></tr>';
@@ -2818,10 +2826,10 @@
                     <div id="kpi-sesiones-realizadas" style="font-size:24px; font-weight:800; color:#0F172A; margin-top:4px;">--</div>
                     <div id="kpi-desglose-modality" style="font-size:11px; color:#64748B; margin-top:2px;">-- presenciales / -- online</div>
                 </div>
-                <div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:12px 16px;">
-                    <div style="font-size:11px; font-weight:700; color:#991B1B; text-transform:uppercase;">Alertas Fin de Bono</div>
-                    <div id="kpi-alertas-count" style="font-size:24px; font-weight:800; color:#DC2626; margin-top:4px;">--</div>
-                    <div style="font-size:11px; color:#991B1B; margin-top:2px;">Deportistas con &le; 1 sesión</div>
+                <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:12px 16px;">
+                    <div style="font-size:11px; font-weight:700; color:#1E40AF; text-transform:uppercase;">Recordatorios Cita Hoy (48h)</div>
+                    <div id="kpi-reminders-count" style="font-size:24px; font-weight:800; color:#1D4ED8; margin-top:4px;">--</div>
+                    <div style="font-size:11px; color:#1E40AF; margin-top:2px;">Regla Viernes: anticipo fin de semana</div>
                 </div>
             </div>
 
@@ -2850,23 +2858,23 @@
                 </div>
             </div>
 
-            <!-- LISTADO DE ALERTAS DE BONOS CON BOTÓN WHATSAPP -->
+            <!-- LISTADO DE RECORDATORIOS DE CITA A 48H (REGLA VIERNES) -->
             <div>
                 <h3 style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    <span>🚨</span> Deportistas con Bonos Próximos a Agotarse (Aviso WhatsApp)
+                    <span>📅</span> Recordatorios de Cita a 48h (Anticipo a Viernes si cae en Fin de Semana)
                 </h3>
-                <div style="max-height:220px; overflow-y:auto; border:1px solid #E2E8F0; border-radius:8px;">
+                <div style="max-height:240px; overflow-y:auto; border:1px solid #E2E8F0; border-radius:8px;">
                     <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
                         <thead>
                             <tr style="background:#F8FAFC; color:#475569; border-bottom:1px solid #E2E8F0;">
                                 <th style="padding:8px 12px;">Deportista</th>
-                                <th style="padding:8px 12px;">Tipo de Bono</th>
-                                <th style="padding:8px 12px; text-align:center;">Sesiones Restantes</th>
-                                <th style="padding:8px 12px; text-align:right;">Acción WhatsApp (1-Clic)</th>
+                                <th style="padding:8px 12px;">Cita Programada</th>
+                                <th style="padding:8px 12px;">Modalidad / Servicio</th>
+                                <th style="padding:8px 12px; text-align:right;">Acción Recordatorio (1-Clic WhatsApp)</th>
                             </tr>
                         </thead>
-                        <tbody id="analytics-alerts-body">
-                            <tr><td colspan="4" style="text-align:center; padding:14px; color:#64748B;">Comprobando saldos de bonos...</td></tr>
+                        <tbody id="analytics-reminders-body">
+                            <tr><td colspan="4" style="text-align:center; padding:14px; color:#64748B;">Comprobando citas próximas...</td></tr>
                         </tbody>
                     </table>
                 </div>

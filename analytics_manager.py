@@ -8,7 +8,9 @@ Cálculo de métricas de rendimiento clínico y financiero:
 1. Criterio de Caja Cobrada (Fecha de compra de bonos).
 2. Criterio de Producción por Sesión Impartida (Fecha de consulta completada).
 3. Agrupación temporal: Mensual y Semanal.
-4. Alertas de bonos próximos a agotarse (1 o 0 sesiones restantes).
+4. Recordatorios de Cita a 48h (Anticipo a Viernes si cae en Fin de Semana).
+   * REGLA CLÍNICA: No se envía ningún aviso comercial o de agotamiento de bono
+     al deportista para evitar intromisión o sensación de persecución.
 =============================================================================
 """
 
@@ -16,7 +18,7 @@ import sqlite3
 import os
 from datetime import datetime, timedelta
 
-import whatsapp_service
+import scheduler
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -32,6 +34,7 @@ def get_financial_and_sessions_analytics(period="month", limit=12):
     - Caja cobrada (Ingresos brutos por venta de bonos en el periodo).
     - Producción devengada (Sesiones asistidas * precio/sesión).
     - Conteo de sesiones semanales y mensuales.
+    - Listado de recordatorios de cita debidos hoy (48h / regla viernes).
     """
     conn = get_db_connection()
     c = conn.cursor()
@@ -104,49 +107,25 @@ def get_financial_and_sessions_analytics(period="month", limit=12):
             "online": ses_info["sesiones_online"]
         })
 
-    # 3. Alertas de Bonos (1 sesión restante o 0 restantes)
-    c.execute("""
-        SELECT b.id, b.order_id, b.client_name, b.client_email, b.tipo_bono,
-               b.total_sessions, b.used_sessions, (b.total_sessions - b.used_sessions) as remaining,
-               b.purchase_date, c.phone
-        FROM bonos b
-        LEFT JOIN clients c ON b.client_id = c.id
-        WHERE b.status = 'Activo' AND (b.total_sessions - b.used_sessions) <= 1
-        ORDER BY remaining ASC, b.id DESC
-    """)
-    alerts_raw = c.fetchall()
+    # 3. Estado interno de Bonos (Contabilidad interna clínica, sin perseguir al paciente)
+    c.execute("SELECT COUNT(*) FROM bonos WHERE status = 'Activo'")
+    bonos_activos = c.fetchone()[0]
 
-    bono_alerts = []
-    for r in alerts_raw:
-        rem = r["remaining"]
-        phone = r["phone"] or ""
-        msg_type = "bono_warning" if rem == 1 else "bono_exhausted"
-        wa_data = whatsapp_service.build_whatsapp_payload(
-            client_name=r["client_name"],
-            phone=phone,
-            msg_type=msg_type,
-            bono_type=r["tipo_bono"],
-            remaining_sessions=rem,
-            total_sessions=r["total_sessions"]
-        )
-        bono_alerts.append({
-            "bono_id": r["id"],
-            "order_id": r["order_id"],
-            "client_name": r["client_name"],
-            "phone": phone,
-            "tipo_bono": r["tipo_bono"],
-            "remaining": rem,
-            "total_sessions": r["total_sessions"],
-            "alert_type": "last_session" if rem == 1 else "exhausted",
-            "whatsapp_link": wa_data["link"],
-            "whatsapp_msg": wa_data["text"]
-        })
+    c.execute("SELECT COUNT(*) FROM bonos WHERE status != 'Activo' OR used_sessions >= total_sessions")
+    bonos_agotados = c.fetchone()[0]
 
     conn.close()
+
+    # 4. Recordatorios de Cita a 48h (Regla de fin de semana: lunes/martes avisados el viernes)
+    pending_reminders = scheduler.get_pending_reminders_for_today()
 
     return {
         "period": period,
         "report": unified_report,
-        "bono_alerts": bono_alerts,
+        "bonos_summary": {
+            "activos": bonos_activos,
+            "agotados": bonos_agotados
+        },
+        "pending_reminders": pending_reminders,
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
