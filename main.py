@@ -731,10 +731,11 @@ def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None):
                         "service": f"{colors['concept']} ({h.get('scope', 'Bloqueo')})",
                         "duration_minutes": 720,
                         "is_holiday": True,
+                        "holiday_id": h["id"],
                         "holiday_name": h["name"],
                         "scope": h.get("scope", "Bloqueo"),
                         "concept": colors["concept"],
-                        "color": colors["border"],
+                        "color": h.get("color") or colors["border"],
                         "notes": f"Día bloqueado por {colors['concept']}: {h['name']}."
                     }
                 })
@@ -827,6 +828,33 @@ def export_calendar_ics():
             lines.append("END:VEVENT")
         except:
             continue
+
+    # 2. Inyectar días bloqueados, festivos, congresos y vacaciones para Google Calendar
+    try:
+        holidays = holidays_manager.get_holidays_list()
+        for h in holidays:
+            if h.get("is_closed", 1):
+                h_date_raw = h["date"]
+                h_date_clean = h_date_raw.replace("-", "")
+                colors = h.get("colors") or holidays_manager.get_holiday_colors(h.get("scope", ""), h.get("name", ""), h.get("color"))
+                summary = f"{colors['icon']} {colors['concept'].upper()}: {h['name']} (Bloqueado ANyD)"
+                desc = f"Concepto: {colors['concept']}\nÁmbito: {h.get('scope', 'Bloqueo')}\nEstado: Clínica Cerrada / Sin Citas Disponibles"
+
+                # DTEND para evento de día completo en VCALENDAR es exclusivo (+1 día)
+                h_next_day = (datetime.strptime(h_date_raw, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y%m%d")
+
+                lines.append("BEGIN:VEVENT")
+                lines.append(f"UID:anyd-holiday-{h['id']}@anyd.es")
+                lines.append(f"DTSTAMP:{datetime.now().strftime('%Y%m%dT%H%M%SZ')}")
+                lines.append(f"DTSTART;VALUE=DATE:{h_date_clean}")
+                lines.append(f"DTEND;VALUE=DATE:{h_next_day}")
+                lines.append(f"SUMMARY:{summary}")
+                lines.append(f"DESCRIPTION:{desc}")
+                lines.append("STATUS:CONFIRMED")
+                lines.append("TRANSP:OPAQUE")
+                lines.append("END:VEVENT")
+    except Exception as e:
+        print(f"Error exportando festivos a iCalendar: {e}")
 
     lines.append("END:VCALENDAR")
     ics_content = "\r\n".join(lines)
@@ -2250,6 +2278,24 @@ def api_add_holiday(req: AddHolidayRequest):
         "success": True,
         "count": count,
         "message": f"Se ha(n) bloqueado {count} día(s) con éxito por '{name}'."
+    }
+
+class EditHolidayRequest(BaseModel):
+    date: str
+    name: str
+    scope: str = "Bloqueo Clínica"
+    color: Optional[str] = None
+
+@app.put("/api/holidays/{holiday_id}")
+def api_edit_holiday(holiday_id: int, req: EditHolidayRequest):
+    """Actualiza un día bloqueado existente."""
+    date_clean = req.date[:10]
+    ok = holidays_manager.update_holiday(holiday_id, date_clean, req.name.strip(), req.scope, req.color)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Error al actualizar el bloqueo en la base de datos.")
+    return {
+        "success": True,
+        "message": f"Bloqueo actualizado con éxito para el día {date_clean}."
     }
 
 @app.delete("/api/holidays/{holiday_id}")

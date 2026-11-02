@@ -104,62 +104,60 @@ def get_holiday_colors(scope: str = "", name: str = "", custom_color: Optional[s
     s = (scope or "").lower()
     n = (name or "").lower()
 
-    if custom_color and custom_color.strip():
-        c = custom_color.strip()
-        is_white = c.upper() in ("#FFF", "#FFFFFF", "WHITE")
-        return {
-            "bg": "#FFFFFF" if is_white else c,
-            "border": "#64748B" if is_white else c,
-            "text": "#0F172A" if is_white else "#FFFFFF",
-            "badge_bg": "#F8FAFC" if is_white else f"{c}20",
-            "badge_color": "#334155" if is_white else c,
-            "concept": "Personalizado",
-            "icon": "⚪" if is_white else "🎨"
-        }
-
     # 1. Congresos
     if "congreso" in s or "congreso" in n or "jornada" in n or "ponencia" in n or "simposio" in n:
+        border = custom_color or "#8B5CF6"
         return {
-            "bg": "#EDE9FE", "border": "#8B5CF6", "text": "#5B21B6",
+            "bg": "#EDE9FE", "border": border, "text": "#5B21B6",
             "badge_bg": "#EDE9FE", "badge_color": "#7C3AED",
             "concept": "Congreso", "icon": "🏛️"
         }
     # 2. Vacaciones
     elif "vacacion" in s or "vacacion" in n or "verano" in n:
+        border = custom_color or "#F59E0B"
         return {
-            "bg": "#FEF3C7", "border": "#F59E0B", "text": "#92400E",
+            "bg": "#FEF3C7", "border": border, "text": "#92400E",
             "badge_bg": "#FEF3C7", "badge_color": "#D97706",
             "concept": "Vacaciones", "icon": "🏖️"
         }
     # 3. Formación / Docencia / Máster
     elif "formaci" in s or "formaci" in n or "master" in n or "máster" in n or "curso" in n or "docencia" in n:
+        border = custom_color or "#3B82F6"
         return {
-            "bg": "#DBEAFE", "border": "#3B82F6", "text": "#1E40AF",
+            "bg": "#DBEAFE", "border": border, "text": "#1E40AF",
             "badge_bg": "#DBEAFE", "badge_color": "#2563EB",
             "concept": "Formación", "icon": "🎓"
         }
     # 4. Asuntos Propios
-    elif "asunto" in s or "asunto" in n or "propio" in n or "personal" in n:
+    elif "asunto" in s or "asunto" in n or ("propio" in n and "personalizado" not in s) or ("personal" in n and "personalizado" not in s):
+        border = custom_color or "#14B8A6"
         return {
-            "bg": "#CCFBF1", "border": "#14B8A6", "text": "#115E59",
+            "bg": "#CCFBF1", "border": border, "text": "#115E59",
             "badge_bg": "#CCFBF1", "badge_color": "#0D9488",
             "concept": "Asuntos Propios", "icon": "🚗"
         }
     # 5. Cierre / Mantenimiento
     elif "cierre" in s or "mantenimiento" in n or "reforma" in n:
+        border = custom_color or "#94A3B8"
         return {
-            "bg": "#F1F5F9", "border": "#94A3B8", "text": "#334155",
+            "bg": "#F1F5F9", "border": border, "text": "#334155",
             "badge_bg": "#F1F5F9", "badge_color": "#475569",
             "concept": "Cierre Clínica", "icon": "🔧"
         }
-    # 6. Personalizado (en blanco)
-    elif "personalizado" in s or "blanco" in s or "en blanco" in s or "otro" in s:
+    # 6. Personalizado (en blanco o con color custom)
+    elif "personalizado" in s or "blanco" in s or "en blanco" in s or (custom_color and custom_color.strip() and custom_color != "#DC2626"):
+        c = (custom_color or "#FFFFFF").strip()
+        is_white = not c or c.upper() in ("#FFF", "#FFFFFF", "WHITE")
         return {
-            "bg": "#FFFFFF", "border": "#64748B", "text": "#0F172A",
-            "badge_bg": "#FFFFFF", "badge_color": "#334155",
-            "concept": "Personalizado", "icon": "⚪"
+            "bg": "#FFFFFF" if is_white else f"{c}20",
+            "border": "#64748B" if is_white else c,
+            "text": "#0F172A" if is_white else c,
+            "badge_bg": "#F8FAFC" if is_white else f"{c}20",
+            "badge_color": "#334155" if is_white else c,
+            "concept": "Personalizado",
+            "icon": "⚪" if is_white else "🎨"
         }
-    # 7. Festivos Oficiales / Fiestas (ROJO siempre)
+    # 7. Festivos Oficiales / Fiestas (ROJO exclusivo)
     else:
         return {
             "bg": "#FEE2E2", "border": "#EF4444", "text": "#991B1B",
@@ -219,6 +217,24 @@ def add_custom_holiday(date_str: str, name: str, scope: str = "Bloqueo Clínica"
         return True
     except Exception as e:
         print(f"Error adding holiday: {e}")
+        conn.close()
+        return False
+
+def update_holiday(holiday_id: int, date_str: str, name: str, scope: str = "Bloqueo Clínica", color: Optional[str] = None) -> bool:
+    """Actualiza los datos de un día bloqueado existente."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+        UPDATE holidays 
+        SET date = ?, name = ?, scope = ?, color = ?
+        WHERE id = ?
+        """, (date_str, name, scope, color, holiday_id))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error updating holiday {holiday_id}: {e}")
         conn.close()
         return False
 
