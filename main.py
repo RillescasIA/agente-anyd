@@ -2994,6 +2994,78 @@ def api_save_dietowin_composition(req: SaveDietowinCompositionRequest):
         "message": "Composición corporal guardada con éxito en el expediente del deportista." if ok else "Error al guardar en el expediente."
     }
 
+class LoadOrRegisterPatientRequest(BaseModel):
+    client_name: str
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    auto_register: Optional[bool] = True
+
+@app.post("/api/diet/load-or-register-patient")
+def api_load_or_register_patient(req: LoadOrRegisterPatientRequest):
+    """
+    Comprueba si el paciente existe; si no, lo da de alta en el CRM.
+    Recupera:
+    1. Datos del cliente (clients + athlete_profiles).
+    2. Ultima composicion corporal (BIA Tanita / Dietowin).
+    3. Notas particulares agregadas (Dietowin consejos, CRM, evolucion medica, anamnesis).
+    4. Ultimo patron nutricional de Dietowin (*.DW11W) listo para cargar en el cuadrante del agente.
+    """
+    check_res = dietowin_scanner.check_or_register_athlete(
+        client_name=req.client_name,
+        phone=req.phone or "",
+        email=req.email or "",
+        auto_register=bool(req.auto_register)
+    )
+    
+    compo_profile = dietowin_scanner.scan_client_dietowin_profile(req.client_name)
+    composition = compo_profile.get("composition")
+    particular_notes = dietowin_scanner.get_client_particular_notes(req.client_name)
+    dw_pattern = dietowin_scanner.parse_latest_dw11w_for_client(req.client_name)
+    
+    return {
+        "success": True,
+        "action": check_res.get("action", "loaded"),
+        "message": check_res.get("message", "Paciente procesado."),
+        "client": check_res.get("client"),
+        "composition": composition,
+        "particular_notes": particular_notes,
+        "dietowin_pattern": dw_pattern
+    }
+
+@app.get("/api/diet/athlete-evolution/{client_name}")
+def api_get_athlete_evolution(client_name: str):
+    """
+    Recupera todo el historial evolutivo de consultas, pesajes y variaciones de composicion
+    para generar graficos evolutivos interactivos.
+    """
+    return dietowin_scanner.get_athlete_evolution_history(client_name)
+
+class AddConsultationMeasurementRequest(BaseModel):
+    client_name: str
+    measurement_date: Optional[str] = None
+    weight: float
+    fat_percent: Optional[float] = None
+    fat_mass: Optional[float] = None
+    ffm: Optional[float] = None
+    muscle_mass: Optional[float] = None
+    water_percent: Optional[float] = None
+    bone_mass: Optional[float] = None
+    visceral_fat: Optional[float] = None
+    bmi: Optional[float] = None
+    cintura_cm: Optional[float] = None
+    cadera_cm: Optional[float] = None
+    brazo_cm: Optional[float] = None
+    muslo_cm: Optional[float] = None
+    notes: Optional[str] = ""
+
+@app.post("/api/diet/add-consultation-measurement")
+def api_add_consultation_measurement(req: AddConsultationMeasurementRequest):
+    """
+    Permite al agente actuar como gestor principal e introducir nuevos valores
+    de consulta para continuar con los evolutivos del paciente.
+    """
+    return dietowin_scanner.add_consultation_measurement(req.client_name, req.dict())
+
 
 
 # ==========================================

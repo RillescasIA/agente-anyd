@@ -585,3 +585,536 @@ def save_dietowin_composition_to_db(client_name: str, compo: Dict[str, Any]) -> 
     except Exception as e:
         print(f"Error guardando composición en base de datos: {e}")
         return False
+
+
+# =====================================================================
+# INTEGRACIÓN AUTÓNOMA DIETOWIN: CARGA DE PATRONES Y NOTAS PARTICULARES
+# =====================================================================
+
+def find_latest_dw11w_file(client_name: str) -> Optional[Dict[str, Any]]:
+    """Localiza el archivo de patrón .DW11W más reciente de este paciente en C:\\SuiteBiológica11\\DietaWeb."""
+    dietaweb_dir = os.path.join(SUITE_DIR, "DietaWeb")
+    if not os.path.exists(dietaweb_dir):
+        return None
+        
+    norm_target = normalize_text(client_name)
+    target_tokens = set([t for t in norm_target.split() if len(t) >= 3])
+    
+    import glob
+    files = glob.glob(os.path.join(dietaweb_dir, "*.DW11W"))
+    matches = []
+    
+    for f in files:
+        try:
+            with open(f, 'rb') as fp:
+                head = fp.read(1500).decode('latin1', errors='replace')
+                m_nom = re.search(r'NombrePaciente=(.+)', head)
+                m_tit = re.search(r'Titulo=(.+)', head)
+                patient_name = m_nom.group(1).strip() if m_nom else ""
+                title = m_tit.group(1).strip() if m_tit else os.path.basename(f)
+                
+                norm_p = normalize_text(patient_name)
+                score = 0
+                if norm_p == norm_target:
+                    score = 100
+                elif norm_target in norm_p or norm_p in norm_target:
+                    score = 80
+                else:
+                    p_toks = set([t for t in norm_p.split() if len(t) >= 3])
+                    common = target_tokens.intersection(p_toks)
+                    if len(common) >= 2:
+                        score = 50 + len(common) * 10
+                    elif len(common) == 1 and len(target_tokens) == 1:
+                        score = 40
+                
+                if score > 0:
+                    mtime = os.path.getmtime(f)
+                    matches.append((score, mtime, f, patient_name, title))
+        except Exception:
+            pass
+            
+    if not matches:
+        return None
+        
+    matches.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    best = matches[0]
+    return {
+        "file_path": best[2],
+        "patient_name": best[3],
+        "title": best[4],
+        "mtime": best[1],
+        "date_str": datetime.fromtimestamp(best[1]).strftime("%Y-%m-%d")
+    }
+
+def lookup_item_macros(name: str, conn) -> Dict[str, Any]:
+    """Busca macros de una receta o alimento de Dietowin en la base de datos oficial."""
+    clean_name = re.sub(r'^\d+\s*g\.?\s*(?:de\s*)?', '', name, flags=re.IGNORECASE).strip()
+    m_g = re.search(r'^(\d+)\s*g', name, re.IGNORECASE)
+    grams = float(m_g.group(1)) if m_g else 100.0
+    
+    c = conn.cursor()
+    # 1. Buscar en diet_recipes
+    c.execute("SELECT id, nombre, kcal, proteina_g, carbohidratos_g, grasa_g FROM diet_recipes WHERE LOWER(nombre) = ? OR LOWER(nombre) LIKE ? LIMIT 1",
+              (clean_name.lower(), f"%{clean_name.lower()}%"))
+    r = c.fetchone()
+    if r:
+        return {
+            "nombre": r["nombre"],
+            "kcal": float(r["kcal"] or 0),
+            "proteina_g": float(r["proteina_g"] or 0),
+            "carbohidratos_g": float(r["carbohidratos_g"] or 0),
+            "grasa_g": float(r["grasa_g"] or 0),
+            "grams": grams,
+            "tipo": "recipe"
+        }
+        
+    # 2. Buscar en diet_foods
+    c.execute("SELECT id, nombre, kcal, proteina_g, carbohidratos_g, grasa_g FROM diet_foods WHERE LOWER(nombre) = ? OR LOWER(nombre) LIKE ? LIMIT 1",
+              (clean_name.lower(), f"%{clean_name.lower()}%"))
+    f = c.fetchone()
+    if f:
+        mult = grams / 100.0
+        return {
+            "nombre": f["nombre"],
+            "kcal": round(float(f["kcal"] or 0) * mult, 1),
+            "proteina_g": round(float(f["proteina_g"] or 0) * mult, 1),
+            "carbohidratos_g": round(float(f["carbohidratos_g"] or 0) * mult, 1),
+            "grasa_g": round(float(f["grasa_g"] or 0) * mult, 1),
+            "grams": grams,
+            "tipo": "food"
+        }
+        
+    # 3. Estimación por defecto
+    return {
+        "nombre": name,
+        "kcal": round(grams * 1.5, 1),
+        "proteina_g": round(grams * 0.08, 1),
+        "carbohidratos_g": round(grams * 0.20, 1),
+        "grasa_g": round(grams * 0.04, 1),
+        "grams": grams,
+        "tipo": "food"
+    }
+
+def parse_latest_dw11w_for_client(client_name: str) -> Optional[Dict[str, Any]]:
+    """Parsea el último patrón .DW11W del paciente y lo convierte a estructura semanal del agente."""
+    latest = find_latest_dw11w_file(client_name)
+    if not latest:
+        return None
+        
+    conn = get_db()
+    try:
+        with open(latest["file_path"], 'rb') as fp:
+            lines = fp.read().decode('latin1', errors='replace').splitlines()
+            
+        days_map = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
+        week_state = {
+            d: {
+                "workouts": [], "suplementacion": [], "desayuno": [], "media_manana": [],
+                "almuerzo": [], "merienda": [], "cena": [], "recena": []
+            } for d in days_map.values()
+        }
+        
+        consejos = []
+        raw_days = {}
+        has_recena = False
+        
+        for line in lines:
+            line = line.strip()
+            if not line or '=' not in line: continue
+            k, v = line.split('=', 1)
+            k, v = k.strip(), v.strip()
+            
+            m_h = re.match(r'^Hora:(\d+):(\d+)$', k)
+            if m_h:
+                d_idx, m_idx = int(m_h.group(1)), int(m_h.group(2))
+                raw_days.setdefault(d_idx, {}).setdefault(m_idx, {})["hora"] = v
+                continue
+            m_r = re.match(r'^Receta:(\d+):(\d+)$', k)
+            if m_r:
+                d_idx, m_idx = int(m_r.group(1)), int(m_r.group(2))
+                raw_days.setdefault(d_idx, {}).setdefault(m_idx, {})["receta"] = v
+                continue
+            m_i = re.match(r'^Ingredientes:(\d+):(\d+)$', k)
+            if m_i:
+                d_idx, m_idx = int(m_i.group(1)), int(m_i.group(2))
+                raw_days.setdefault(d_idx, {}).setdefault(m_idx, {})["ingredientes"] = v.replace('<b>Ingredientes: </b>', '').strip()
+                continue
+            m_e = re.match(r'^Elaboracion:(\d+):(\d+)$', k)
+            if m_e:
+                d_idx, m_idx = int(m_e.group(1)), int(m_e.group(2))
+                raw_days.setdefault(d_idx, {}).setdefault(m_idx, {})["elaboracion"] = v.replace('Elaboración: ', '').strip()
+                continue
+            if k.startswith('Consejo:') and v and v != 'Fin' and not k.endswith('Filename'):
+                consejos.append(v)
+                
+        for d_idx, day_name in days_map.items():
+            items = raw_days.get(d_idx, {})
+            for m_idx in sorted(items.keys()):
+                it = items[m_idx]
+                hora_raw = it.get("hora", "").strip()
+                receta_raw = it.get("receta", "").strip()
+                if not receta_raw or receta_raw == '(sin receta)':
+                    continue
+                    
+                hl = hora_raw.lower()
+                if 'desayuno' in hl:
+                    slot = 'desayuno'
+                elif 'media ma' in hl or 'tentemp' in hl:
+                    slot = 'media_manana'
+                elif 'almuerzo' in hl or 'comida' in hl:
+                    slot = 'almuerzo'
+                elif 'merienda' in hl:
+                    slot = 'merienda'
+                elif 'cena' in hl:
+                    slot = 'cena'
+                elif 'recena' in hl:
+                    slot = 'recena'
+                    has_recena = True
+                elif 'suplement' in hl:
+                    slot = 'suplementacion'
+                elif 'entren' in hl or 'pesas' in hl or 'cf' in hl or 'tkd' in hl or 'carrera' in hl:
+                    rl = receta_raw.lower()
+                    if any(s in rl for s in ['taekwondo', 'fuerza', 'crossfit', 'carrera', 'rodaje', 'entrenamiento', 'pesas', 'wod', 'series', 'haltero']):
+                        m_time = re.search(r'(\d{1,2}:\d{2})', hora_raw)
+                        st_time = m_time.group(1) if m_time else ("09:00" if "mañana" in hl else "18:30")
+                        if len(st_time) == 4: st_time = "0" + st_time
+                        
+                        # Evitar duplicados idénticos a la misma hora
+                        w_list = week_state[day_name]["workouts"]
+                        if not any(w["sport"] == receta_raw and w["start_time"] == st_time for w in w_list):
+                            w_list.append({
+                                "sport": receta_raw,
+                                "start_time": st_time,
+                                "duration_min": 75,
+                                "intensity": "Alta",
+                                "nutrition": {
+                                    "intra": {"fluid_ml_h": 600, "sodium_mg_h": 450}
+                                }
+                            })
+                        continue
+                    else:
+                        slot = 'merienda'
+                else:
+                    slot = 'almuerzo'
+                    
+                food_obj = lookup_item_macros(receta_raw, conn)
+                if it.get("ingredientes"): food_obj["ingredientes"] = it["ingredientes"]
+                if it.get("elaboracion"): food_obj["elaboracion"] = it["elaboracion"]
+                week_state[day_name][slot].append(food_obj)
+                
+        # Estructura de slots recomendada
+        active_slots = [
+            {"id": "slot_suplementacion", "key": "suplementacion", "label": "Suplementación", "icon": "💊", "time": "08:00", "defaultTime": "08:00", "type": "food"},
+            {"id": "slot_desayuno", "key": "desayuno", "label": "Desayuno", "icon": "🌅", "time": "08:30", "defaultTime": "08:30", "type": "food"},
+            {"id": "slot_media_manana", "key": "media_manana", "label": "Media mañana", "icon": "🥪", "time": "11:30", "defaultTime": "11:30", "type": "food"},
+            {"id": "slot_almuerzo", "key": "almuerzo", "label": "Almuerzo", "icon": "🍲", "time": "14:30", "defaultTime": "14:30", "type": "food"},
+            {"id": "slot_merienda", "key": "merienda", "label": "Media tarde", "icon": "☕", "time": "18:00", "defaultTime": "18:00", "type": "food"},
+            {"id": "slot_entrenamiento", "key": "entrenamiento", "label": "Entrenamiento", "icon": "🏃", "time": "18:30", "defaultTime": "18:30", "type": "workout"},
+            {"id": "slot_cena", "key": "cena", "label": "Cena", "icon": "🥗", "time": "21:30", "defaultTime": "21:30", "type": "food"}
+        ]
+        if has_recena:
+            active_slots.append({
+                "id": "slot_recena", "key": "recena", "label": "Recena", "icon": "🥛", "time": "23:00", "defaultTime": "23:00", "type": "food", "isCustom": True
+            })
+            
+        return {
+            "found": True,
+            "patient_name": latest["patient_name"],
+            "title": latest["title"],
+            "file": os.path.basename(latest["file_path"]),
+            "date_str": latest["date_str"],
+            "mtime": latest["mtime"],
+            "consejos": consejos,
+            "weekly_data": week_state,
+            "active_slots": active_slots
+        }
+    finally:
+        conn.close()
+
+def get_client_particular_notes(client_name: str) -> Dict[str, Any]:
+    """Agrega todas las notas particulares y clínicas del paciente (Dietowin, CRM, evolución médica y Drive)."""
+    notes = {
+        "client_name": client_name,
+        "crm_note": "",
+        "dietowin_consejos": [],
+        "clinical_evolution": [],
+        "allergies": "",
+        "pathologies": "",
+        "digestive_issues": "",
+        "profile_notes": "",
+        "anamnesis_docx_summary": ""
+    }
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    # 1. Notas del CRM y ficha de atleta
+    c.execute("SELECT id, fullname, note FROM clients WHERE LOWER(fullname) LIKE ? OR LOWER(fullname) = ? LIMIT 1",
+              (f"%{normalize_text(client_name)}%", normalize_text(client_name)))
+    client_row = c.fetchone()
+    if client_row:
+        notes["crm_note"] = client_row["note"] or ""
+        client_id = client_row["id"]
+        
+        c.execute("SELECT allergies, pathologies, digestive_issues, notes FROM athlete_profiles WHERE client_id = ?", (client_id,))
+        p_row = c.fetchone()
+        if p_row:
+            notes["allergies"] = p_row["allergies"] or ""
+            notes["pathologies"] = p_row["pathologies"] or ""
+            notes["digestive_issues"] = p_row["digestive_issues"] or ""
+            notes["profile_notes"] = p_row["notes"] or ""
+            
+        c.execute("""
+            SELECT session_date, session_type, subjective, objective, assessment, plan, private_notes
+            FROM clinical_notes WHERE client_id = ?
+            ORDER BY session_date DESC, id DESC LIMIT 5
+        """, (client_id,))
+        for cn in c.fetchall():
+            notes["clinical_evolution"].append({
+                "date": cn["session_date"],
+                "type": cn["session_type"] or "Consulta",
+                "private_notes": cn["private_notes"] or "",
+                "subjective": cn["subjective"] or "",
+                "plan": cn["plan"] or ""
+            })
+            
+    conn.close()
+    
+    # 2. Consejos particulares de Dietowin desde el último .DW11W
+    dw_plan = parse_latest_dw11w_for_client(client_name)
+    if dw_plan and dw_plan.get("consejos"):
+        notes["dietowin_consejos"] = dw_plan["consejos"]
+        notes["dietowin_plan_title"] = dw_plan.get("title")
+        notes["dietowin_plan_date"] = dw_plan.get("date_str")
+        
+    # 3. Resumen de Anamnesis / Cuestionario docx en Drive
+    folder = find_athlete_drive_folder(client_name)
+    if folder and os.path.exists(folder):
+        for f in os.listdir(folder):
+            if f.lower().endswith(".docx") and any(k in f.lower() for k in ["consulta", "anamnesis", "recordatorio"]):
+                try:
+                    import docx
+                    doc = docx.Document(os.path.join(folder, f))
+                    summary_lines = []
+                    for p in doc.paragraphs:
+                        txt = p.text.strip()
+                        if txt and any(k in txt.lower() for k in ["objetivo", "deporte", "alergia", "intolerancia", "horario", "observaci", "suplement", "gustos"]):
+                            summary_lines.append(txt)
+                    if summary_lines:
+                        notes["anamnesis_docx_summary"] = " | ".join(summary_lines[:6])
+                except Exception:
+                    pass
+                break
+                
+    return notes
+
+def check_or_register_athlete(client_name: str, phone: str = "", email: str = "", auto_register: bool = True) -> Dict[str, Any]:
+    """Comprueba si el paciente existe en el CRM; si no existe, lo da de alta."""
+    clean_name = client_name.strip()
+    if not clean_name:
+        return {"exists": False, "action": "invalid_name", "client": None}
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    norm_name = normalize_text(clean_name)
+    
+    cursor.execute("""
+        SELECT id, firstname, lastname, fullname, email, phone, note, created_at, photo_url
+        FROM clients
+        WHERE LOWER(fullname) = ? OR LOWER(fullname) LIKE ?
+        ORDER BY CASE WHEN LOWER(fullname) = ? THEN 1 ELSE 2 END, id DESC LIMIT 1
+    """, (norm_name, f"%{norm_name}%", norm_name))
+    row = cursor.fetchone()
+    
+    if row:
+        client_data = dict(row)
+        conn.close()
+        return {
+            "exists": True,
+            "action": "loaded",
+            "client": client_data,
+            "message": f"Paciente '{client_data['fullname']}' localizado en el CRM."
+        }
+        
+    if not auto_register:
+        conn.close()
+        return {
+            "exists": False,
+            "action": "not_found",
+            "client": None,
+            "message": f"El paciente '{clean_name}' no existe en el sistema."
+        }
+        
+    parts = clean_name.split(" ", 1)
+    fname = parts[0]
+    lname = parts[1] if len(parts) > 1 else ""
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    cursor.execute("""
+        INSERT INTO clients (firstname, lastname, fullname, email, phone, note, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (fname, lname, clean_name, email or "", phone or "", "Alta automática desde Patrones Nutricionales", created_at))
+    client_id = cursor.lastrowid
+    
+    cursor.execute("""
+        INSERT INTO athlete_profiles (client_id, main_goal, notes, updated_at)
+        VALUES (?, ?, ?, ?)
+    """, (client_id, "Rendimiento Deportivo y Salud", "Alta automática", created_at))
+    conn.commit()
+    
+    cursor.execute("SELECT id, firstname, lastname, fullname, email, phone, note, created_at, photo_url FROM clients WHERE id = ?", (client_id,))
+    new_client = dict(cursor.fetchone())
+    conn.close()
+    
+    return {
+        "exists": False,
+        "action": "registered",
+        "client": new_client,
+        "message": f"Nuevo paciente '{clean_name}' dado de alta con éxito en el sistema."
+    }
+
+def get_athlete_evolution_history(client_name: str) -> Dict[str, Any]:
+    """Recupera todo el historial evolutivo de consultas y pesajes con cálculos de deltas y variación."""
+    conn = get_db()
+    cursor = conn.cursor()
+    norm_name = normalize_text(client_name)
+    
+    cursor.execute("""
+        SELECT id, firstname, lastname, fullname FROM clients
+        WHERE LOWER(fullname) = ? OR LOWER(fullname) LIKE ?
+        ORDER BY CASE WHEN LOWER(fullname) = ? THEN 1 ELSE 2 END, id DESC LIMIT 1
+    """, (norm_name, f"%{norm_name}%", norm_name))
+    client_row = cursor.fetchone()
+    
+    client_id = client_row["id"] if client_row else None
+    official_name = client_row["fullname"] if client_row else client_name
+    
+    cursor.execute("""
+        SELECT id, measurement_date, weight, bmi, fat_percent, fat_mass, muscle_mass,
+               ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, perimeters_json, created_at
+        FROM tanita_measurements
+        WHERE (client_id = ? OR LOWER(client_name) LIKE ? OR LOWER(client_name) = ?)
+        ORDER BY measurement_date ASC, id ASC
+    """, (client_id, f"%{norm_name}%", norm_name))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    consultations = []
+    prev = None
+    
+    for r in rows:
+        d = dict(r)
+        # Parse perimeters if available
+        try:
+            d["perimeters"] = json.loads(d.get("perimeters_json") or "{}")
+        except:
+            d["perimeters"] = {}
+            
+        # Calcular deltas con la consulta anterior
+        deltas = {}
+        if prev:
+            if d.get("weight") and prev.get("weight"):
+                deltas["weight"] = round(d["weight"] - prev["weight"], 1)
+            if d.get("fat_percent") and prev.get("fat_percent"):
+                deltas["fat_percent"] = round(d["fat_percent"] - prev["fat_percent"], 1)
+            if d.get("fat_mass") and prev.get("fat_mass"):
+                deltas["fat_mass"] = round(d["fat_mass"] - prev["fat_mass"], 1)
+            if d.get("muscle_mass") and prev.get("muscle_mass"):
+                deltas["muscle_mass"] = round(d["muscle_mass"] - prev["muscle_mass"], 1)
+            if d.get("ffm") and prev.get("ffm"):
+                deltas["ffm"] = round(d["ffm"] - prev["ffm"], 1)
+            if d.get("water_percent") and prev.get("water_percent"):
+                deltas["water_percent"] = round(d["water_percent"] - prev["water_percent"], 1)
+            if d.get("visceral_fat") and prev.get("visceral_fat"):
+                deltas["visceral_fat"] = round(d["visceral_fat"] - prev["visceral_fat"], 1)
+        d["deltas"] = deltas
+        consultations.append(d)
+        prev = d
+        
+    return {
+        "client_name": official_name,
+        "client_id": client_id,
+        "total_consultations": len(consultations),
+        "consultations": consultations,
+        "latest": consultations[-1] if consultations else None
+    }
+
+def add_consultation_measurement(client_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Registra una nueva consulta/evolutivo para el deportista en tanita_measurements y clinical_notes."""
+    conn = get_db()
+    cursor = conn.cursor()
+    norm_name = normalize_text(client_name)
+    
+    cursor.execute("""
+        SELECT id, fullname FROM clients
+        WHERE LOWER(fullname) = ? OR LOWER(fullname) LIKE ?
+        ORDER BY CASE WHEN LOWER(fullname) = ? THEN 1 ELSE 2 END, id DESC LIMIT 1
+    """, (norm_name, f"%{norm_name}%", norm_name))
+    client_row = cursor.fetchone()
+    
+    if not client_row:
+        # Dar de alta al paciente si no existe
+        client_id = ensure_client_exists(conn, client_name)
+        official_name = client_name
+    else:
+        client_id = client_row["id"]
+        official_name = client_row["fullname"]
+        
+    meas_date = data.get("measurement_date") or datetime.now().strftime("%Y-%m-%d")
+    weight = float(data.get("weight") or 70.0)
+    fat_pct = float(data.get("fat_percent") or 15.0)
+    fat_mass = float(data.get("fat_mass") or round(weight * (fat_pct / 100.0), 1))
+    ffm = float(data.get("ffm") or round(weight - fat_mass, 1))
+    muscle = float(data.get("muscle_mass") or round(ffm * 0.94, 1))
+    water = float(data.get("water_percent") or 60.0)
+    bone = float(data.get("bone_mass") or 2.8)
+    visceral = float(data.get("visceral_fat") or 2.0)
+    bmr_cunningham = round(500 + 22 * ffm)
+    bmi = float(data.get("bmi") or round(weight / (1.75**2), 1))
+    
+    perims = {
+        "cintura_cm": data.get("cintura_cm"),
+        "cadera_cm": data.get("cadera_cm"),
+        "brazo_cm": data.get("brazo_cm"),
+        "muslo_cm": data.get("muslo_cm")
+    }
+    perims_json = json.dumps({k: v for k, v in perims.items() if v is not None})
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    cursor.execute("""
+        INSERT INTO tanita_measurements (
+            client_id, client_name, measurement_date, weight, bmi, fat_percent, fat_mass,
+            muscle_mass, ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, perimeters_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        client_id, official_name, meas_date, weight, bmi, fat_pct, fat_mass,
+        muscle, ffm, water, bone, visceral, bmr_cunningham, perims_json, created_at
+    ))
+    meas_id = cursor.lastrowid
+    
+    # Si hay notas de consulta, guardar en clinical_notes
+    notes_text = data.get("notes") or ""
+    if notes_text:
+        cursor.execute("""
+            INSERT INTO clinical_notes (
+                client_id, session_date, session_type, subjective, objective, private_notes, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            client_id, meas_date, "Seguimiento Evolutivo", notes_text,
+            f"Peso: {weight}kg · FFM: {ffm}kg · Grasa: {fat_pct}% · Músculo: {muscle}kg",
+            notes_text, created_at
+        ))
+        
+    conn.commit()
+    conn.close()
+    
+    return {
+        "success": True,
+        "id": meas_id,
+        "client_name": official_name,
+        "measurement_date": meas_date,
+        "weight": weight,
+        "ffm": ffm,
+        "bmr_cunningham": bmr_cunningham,
+        "message": f"Consulta del día {meas_date} guardada con éxito en el evolutivo."
+    }

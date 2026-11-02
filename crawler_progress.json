@@ -1,0 +1,20 @@
+{
+  "start_time": "2026-11-02 23:33:19",
+  "folders_scanned": 363,
+  "patients_processed": 353,
+  "new_measurements_inserted": 8,
+  "new_plans_imported": 27,
+  "errors": [
+    "Error procesando Amanda Espuela: UNIQUE constraint failed: clients.email",
+    "Error procesando Santiago Paradela: UNIQUE constraint failed: clients.email",
+    "Error procesando Gabriel García: UNIQUE constraint failed: clients.email",
+    "Error procesando Ismael Clemente Cerrato: UNIQUE constraint failed: clients.email",
+    "Error procesando Samuel Pizarro: UNIQUE constraint failed: clients.email",
+    "Error procesando Amanda Espuela (2): UNIQUE constraint failed: clients.email",
+    "Error procesando Ruben Nuñez: UNIQUE constraint failed: clients.email",
+    "Error procesando Francisco Pablos Velazquez: UNIQUE constraint failed: clients.email",
+    "Error procesando Ariel Camino Campello: UNIQUE constraint failed: clients.email",
+    "Error procesando Roman Illescas: UNIQUE constraint failed: clients.email"
+  ],
+  "finish_time": "2026-11-02 23:33:46"
+}
