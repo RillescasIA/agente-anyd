@@ -164,6 +164,76 @@
             color: white;
         }
 
+        /* Input de hora editable en la toma */
+        .matrix-time-input {
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: #0369A1;
+            background: #F0F9FF;
+            border: 1px solid #BAE6FD;
+            border-radius: 4px;
+            padding: 2px 4px;
+            width: 66px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .matrix-time-input:hover, .matrix-time-input:focus {
+            background: #FFFFFF;
+            border-color: #0284C7;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+        }
+        .matrix-btn-move {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #CBD5E1;
+            background: white;
+            color: #475569;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            line-height: 1;
+        }
+        .matrix-btn-move:hover:not(:disabled) {
+            background: #0F172A;
+            border-color: #0F172A;
+            color: white;
+        }
+        .matrix-btn-move:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        /* Píldoras interactivas de días para el modal de entrenamiento */
+        .btn-day-pill {
+            padding: 5px 12px;
+            border: 1.5px solid #CBD5E1;
+            background: #FFFFFF;
+            color: #334155;
+            font-weight: 700;
+            font-size: 11.5px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .btn-day-pill:hover {
+            border-color: #0284C7;
+            color: #0284C7;
+        }
+        .btn-day-pill.active {
+            background: #0284C7 !important;
+            border-color: #0284C7 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+        }
+
         /* Cabecera de los Días (Gráfico Circular & Target) */
         .matrix-day-header-cell {
             background: #FFFFFF;
@@ -1117,24 +1187,38 @@
 
                 <!-- SECCIÓN B: AÑADIR MANUAL -->
                 <div id="train-tab-manual" class="hidden">
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-                        <div>
-                            <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Día de la Semana *</label>
-                            <select id="train-manual-day" class="form-control">
-                                <option value="Lunes">Lunes</option>
-                                <option value="Martes">Martes</option>
-                                <option value="Miércoles">Miércoles</option>
-                                <option value="Jueves">Jueves</option>
-                                <option value="Viernes">Viernes</option>
-                                <option value="Sábado">Sábado</option>
-                                <option value="Domingo">Domingo</option>
-                            </select>
+                    <!-- Selector de días múltiple con píldoras y atajos -->
+                    <div style="margin-bottom:14px; background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:8px; padding:12px;">
+                        <label style="font-size:12px; font-weight:700; color:#0F172A; display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span>📅 Días de la Semana * (Marca uno o varios días):</span>
+                            <span id="manual-days-count-label" style="font-size:11px; color:#0284C7; font-weight:700;">1 día seleccionado</span>
+                        </label>
+                        <div id="manual-days-pills" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                            <button type="button" class="btn-day-pill active" data-day="Lunes" onclick="toggleManualDay(this)">Lunes</button>
+                            <button type="button" class="btn-day-pill" data-day="Martes" onclick="toggleManualDay(this)">Martes</button>
+                            <button type="button" class="btn-day-pill" data-day="Miércoles" onclick="toggleManualDay(this)">Miércoles</button>
+                            <button type="button" class="btn-day-pill" data-day="Jueves" onclick="toggleManualDay(this)">Jueves</button>
+                            <button type="button" class="btn-day-pill" data-day="Viernes" onclick="toggleManualDay(this)">Viernes</button>
+                            <button type="button" class="btn-day-pill" data-day="Sábado" onclick="toggleManualDay(this)">Sábado</button>
+                            <button type="button" class="btn-day-pill" data-day="Domingo" onclick="toggleManualDay(this)">Domingo</button>
                         </div>
-                        <div>
-                            <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Hora de Inicio (HH:MM) *</label>
-                            <input type="time" id="train-manual-time" class="form-control" value="18:30">
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                            <span style="font-size:11px; color:#64748B; font-weight:600;">Atajos rápidos:</span>
+                            <button type="button" class="btn-anyd btn-outline" style="font-size:10.5px; padding:2px 8px;" onclick="setManualDays(['Lunes','Martes','Miércoles','Jueves','Viernes'])">L - M - X - J - V</button>
+                            <button type="button" class="btn-anyd btn-outline" style="font-size:10.5px; padding:2px 8px;" onclick="setManualDays(['Lunes','Miércoles','Viernes'])">L - X - V</button>
+                            <button type="button" class="btn-anyd btn-outline" style="font-size:10.5px; padding:2px 8px;" onclick="setManualDays(['Martes','Jueves'])">M - J</button>
+                            <button type="button" class="btn-anyd btn-outline" style="font-size:10.5px; padding:2px 8px;" onclick="setManualDays(['Sábado','Domingo'])">Fin de Semana</button>
+                            <button type="button" class="btn-anyd btn-outline" style="font-size:10.5px; padding:2px 8px;" onclick="setManualDays(['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'])">Todos los días</button>
+                            <button type="button" class="btn-anyd btn-outline" style="font-size:10.5px; padding:2px 8px; color:#DC2626; border-color:#FECACA;" onclick="setManualDays([])">Limpiar</button>
                         </div>
                     </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                        <div>
+                            <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Hora de Inicio (HH:MM) *</label>
+                            <input type="time" id="train-manual-time" class="form-control" value="18:30" style="font-weight:700; font-family:monospace; color:#0369A1;">
+                            <span style="font-size:10.5px; color:#64748B; margin-top:2px; display:block;">Se situará en el patrón a la hora especificada.</span>
+                        </div>
 
                     <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-bottom:12px;">
                         <div>
@@ -1777,18 +1861,287 @@ Domingo: descanso"></textarea>
         </div>
     </div>
 
+
+    <!-- ================= MODAL: AÑADIR TOMA O HUECO HORARIO AL PATRÓN ================= -->
+    <div id="add-slot-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:480px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%); color:white; border-radius:12px 12px 0 0; padding:14px 18px;">
+                <div>
+                    <h3 style="font-family:'Montserrat', sans-serif; font-size:16px; font-weight:800; margin:0; display:flex; align-items:center; gap:6px;">
+                        <span>➕</span> Añadir Toma o Hueco Horario al Patrón
+                    </h3>
+                    <span style="font-size:11.5px; opacity:0.9;">Crea una nueva fila horaria para comidas, entrenamientos o suplementación</span>
+                </div>
+                <button onclick="closeAddSlotModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:white;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:18px;">
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nombre de la Toma / Hueco *</label>
+                    <input type="text" id="new-slot-name" class="form-control" placeholder="Ej: Entrenamiento Tarde, Pre-Entreno, Recena...">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Hora Identificada (HH:MM) *</label>
+                        <input type="time" id="new-slot-time" class="form-control" value="18:30" style="font-family:monospace; font-weight:700; color:#0369A1;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Icono / Emoji</label>
+                        <select id="new-slot-icon" class="form-control">
+                            <option value="🏃" selected>🏃 Entrenamiento</option>
+                            <option value="⚡">⚡ Pre-Entreno</option>
+                            <option value="🥤">🥤 Post-Entreno</option>
+                            <option value="🌅">🌅 Desayuno</option>
+                            <option value="🥪">🥪 Media Mañana / Snack</option>
+                            <option value="🍲">🍲 Almuerzo / Comida</option>
+                            <option value="🍎">🍎 Media Tarde / Merienda</option>
+                            <option value="🥗">🥗 Cena</option>
+                            <option value="🥛">🥛 Recena</option>
+                            <option value="💊">💊 Suplementación</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Tipo de Fila</label>
+                    <select id="new-slot-type" class="form-control">
+                        <option value="workout" selected>🏃 Sesión de Entrenamiento (vincula protocolos ACSM)</option>
+                        <option value="food">🍽️ Toma de Comida / Plato Nutricional</option>
+                    </select>
+                </div>
+                <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; padding:8px 12px; font-size:11.5px; color:#166534;">
+                    💡 <strong>Posicionamiento automático:</strong> La nueva fila se insertará y situará en el patrón según la hora especificada.
+                </div>
+            </div>
+            <div class="modal-footer" style="padding:12px 18px; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border-radius:0 0 12px 12px;">
+                <button type="button" onclick="closeAddSlotModal()" class="btn-anyd btn-outline">Cancelar</button>
+                <button type="button" onclick="submitAddNewSlot()" class="btn-anyd btn-success">➕ Añadir al Patrón</button>
+            </div>
+        </div>
+    </div>
+
     <!-- JAVASCRIPT MASTER DIETOWIN 2.0 -->
     <script>
         const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-        const MEAL_SLOTS = [
-            { key: "suplementacion", label: "Suplementación", icon: "💊", defaultTime: "08:00", allowedGroup: "09. Rendimiento: Batidos, Suplementación & Fit" },
-            { key: "desayuno", label: "Desayuno", icon: "🌅", defaultTime: "08:30", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
-            { key: "entrenamiento", label: "Entrenamiento", icon: "🏃", defaultTime: "10:30", allowedGroup: "09. Rendimiento: Batidos, Suplementación & Fit" },
-            { key: "media_manana", label: "Media mañana", icon: "🥪", defaultTime: "11:30", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
-            { key: "almuerzo", label: "Almuerzo", icon: "🍲", defaultTime: "14:30", allowedGroup: "05. Primeros: Arroces, Pastas & Legumbres" },
-            { key: "merienda", label: "Media tarde", icon: "☕", defaultTime: "18:00", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
-            { key: "cena", label: "Cena", icon: "🥗", defaultTime: "21:30", allowedGroup: "06. Segundos: Pescados, Mariscos & Moluscos" }
-        ];
+
+        // Estructura dinámica de tomas horarias y huecos
+        function initDefaultSlots() {
+            return [
+                { id: "slot_suplementacion", key: "suplementacion", label: "Suplementación", icon: "💊", time: "08:00", defaultTime: "08:00", type: "food", allowedGroup: "09. Rendimiento: Batidos, Suplementación & Fit" },
+                { id: "slot_desayuno", key: "desayuno", label: "Desayuno", icon: "🌅", time: "08:30", defaultTime: "08:30", type: "food", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
+                { id: "slot_media_manana", key: "media_manana", label: "Media mañana", icon: "🥪", time: "11:30", defaultTime: "11:30", type: "food", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
+                { id: "slot_almuerzo", key: "almuerzo", label: "Almuerzo", icon: "🍲", time: "14:30", defaultTime: "14:30", type: "food", allowedGroup: "05. Primeros: Arroces, Pastas & Legumbres" },
+                { id: "slot_merienda", key: "merienda", label: "Media tarde", icon: "☕", time: "18:00", defaultTime: "18:00", type: "food", allowedGroup: "01. Desayunos, Meriendas & Snacks" },
+                { id: "slot_entrenamiento", key: "entrenamiento", label: "Entrenamiento", icon: "🏃", time: "18:30", defaultTime: "18:30", type: "workout", allowedGroup: "09. Rendimiento: Batidos, Suplementación & Fit" },
+                { id: "slot_cena", key: "cena", label: "Cena", icon: "🥗", time: "21:30", defaultTime: "21:30", type: "food", allowedGroup: "06. Segundos: Pescados, Mariscos & Moluscos" }
+            ];
+        }
+
+        let activeSlots = initDefaultSlots();
+        let MEAL_SLOTS = activeSlots; // Referencia compatible para funciones existentes
+
+        // Funciones utilitarias para ordenación y manipulación de tomas y huecos
+        function timeToMinutes(t) {
+            if (!t) return 0;
+            const parts = t.split(':');
+            return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+        }
+
+        function updateSlotTime(slotIdOrKey, newTime) {
+            const slot = activeSlots.find(s => s.id === slotIdOrKey || s.key === slotIdOrKey);
+            if (slot) {
+                slot.time = newTime;
+                slot.defaultTime = newTime;
+                renderWeekGrid();
+            }
+        }
+
+        function moveSlotUp(index) {
+            if (index > 0) {
+                const temp = activeSlots[index];
+                activeSlots[index] = activeSlots[index - 1];
+                activeSlots[index - 1] = temp;
+                MEAL_SLOTS = activeSlots;
+                renderWeekGrid();
+            }
+        }
+
+        function moveSlotDown(index) {
+            if (index < activeSlots.length - 1) {
+                const temp = activeSlots[index];
+                activeSlots[index] = activeSlots[index + 1];
+                activeSlots[index + 1] = temp;
+                MEAL_SLOTS = activeSlots;
+                renderWeekGrid();
+            }
+        }
+
+        function sortSlotsChronologically() {
+            activeSlots.sort((a, b) => timeToMinutes(a.time || a.defaultTime) - timeToMinutes(b.time || b.defaultTime));
+            MEAL_SLOTS = activeSlots;
+            renderWeekGrid();
+        }
+
+        function openAddSlotModal() {
+            const m = document.getElementById('add-slot-modal');
+            if (m) m.classList.remove('hidden');
+        }
+
+        function closeAddSlotModal() {
+            const m = document.getElementById('add-slot-modal');
+            if (m) m.classList.add('hidden');
+        }
+
+        function submitAddNewSlot() {
+            const name = document.getElementById('new-slot-name').value.trim();
+            const time = document.getElementById('new-slot-time').value.trim() || '18:30';
+            const icon = document.getElementById('new-slot-icon').value || '🏃';
+            const type = document.getElementById('new-slot-type').value || 'workout';
+
+            if (!name) {
+                alert("Por favor introduce el nombre de la toma o hueco.");
+                return;
+            }
+
+            const ts = Date.now();
+            const id = 'slot_' + ts;
+            const key = (type === 'workout' ? 'workout_' : 'custom_') + ts;
+            const newSlot = {
+                id: id,
+                key: key,
+                label: name,
+                icon: icon,
+                time: time,
+                defaultTime: time,
+                type: type,
+                isCustom: true,
+                allowedGroup: type === 'workout' ? "09. Rendimiento: Batidos, Suplementación & Fit" : "01. Desayunos, Meriendas & Snacks"
+            };
+
+            // Inserción ordenada cronológicamente
+            const newMin = timeToMinutes(time);
+            let insertIdx = activeSlots.length;
+            for (let i = 0; i < activeSlots.length; i++) {
+                if (timeToMinutes(activeSlots[i].time || activeSlots[i].defaultTime) > newMin) {
+                    insertIdx = i;
+                    break;
+                }
+            }
+            activeSlots.splice(insertIdx, 0, newSlot);
+            MEAL_SLOTS = activeSlots;
+
+            // Inicializar clave en todos los días
+            DAYS.forEach(day => {
+                if (!currentWeekState[day][key]) {
+                    currentWeekState[day][key] = [];
+                }
+            });
+
+            closeAddSlotModal();
+            document.getElementById('new-slot-name').value = '';
+            renderWeekGrid();
+        }
+
+        function deleteCustomSlot(slotIdOrKey) {
+            const slot = activeSlots.find(s => s.id === slotIdOrKey || s.key === slotIdOrKey);
+            if (!slot) return;
+            if (!confirm(`¿Eliminar la fila '${slot.label}' (${slot.time}) del patrón nutricional?`)) return;
+            activeSlots = activeSlots.filter(s => s !== slot);
+            MEAL_SLOTS = activeSlots;
+            renderWeekGrid();
+        }
+
+        // Posicionamiento inteligente de entrenamientos según la hora identificada
+        function ensureWorkoutSlotForTime(startTime, sportName) {
+            if (!startTime) return;
+            const wMin = timeToMinutes(startTime);
+            const workoutSlots = activeSlots.filter(s => s.type === 'workout' || s.key === 'entrenamiento' || s.key.startsWith('workout_'));
+
+            if (workoutSlots.length === 0) {
+                const newSlot = {
+                    id: 'slot_workout_' + startTime.replace(':', ''),
+                    key: 'entrenamiento',
+                    label: sportName ? `Entrenamiento: ${sportName}` : 'Entrenamiento',
+                    icon: '🏃',
+                    time: startTime,
+                    defaultTime: startTime,
+                    type: 'workout'
+                };
+                activeSlots.push(newSlot);
+                sortSlotsChronologically();
+                return newSlot;
+            }
+
+            // Proximidad con tolerancia de 60 minutos
+            const closest = workoutSlots.reduce((best, s) => {
+                const d = Math.abs(timeToMinutes(s.time || s.defaultTime) - wMin);
+                return (!best || d < best.d) ? { slot: s, d: d } : best;
+            }, null);
+
+            // Si está muy cerca (<= 60 min), reutilizar este slot
+            if (closest && closest.d <= 60) {
+                return closest.slot;
+            }
+
+            // Si solo hay un slot de entrenamiento y ningún día tiene sesiones registradas aún, ajustamos su hora
+            const hasAnyWorkouts = DAYS.some(d => (currentWeekState[d].workouts || []).length > 0);
+            if (workoutSlots.length === 1 && !hasAnyWorkouts) {
+                workoutSlots[0].time = startTime;
+                workoutSlots[0].defaultTime = startTime;
+                sortSlotsChronologically();
+                return workoutSlots[0];
+            }
+
+            // Si hay un entrenamiento a una hora distinta (ej. Mañana 10:30 vs Tarde 18:30), crear hueco dedicado
+            const newSlot = {
+                id: 'slot_workout_' + startTime.replace(':', '') + '_' + Date.now(),
+                key: 'workout_' + startTime.replace(':', ''),
+                label: sportName ? `Entrenamiento (${startTime})` : `Entrenamiento ${startTime}`,
+                icon: '🏃',
+                time: startTime,
+                defaultTime: startTime,
+                type: 'workout',
+                isCustom: true
+            };
+            activeSlots.push(newSlot);
+            sortSlotsChronologically();
+            return newSlot;
+        }
+
+        // Helpers para selector de días de entrenamiento manual
+        function toggleManualDay(btn) {
+            btn.classList.toggle('active');
+            updateManualDaysCount();
+        }
+
+        function setManualDays(dayList) {
+            const container = document.getElementById('manual-days-pills');
+            if (!container) return;
+            container.querySelectorAll('.btn-day-pill').forEach(btn => {
+                const day = btn.getAttribute('data-day');
+                if (dayList.includes(day)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            updateManualDaysCount();
+        }
+
+        function getSelectedManualDays() {
+            const container = document.getElementById('manual-days-pills');
+            if (!container) return ['Lunes'];
+            const selected = [];
+            container.querySelectorAll('.btn-day-pill.active').forEach(btn => {
+                selected.push(btn.getAttribute('data-day'));
+            });
+            return selected;
+        }
+
+        function updateManualDaysCount() {
+            const lbl = document.getElementById('manual-days-count-label');
+            if (!lbl) return;
+            const count = getSelectedManualDays().length;
+            lbl.textContent = count === 1 ? '1 día seleccionado' : `${count} días seleccionados`;
+        }
 
         // Estado del cuadrante semanal: cada slot contiene un ARRAY de items
         let currentWeekState = {};
@@ -1981,9 +2334,15 @@ Domingo: descanso"></textarea>
                         <thead>
                             <tr>
                                 <th class="matrix-toma-col matrix-toma-header-cell">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <span>Tomas \\ Días</span>
-                                        <span title="Distribución oficial ANyD" style="cursor:help;">ℹ️</span>
+                                    <div style="display:flex; flex-direction:column; gap:4px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <span style="font-weight:800; font-size:12px;">Tomas \\ Días</span>
+                                            <span title="Distribución horaria oficial ANyD" style="cursor:help;">⏱️</span>
+                                        </div>
+                                        <div style="display:flex; gap:3px;">
+                                            <button type="button" onclick="sortSlotsChronologically()" class="btn-anyd btn-outline" style="font-size:9.5px; padding:2px 4px; flex:1;" title="Ordenar todas las filas cronológicamente por hora">⏱️ Ordenar</button>
+                                            <button type="button" onclick="openAddSlotModal()" class="btn-anyd btn-success" style="font-size:9.5px; padding:2px 4px; flex:1;" title="Añadir nueva fila horaria / toma / hueco al patrón">➕ Hueco</button>
+                                        </div>
                                     </div>
                                 </th>
             `;
@@ -2021,47 +2380,91 @@ Domingo: descanso"></textarea>
 
             html += `</tr></thead><tbody>`;
 
-            // Filas de las Tomas (Fila a la izquierda que identifica cada una)
-            MEAL_SLOTS.forEach(slot => {
+            // Filas de las Tomas y Huecos (con soporte para horas editables, desplazamiento y mapeo cronológico)
+            const workoutSlots = activeSlots.filter(s => s.type === 'workout' || s.key === 'entrenamiento' || s.key.startsWith('workout_'));
+
+            activeSlots.forEach((slot, slotIdx) => {
+                const isWorkoutSlot = (slot.type === 'workout' || slot.key === 'entrenamiento' || slot.key.startsWith('workout_'));
+                const isFirstSlot = slotIdx === 0;
+                const isLastSlot = slotIdx === activeSlots.length - 1;
+                const slotTimeVal = slot.time || slot.defaultTime || '12:00';
+
                 html += `
                     <tr>
-                        <!-- Columna izquierda: Identificador de la Toma -->
+                        <!-- Columna izquierda: Identificador de la Toma, Hora Editable y Controles de Desplazamiento -->
                         <td class="matrix-toma-col">
                             <div class="matrix-toma-row-cell">
-                                <div>
+                                <div style="flex:1;">
                                     <div class="matrix-toma-name">
-                                        <span>${slot.icon}</span> <span>${slot.label}</span>
+                                        <span>${slot.icon || '🍽️'}</span> <span>${slot.label}</span>
                                     </div>
-                                    <div style="font-size:10.5px; color:#64748B; margin-top:2px;">${slot.defaultTime || ''}</div>
+                                    <div style="display:flex; align-items:center; gap:4px; margin-top:3px;">
+                                        <input type="time" class="matrix-time-input" value="${slotTimeVal}" onchange="updateSlotTime('${slot.id || slot.key}', this.value)" title="Modificar hora de esta toma">
+                                        <div style="display:inline-flex; gap:2px;">
+                                            <button type="button" class="matrix-btn-move" onclick="moveSlotUp(${slotIdx})" title="Desplazar fila arriba" ${isFirstSlot ? 'disabled' : ''}>▲</button>
+                                            <button type="button" class="matrix-btn-move" onclick="moveSlotDown(${slotIdx})" title="Desplazar fila abajo" ${isLastSlot ? 'disabled' : ''}>▼</button>
+                                            ${slot.isCustom ? `<button type="button" class="matrix-btn-move" onclick="deleteCustomSlot('${slot.id || slot.key}')" title="Eliminar fila personalizada" style="color:#EF4444; border-color:#FECACA;">🗑️</button>` : ''}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="matrix-toma-ctrls">
                                     <button type="button" class="matrix-toma-btn" onclick="clearTomaFromWeek('${slot.key}')" title="Vaciar '${slot.label}' de toda la semana">-</button>
-                                    <button type="button" class="matrix-toma-btn" onclick="openItemPicker('Lunes', '${slot.key}')" title="Añadir plato a '${slot.label}'">+</button>
+                                    ${isWorkoutSlot ? `
+                                        <button type="button" class="matrix-toma-btn" onclick="openTrainingModal('Lunes')" title="Añadir entrenamiento">+</button>
+                                    ` : `
+                                        <button type="button" class="matrix-toma-btn" onclick="openItemPicker('Lunes', '${slot.key}')" title="Añadir plato a '${slot.label}'">+</button>
+                                    `}
                                 </div>
                             </div>
                         </td>
                 `;
 
-                // Celdas de cada día para esta Toma
+                // Celdas de cada día para esta Toma o Hueco
                 DAYS.forEach(day => {
                     const items = currentWeekState[day][slot.key] || [];
-                    const workouts = (slot.key === 'entrenamiento' ? (currentWeekState[day].workouts || []) : []);
+                    
+                    // Si es slot de entrenamiento, mapeamos los entrenamientos más cercanos a esta hora
+                    let matchingWorkouts = [];
+                    if (isWorkoutSlot) {
+                        const allDayWorkouts = currentWeekState[day].workouts || [];
+                        if (workoutSlots.length === 1) {
+                            matchingWorkouts = allDayWorkouts;
+                        } else {
+                            matchingWorkouts = allDayWorkouts.filter(w => {
+                                const wMin = timeToMinutes(w.start_time || '10:30');
+                                let closestSlot = workoutSlots[0];
+                                let minDiff = 99999;
+                                workoutSlots.forEach(ws => {
+                                    const wsMin = timeToMinutes(ws.time || ws.defaultTime || '10:30');
+                                    const diff = Math.abs(wsMin - wMin);
+                                    if (diff < minDiff) {
+                                        minDiff = diff;
+                                        closestSlot = ws;
+                                    }
+                                });
+                                return closestSlot === slot;
+                            });
+                        }
+                    }
 
                     let itemsHtml = '';
 
-                    // Si hay entrenamientos ACSM cargados en la fila de entrenamiento
-                    if (workouts.length > 0) {
-                        itemsHtml += workouts.map((w, wIdx) => `
-                            <div style="background:#FFF7ED; border:1px solid #FDBA74; border-radius:5px; padding:4px 6px; margin-bottom:5px; font-size:10.5px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <strong style="color:#9A3412;">🏃 ${w.start_time} (${w.duration_min}')</strong>
-                                    <button type="button" onclick="removeWorkoutFromDay('${day}', ${wIdx})" style="background:none; border:none; color:#EF4444; cursor:pointer;">&times;</button>
+                    // Si hay entrenamientos ACSM cargados en este hueco/fila
+                    if (matchingWorkouts.length > 0) {
+                        itemsHtml += matchingWorkouts.map(w => {
+                            const origIdx = (currentWeekState[day].workouts || []).indexOf(w);
+                            return `
+                                <div style="background:#FFF7ED; border:1px solid #FDBA74; border-radius:5px; padding:4px 6px; margin-bottom:5px; font-size:10.5px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <strong style="color:#9A3412;">🏃 ${w.start_time || '18:30'} (${w.duration_min || 60}')</strong>
+                                        <button type="button" onclick="removeWorkoutFromDay('${day}', ${origIdx})" style="background:none; border:none; color:#EF4444; cursor:pointer;" title="Eliminar entrenamiento">&times;</button>
+                                    </div>
+                                    <div style="color:#1E293B; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${w.sport}">${w.sport}</div>
+                                    <div style="font-size:9.5px; color:#C2410C;">💧 ${w.nutrition && w.nutrition.intra ? w.nutrition.intra.fluid_ml_h : 500}ml/h | 🧂 ${w.nutrition && w.nutrition.intra ? w.nutrition.intra.sodium_mg_h : 400}mg Na+</div>
+                                    <button type="button" onclick="openPeriProtocolModal('${day}', ${origIdx})" class="btn-matrix-add" style="margin-top:3px; padding:1px 4px; font-size:9px;">🔬 Protocolo ACSM</button>
                                 </div>
-                                <div style="color:#1E293B; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${w.sport}</div>
-                                <div style="font-size:9.5px; color:#C2410C;">💧 ${w.nutrition && w.nutrition.intra ? w.nutrition.intra.fluid_ml_h : 500}ml/h | 🧂 ${w.nutrition && w.nutrition.intra ? w.nutrition.intra.sodium_mg_h : 400}mg Na+</div>
-                                <button type="button" onclick="openPeriProtocolModal('${day}', ${wIdx})" class="btn-matrix-add" style="margin-top:3px; padding:1px 4px; font-size:9px;">🔬 Protocolo ACSM</button>
-                            </div>
-                        `).join('');
+                            `;
+                        }).join('');
                     }
 
                     // Renderizar los items de comida de la toma
@@ -2101,7 +2504,11 @@ Domingo: descanso"></textarea>
                             <div class="matrix-items-list">
                                 ${itemsHtml}
                             </div>
-                            <button type="button" class="btn-matrix-add" onclick="openItemPicker('${day}', '${slot.key}')">+ Añadir</button>
+                            ${isWorkoutSlot ? `
+                                <button type="button" class="btn-matrix-add" onclick="openTrainingModal('${day}')">+ Entrenamiento</button>
+                            ` : `
+                                <button type="button" class="btn-matrix-add" onclick="openItemPicker('${day}', '${slot.key}')">+ Añadir</button>
+                            `}
                         </td>
                     `;
                 });
@@ -2142,12 +2549,33 @@ Domingo: descanso"></textarea>
         }
 
         function clearTomaFromWeek(slotKey) {
-            const slotObj = MEAL_SLOTS.find(s => s.key === slotKey);
+            const slotObj = activeSlots.find(s => s.key === slotKey || s.id === slotKey);
             const label = slotObj ? slotObj.label : slotKey;
-            if (!confirm(`¿Deseas vaciar la toma de '${label}' en los 7 días de la semana?`)) return;
+            if (!confirm(¿Deseas vaciar la fila '' en los 7 días de la semana?)) return;
 
             DAYS.forEach(day => {
                 currentWeekState[day][slotKey] = [];
+                if (slotObj && (slotObj.type === 'workout' || slotKey === 'entrenamiento' || slotKey.startsWith('workout_'))) {
+                    const workoutSlots = activeSlots.filter(s => s.type === 'workout' || s.key === 'entrenamiento' || s.key.startsWith('workout_'));
+                    if (workoutSlots.length <= 1) {
+                        currentWeekState[day].workouts = [];
+                    } else {
+                        currentWeekState[day].workouts = (currentWeekState[day].workouts || []).filter(w => {
+                            const wMin = timeToMinutes(w.start_time || '10:30');
+                            let closestSlot = workoutSlots[0];
+                            let minDiff = 99999;
+                            workoutSlots.forEach(ws => {
+                                const wsMin = timeToMinutes(ws.time || ws.defaultTime || '10:30');
+                                const diff = Math.abs(wsMin - wMin);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    closestSlot = ws;
+                                }
+                            });
+                            return closestSlot !== slotObj;
+                        });
+                    }
+                }
             });
             renderWeekGrid();
         }
@@ -2959,7 +3387,7 @@ Domingo: descanso"></textarea>
                 target_protein_g: parseFloat(document.getElementById('res-target-prot').innerText) || 0,
                 target_carbs_g: parseFloat(document.getElementById('res-target-carbs').innerText) || 0,
                 target_fat_g: parseFloat(document.getElementById('res-target-fat').innerText) || 0,
-                weekly_data: currentWeekState,
+                weekly_data: Object.assign({}, currentWeekState, { _active_slots: activeSlots }),
                 notes: `Fórmula: ${document.getElementById('p-formula').value} | Objetivo: ${document.getElementById('p-goal').value}`
             };
 
@@ -3010,12 +3438,18 @@ Domingo: descanso"></textarea>
             const data = await res.json();
             if (data && data.weekly_data) {
                 // Normalizar estructura semanal para que cada slot sea un array
+                // Restaurar tomas y huecos personalizados si existen en el patrón guardado
+                if (data.weekly_data && data.weekly_data._active_slots && Array.isArray(data.weekly_data._active_slots)) {
+                    activeSlots = data.weekly_data._active_slots;
+                    MEAL_SLOTS = activeSlots;
+                }
+
                 DAYS.forEach(day => {
                     currentWeekState[day] = {};
                     const dayData = data.weekly_data[day] || {};
                     const meals = dayData.meals || dayData;
                     currentWeekState[day].workouts = dayData.workouts || [];
-                    MEAL_SLOTS.forEach(slot => {
+                    activeSlots.forEach(slot => {
                         const val = meals[slot.key];
                         currentWeekState[day][slot.key] = Array.isArray(val) ? val : (val ? [val] : []);
                     });
@@ -4120,8 +4554,9 @@ Domingo: descanso"></textarea>
 
         function openTrainingModal(day = 'Lunes') {
             activeTrainingTargetDay = day;
-            document.getElementById('train-manual-day').value = day;
-            document.getElementById('training-upload-status').style.display = 'none';
+            setManualDays([day]);
+            const statusEl = document.getElementById('training-upload-status');
+            if (statusEl) statusEl.style.display = 'none';
             document.getElementById('training-modal').classList.remove('hidden');
         }
 
@@ -4302,7 +4737,11 @@ Domingo: descanso"></textarea>
         }
 
         async function saveManualWorkout() {
-            const day = document.getElementById('train-manual-day').value;
+            const selectedDays = getSelectedManualDays();
+            if (selectedDays.length === 0) {
+                alert("Por favor selecciona al menos un día de la semana para el entrenamiento.");
+                return;
+            }
             const startTime = document.getElementById('train-manual-time').value || '18:30';
             const sport = document.getElementById('train-manual-sport').value.trim() || 'Entrenamiento Deportivo';
             const durationMin = parseInt(document.getElementById('train-manual-dur').value) || 60;
@@ -4325,12 +4764,19 @@ Domingo: descanso"></textarea>
                 });
                 const data = await res.json();
                 if (data.success && data.guidelines) {
-                    if (!currentWeekState[day].workouts) currentWeekState[day].workouts = [];
-                    currentWeekState[day].workouts.push(data.guidelines);
-                    currentWeekState[day].workouts.sort((a,b) => (a.start_time || '00:00').localeCompare(b.start_time || '00:00'));
+                    // Posicionar la fila del entrenamiento a la hora identificada
+                    ensureWorkoutSlotForTime(startTime, sport);
+
+                    selectedDays.forEach(day => {
+                        if (!currentWeekState[day].workouts) currentWeekState[day].workouts = [];
+                        const wCopy = JSON.parse(JSON.stringify(data.guidelines));
+                        currentWeekState[day].workouts.push(wCopy);
+                        currentWeekState[day].workouts.sort((a,b) => (a.start_time || '00:00').localeCompare(b.start_time || '00:00'));
+                    });
+
                     renderWeekGrid();
                     closeTrainingModal();
-                    alert(`¡Sesión '${sport}' guardada en ${day} con sus pautas científicas!`);
+                    alert(`¡Sesión '${sport}' guardada en ${selectedDays.join(', ')} a las ${startTime} con sus pautas científicas!`);
                 }
             } catch (err) {
                 alert("Error al calcular sesión: " + err.message);
@@ -4769,6 +5215,12 @@ Domingo: Descanso total`,
                         if (validWorkouts.length > 0) {
                             currentWeekState[day].workouts = validWorkouts;
                             count += validWorkouts.length;
+                            // Situar cada entrenamiento en el patrón a la hora identificada
+                            validWorkouts.forEach(w => {
+                                if (w.start_time) {
+                                    ensureWorkoutSlotForTime(w.start_time, w.sport);
+                                }
+                            });
                         }
                     });
 
