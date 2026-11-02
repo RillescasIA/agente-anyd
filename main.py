@@ -25,6 +25,9 @@ import security_shield
 import email_order_scanner
 import whatsapp_service
 import analytics_manager
+import schedule_manager
+import training_parser
+import dietowin_scanner
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -137,6 +140,7 @@ async def auth_middleware(request: Request, call_next):
 
 
 def init_db():
+    schedule_manager.init_schedule_table()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -1123,7 +1127,7 @@ def get_available_slots(date: str):
     Por defecto: turnos de mañana (10:00 - 13:30) y tarde (16:00 - 20:00) en intervalos de 30 minutos.
     Comprueba festivos de Alcorcón/Madrid/Nacionales y colisiones exactas.
     """
-    # 1. Comprobar si la fecha es festivo oficial cerrado
+    # 1. Comprobar si la fecha es festivo oficial o día bloqueado cerrado
     is_h, h_info = holidays_manager.is_holiday(date)
     if is_h:
         return {
@@ -1135,19 +1139,24 @@ def get_available_slots(date: str):
             "message": f"Clínica ANyD CERRADA por festividad ({h_info['scope']}): {h_info['name']}."
         }
 
-    try:
-        dt = datetime.strptime(date, "%Y-%m-%d")
-        # Si es fin de semana (sábado=5, domingo=6), no hay citas regulares
-        if dt.weekday() >= 5:
-            return {"slots": [], "closed": True, "message": "Fin de semana (clínica cerrada)."}
-    except:
-        return {"slots": [], "closed": True, "message": "Fecha inválida."}
+    # 2. Consultar la oferta de franjas horarias configurada por Román (schedule_manager)
+    offered = schedule_manager.get_offered_slots_for_date(date)
+    if not offered.get("is_open", False):
+        day_label = offered.get("day_name", "este día")
+        notes_txt = f" ({offered['notes']})" if offered.get("notes") else ""
+        return {
+            "slots": [],
+            "closed": True,
+            "message": f"Clínica sin consultas ofertadas para {day_label}{notes_txt}."
+        }
 
-    # Franjas de 30 minutos (duración estándar ANyD)
-    all_slots = [
-        "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
-        "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
-    ]
+    all_slots = offered.get("slots", [])
+    if not all_slots:
+        return {
+            "slots": [],
+            "closed": True,
+            "message": f"No hay franjas de 30 min ofertadas para este {offered.get('day_name', 'día')}."
+        }
 
     conn = get_db()
     cursor = conn.cursor()
@@ -2303,6 +2312,67 @@ def api_delete_holiday(holiday_id: int):
     ok = holidays_manager.remove_holiday(holiday_id)
     return {"success": ok}
 
+# ========================================================
+# GESTIÓN DE HORARIOS Y FRANJAS OFERTADAS (RESERVAS WEB)
+# ========================================================
+
+class DayScheduleItem(BaseModel):
+    day_of_week: int
+    is_enabled: bool = True
+    slots: List[str] = []
+    notes: Optional[str] = ""
+
+class UpdateWeeklyScheduleRequest(BaseModel):
+    days: List[DayScheduleItem]
+
+class SpecificDateScheduleRequest(BaseModel):
+    date: str
+    is_enabled: bool = True
+    slots: List[str] = []
+    notes: Optional[str] = ""
+
+@app.get("/api/booking-schedule")
+def api_get_booking_schedule():
+    """Devuelve la configuración semanal y las excepciones de fecha para reservas web."""
+    return {
+        "weekly": schedule_manager.get_weekly_schedule(),
+        "specific_dates": schedule_manager.get_specific_date_schedules(),
+        "all_possible_slots": schedule_manager.ALL_CLINICAL_SLOTS,
+        "default_slots": schedule_manager.DEFAULT_WEEKDAY_SLOTS
+    }
+
+@app.put("/api/booking-schedule")
+def api_update_weekly_schedule(req: UpdateWeeklyScheduleRequest):
+    """Actualiza la oferta semanal de días y franjas de 30 min."""
+    days_data = [d.model_dump() if hasattr(d, "model_dump") else d.dict() for d in req.days]
+    ok = schedule_manager.save_weekly_schedule(days_data)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Error al guardar el horario semanal de reservas.")
+    return {
+        "success": True,
+        "message": "Horario semanal de reservas web actualizado correctamente."
+    }
+
+@app.post("/api/booking-schedule/date")
+def api_save_date_schedule(req: SpecificDateScheduleRequest):
+    """Configura u oferta franjas especiales para una fecha concreta."""
+    ok = schedule_manager.save_date_schedule(req.date, req.is_enabled, req.slots, req.notes or "")
+    if not ok:
+        raise HTTPException(status_code=500, detail="Error al guardar el horario especial de fecha.")
+    return {
+        "success": True,
+        "message": f"Horario especial para {req.date[:10]} guardado correctamente."
+    }
+
+@app.delete("/api/booking-schedule/date/{date}")
+def api_delete_date_schedule(date: str):
+    """Elimina la excepción de fecha específica y regresa al horario semanal."""
+    ok = schedule_manager.delete_date_schedule(date)
+    return {
+        "success": ok,
+        "message": f"Excepción para {date} eliminada. Aplica el horario semanal habitual."
+    }
+
 # --- ENDPOINTS DIETOWIN 2.0 (ANyD NUTRI-PLANNER) ---
 
 class CalculateNeedsRequest(BaseModel):
@@ -2859,6 +2929,71 @@ class LoadTrainingFileRequest(BaseModel):
 @app.post("/api/diet/load-athlete-training-file")
 def api_load_athlete_training_file(req: LoadTrainingFileRequest):
     return diet_manager.load_training_file_by_path(req.file_path, req.weight_kg or 75.0)
+
+class ParsePastedTrainingRequest(BaseModel):
+    text: str
+    weight_kg: Optional[float] = 75.0
+    auto_periodize_carbs: Optional[bool] = True
+    auto_adjust_digestibility: Optional[bool] = True
+
+@app.post("/api/diet/parse-pasted-training")
+def api_parse_pasted_training(req: ParsePastedTrainingRequest):
+    """
+    Parsea texto plano de entrenamientos (Copy-Paste) y genera el microciclo
+    con las 28 disciplinas oficiales ANyD, periodización de hidratos ACSM/IOC
+    y protocolos de digestibilidad peri-entreno.
+    """
+    return training_parser.parse_training_copy_paste(
+        raw_text=req.text,
+        weight_kg=req.weight_kg or 75.0,
+        auto_periodize_carbs=bool(req.auto_periodize_carbs),
+        auto_adjust_digestibility=bool(req.auto_adjust_digestibility)
+    )
+
+@app.get("/api/diet/dietowin-client-sheet/{client_name}")
+def api_get_dietowin_client_sheet(client_name: str):
+    """
+    Recupera el expediente completo del cliente en Dietowin / SuiteBiológica 11:
+    última composición corporal (BIA Tanita MC-580 / PDF / Excel / Anamnesis)
+    e historial de patrones nutricionales guardados en DietaWeb.
+    """
+    return dietowin_scanner.scan_client_dietowin_profile(client_name)
+
+class SaveDietowinCompositionRequest(BaseModel):
+    client_name: str
+    weight: Optional[float] = None
+    ffm: Optional[float] = None
+    fat_percent: Optional[float] = None
+    muscle_mass: Optional[float] = None
+    water_percent: Optional[float] = None
+    bone_mass: Optional[float] = None
+    visceral_fat: Optional[float] = None
+    measurement_date: Optional[str] = None
+
+@app.post("/api/diet/save-dietowin-composition")
+def api_save_dietowin_composition(req: SaveDietowinCompositionRequest):
+    """
+    Guarda o edita los parámetros de composición corporal del deportista
+    en tanita_measurements y actualiza el expediente clínico.
+    """
+    compo_dict = {
+        "weight_kg": req.weight,
+        "ffm_kg": req.ffm,
+        "fat_percent": req.fat_percent,
+        "muscle_mass_kg": req.muscle_mass,
+        "water_percent": req.water_percent,
+        "bone_mass_kg": req.bone_mass,
+        "visceral_fat": req.visceral_fat,
+        "measurement_date": req.measurement_date
+    }
+    ok = dietowin_scanner.save_dietowin_composition_to_db(req.client_name, compo_dict)
+    bmr_c = round(500 + 22 * float(req.ffm)) if req.ffm else None
+    return {
+        "success": ok,
+        "bmr_cunningham": bmr_c,
+        "message": "Composición corporal guardada con éxito en el expediente del deportista." if ok else "Error al guardar en el expediente."
+    }
+
 
 
 # ==========================================

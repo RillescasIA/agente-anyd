@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, time
 import re
 import unicodedata
 from typing import Optional, List, Dict, Any
+import dietowin_scanner
+import training_parser
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
@@ -1916,7 +1918,7 @@ def get_athlete_clinical_parameters(client_name: str) -> Dict[str, Any]:
     c_id = client["id"] if client else None
     c_fullname = client["fullname"] if client else client_name
 
-    # 1. Medición Tanita más reciente
+    # 1. Medición Tanita más reciente en BD
     cursor.execute("""
     SELECT weight, ffm, fat_percent, fat_mass, muscle_mass, water_percent, bone_mass, visceral_fat, bmr_cunningham, measurement_date
     FROM tanita_measurements
@@ -1952,15 +1954,63 @@ def get_athlete_clinical_parameters(client_name: str) -> Dict[str, Any]:
 
     conn.close()
 
+    # 4. Escaneo automático e inteligente de Dietowin & Tanita (Drive, DietaWeb, SuiteBiológica 11)
+    dietowin_prof = dietowin_scanner.scan_client_dietowin_profile(client_name)
+    if dietowin_prof.get("found") and dietowin_prof.get("composition"):
+        compo = dietowin_prof["composition"]
+        if not tanita_data:
+            tanita_data = {
+                "weight": compo.get("weight_kg"),
+                "ffm": compo.get("ffm_kg"),
+                "fat_percent": compo.get("fat_percent"),
+                "fat_mass": compo.get("fat_mass_kg"),
+                "muscle_mass": compo.get("muscle_mass_kg"),
+                "water_percent": compo.get("water_percent"),
+                "bone_mass": compo.get("bone_mass_kg"),
+                "visceral_fat": compo.get("visceral_fat"),
+                "bmr_cunningham": compo.get("bmr_cunningham"),
+                "bmr_dietowin": compo.get("bmr_dietowin"),
+                "metabolic_age": compo.get("metabolic_age"),
+                "measurement_date": compo.get("measurement_date"),
+                "source_type": compo.get("source_type"),
+                "source_file": compo.get("source_file")
+            }
+        else:
+            for k_dest, k_src in [
+                ("fat_percent", "fat_percent"),
+                ("fat_mass", "fat_mass_kg"),
+                ("muscle_mass", "muscle_mass_kg"),
+                ("water_percent", "water_percent"),
+                ("bone_mass", "bone_mass_kg"),
+                ("visceral_fat", "visceral_fat"),
+                ("bmr_cunningham", "bmr_cunningham"),
+                ("bmr_dietowin", "bmr_dietowin"),
+                ("metabolic_age", "metabolic_age")
+            ]:
+                if tanita_data.get(k_dest) is None and compo.get(k_src) is not None:
+                    tanita_data[k_dest] = compo.get(k_src)
+
+    if tanita_data and not tanita_data.get("bmr_cunningham"):
+        ffm_val = tanita_data.get("ffm")
+        if ffm_val:
+            tanita_data["bmr_cunningham"] = round(500 + 22 * float(ffm_val))
+
+    if dietowin_prof.get("composition", {}).get("sport_discipline"):
+        if not profile_data:
+            profile_data = {"sport_discipline": dietowin_prof["composition"]["sport_discipline"]}
+        elif not profile_data.get("sport_discipline"):
+            profile_data["sport_discipline"] = dietowin_prof["composition"]["sport_discipline"]
+
     training_files = get_athlete_training_files_from_drive(c_fullname)
 
     return {
-        "found": bool(client or tanita_data or profile_data or last_plan_data or training_files),
+        "found": bool(client or tanita_data or profile_data or last_plan_data or training_files or dietowin_prof.get("found")),
         "client": dict(client) if client else {"fullname": c_fullname, "email": "", "phone": ""},
         "tanita": tanita_data,
         "profile": profile_data,
         "latest_plan": last_plan_data,
-        "training_files": training_files
+        "training_files": training_files,
+        "dietowin_profile": dietowin_prof
     }
 
 def generate_training_excel_template() -> bytes:

@@ -608,8 +608,14 @@
                         <span>👤</span> Datos Clínicos y Requerimientos Energéticos (Cunningham / Tanita MC-580)
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="openPasteTrainingModal()" class="btn-anyd" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); font-size:12px;" title="Pegar texto de entrenamientos (Copy-Paste) y aplicar al patrón de diseño">
+                            📋 Pegar Entrenamientos (Copy-Paste)
+                        </button>
                         <button type="button" onclick="openAthleteDriveTrainingModal()" class="btn-anyd" style="background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%); font-size:12px;" title="Cargar los diferentes entrenamientos de su carpeta Drive según ACSM">
                             🏃 Cargar Entrenamientos de su Carpeta (ACSM)
+                        </button>
+                        <button type="button" onclick="openDietowinSheetModal()" class="btn-anyd" style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); font-size:12px;" title="Entrar a la ficha del cliente en Dietowin y ver su última composición corporal">
+                            📊 Ficha Dietowin & Composición Corporal
                         </button>
                         <button type="button" onclick="loadLatestTanita()" class="btn-anyd btn-outline" style="font-size:12px;">
                             ⚖️ Cargar Tanita MC-580
@@ -1596,6 +1602,177 @@
             <div class="modal-footer">
                 <button type="button" onclick="saveFoodFromModal()" class="btn-anyd btn-success">💾 Guardar Alimento</button>
                 <button type="button" onclick="closeFoodEditModal()" class="btn-anyd btn-outline">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= MODAL 1: PEGAR ENTRENAMIENTOS (COPY-PASTE) ================= -->
+    <div id="paste-training-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:840px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #065F46 0%, #047857 100%); color:white; border-radius:12px 12px 0 0; padding:16px 20px;">
+                <div>
+                    <h3 style="font-family:'Montserrat', sans-serif; font-size:17px; font-weight:800; margin:0; display:flex; align-items:center; gap:8px;">
+                        <span>📋</span> Pegar Planificación de Entrenamientos (Copy-Paste)
+                    </h3>
+                    <span style="font-size:12px; opacity:0.9;">Pega el texto de los entrenamientos (WhatsApp, email, notas o cuadrante del preparador) y aplícalo al patrón de diseño</span>
+                </div>
+                <button onclick="closePasteTrainingModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:white;">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding:20px; max-height:75vh; overflow-y:auto;">
+                <!-- Presets rápidos -->
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">EJEMPLOS RÁPIDOS / PRESETS:</label>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button type="button" onclick="setPastePreset('crossfit_haltero')" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 9px;">🏋️ Haltero + CrossFit + Rodaje</button>
+                        <button type="button" onclick="setPastePreset('running_series')" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 9px;">🏃 Pista 8x1000m + Z2 + Fuerza</button>
+                        <button type="button" onclick="setPastePreset('ciclismo_triatlon')" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 9px;">🚴 Ciclismo Carretera + Natación</button>
+                        <button type="button" onclick="setPastePreset('futbol')" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 9px;">⚽ Fútbol + Gimnasio</button>
+                        <button type="button" onclick="setPastePreset('clear')" class="btn-anyd btn-outline" style="font-size:11px; padding:3px 9px; color:#DC2626; border-color:#FECACA;">🗑️ Limpiar</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label style="font-weight:700; color:#0F172A; font-size:13px; display:flex; justify-content:space-between;">
+                        <span>Texto de la Semana (Lunes a Domingo):</span>
+                        <span style="font-weight:500; font-size:11px; color:#64748B;">Reconoce automáticamente deportes, horas, duraciones y descansos</span>
+                    </label>
+                    <textarea id="paste-training-textarea" class="form-control" rows="8" style="font-family:monospace; font-size:12.5px; line-height:1.5; padding:12px; border-radius:8px; border:1.5px solid #CBD5E1;" placeholder="Lunes: Halterofilia de 18:00 a 19:00 (1 hora)
+Martes: 19:30 Pesas fuerza tren superior 75 min
+Miércoles: Descanso total
+Jueves: 18:00 Series en pista 8x1000m muy fuerte 50 min
+Viernes: CrossFit WOD 60 min a las 19:00
+Sábado: Rodaje largo en bici de carretera 120 min por la mañana a las 9am
+Domingo: descanso"></textarea>
+                </div>
+
+                <!-- Opciones de aplicación al patrón de diseño -->
+                <div style="background:#F0FDF4; border:1.5px solid #BBF7D0; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+                    <strong style="color:#166534; font-size:12.5px; display:block; margin-bottom:8px;">⚙️ Opciones de Aplicación al Patrón de Diseño ANyD:</strong>
+                    <div style="display:flex; flex-direction:column; gap:8px; font-size:12px; color:#14532D;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="paste-opt-periodize" checked style="width:16px; height:16px;">
+                            <span><strong>Periodización de carbohidratos ACSM/IOC:</strong> Ajustar automáticamente el requerimiento y objetivo de hidratos de carbono según la carga de cada día (días de descanso ~3.0 g/kg vs días de carga ~5.5-7.0 g/kg).</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="paste-opt-digestibility" checked style="width:16px; height:16px;">
+                            <span><strong>Digestibilidad y vaciamiento gástrico pre/post entreno:</strong> 0% legumbres y 0% crucíferas en las 3h previas, cereales de bajo residuo y ventana de recuperación post-entreno en 2h.</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="paste-opt-overwrite" checked style="width:16px; height:16px;">
+                            <span><strong>Reemplazar sesiones existentes:</strong> Sobrescribir los entrenamientos actuales de la semana con los del texto pegado.</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Preview contenedor -->
+                <div id="paste-training-preview" style="display:none; margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px;"></div>
+            </div>
+
+            <div class="modal-footer" style="padding:14px 20px; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border-radius:0 0 12px 12px;">
+                <button type="button" onclick="closePasteTrainingModal()" class="btn-anyd btn-outline" style="padding:8px 16px;">Cancelar</button>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" onclick="previewPasteTraining()" class="btn-anyd btn-outline" style="padding:8px 16px; color:#065F46; border-color:#059669;">🔍 Vista Previa</button>
+                    <button type="button" onclick="submitPasteTraining()" class="btn-anyd" style="background:#059669; color:white; padding:8px 20px; font-weight:700;">🚀 Aplicar al Patrón de Diseño</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: FICHA DIETOWIN & COMPOSICIÓN CORPORAL ================= -->
+    <div id="dietowin-sheet-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:880px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #3730A3 0%, #4338CA 100%); color:white; border-radius:12px 12px 0 0; padding:16px 20px;">
+                <div>
+                    <h3 style="font-family:'Montserrat', sans-serif; font-size:17px; font-weight:800; margin:0; display:flex; align-items:center; gap:8px;">
+                        <span>📊</span> Expediente Dietowin & Composición Corporal Tanita MC-580
+                    </h3>
+                    <span style="font-size:12px; opacity:0.9;">Ficha oficial del paciente sincronizada desde SuiteBiológica 11 / Dietowin, báscula BIA y Google Drive</span>
+                </div>
+                <button onclick="closeDietowinSheetModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:white;">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding:20px; max-height:75vh; overflow-y:auto;">
+                <!-- Cabecera con info del expediente -->
+                <div style="background:#EEF2FF; border:1.5px solid #C7D2FE; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <strong style="color:#312E81; font-size:14px;" id="dw-sheet-client-name">Deportista</strong>
+                            <div style="font-size:11.5px; color:#4338CA; margin-top:2px;">
+                                📁 Carpeta Drive: <span id="dw-sheet-folder" style="font-family:monospace;">--</span>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span id="dw-sheet-source-badge" style="background:#4338CA; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">Tanita MC-580</span>
+                            <div style="font-size:11px; color:#6366F1; margin-top:3px;">
+                                Fecha Pesaje: <strong id="dw-sheet-date">--</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matriz editable de Composición Corporal -->
+                <h4 style="font-family:'Montserrat', sans-serif; font-size:13.5px; color:#0F172A; margin:0 0 10px 0;">
+                    🧬 Parámetros de Bioimpedancia y Antropometría (Editable)
+                </h4>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:16px;">
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#475569;">PESO TOTAL (kg):</label>
+                        <input type="number" step="0.1" id="dw-input-weight" class="form-control" style="font-weight:800; font-size:14px;" oninput="recalcDietowinModalValues()">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#047857;">FFM MASA MAGRA (kg):</label>
+                        <input type="number" step="0.1" id="dw-input-ffm" class="form-control" style="font-weight:800; font-size:14px; color:#065F46;" oninput="recalcDietowinModalValues()">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#C2410C;">GRASA (%):</label>
+                        <input type="number" step="0.1" id="dw-input-fat-pct" class="form-control" style="font-weight:800; font-size:14px; color:#C2410C;" oninput="recalcDietowinModalValues()">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#9A3412;">MASA GRASA (kg):</label>
+                        <input type="number" step="0.1" id="dw-input-fat-kg" class="form-control" style="font-weight:700; font-size:13px;" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#1E40AF;">MASA MUSCULAR (kg):</label>
+                        <input type="number" step="0.1" id="dw-input-muscle" class="form-control" style="font-weight:800; font-size:14px; color:#1E40AF;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#0284C7;">AGUA TOTAL (%):</label>
+                        <input type="number" step="0.1" id="dw-input-water" class="form-control" style="font-weight:700; font-size:13px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#475569;">MINERAL ÓSEO (kg):</label>
+                        <input type="number" step="0.1" id="dw-input-bone" class="form-control" style="font-weight:700; font-size:13px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#475569;">GRASA VISCERAL:</label>
+                        <input type="number" step="1" id="dw-input-visceral" class="form-control" style="font-weight:700; font-size:13px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#5B21B6;">BMR CUNNINGHAM:</label>
+                        <input type="number" step="1" id="dw-input-cunningham" class="form-control" style="font-weight:800; font-size:14px; color:#5B21B6; background:#FAF5FF;" readonly title="500 + 22 * FFM">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:11px; font-weight:700; color:#475569;">BMR DIETOWIN:</label>
+                        <input type="number" step="1" id="dw-input-bmr-dietowin" class="form-control" style="font-weight:700; font-size:13px;">
+                    </div>
+                </div>
+
+                <!-- Historial de versiones y dietas en Dietowin / DietaWeb -->
+                <h4 style="font-family:'Montserrat', sans-serif; font-size:13.5px; color:#0F172A; margin:16px 0 10px 0; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📚 Historial de Patrones Guardados en Dietowin / DietaWeb</span>
+                    <span id="dw-history-count" style="font-size:11px; color:#64748B; font-weight:normal;"></span>
+                </h4>
+                <div id="dw-sheet-history-container" style="max-height:160px; overflow-y:auto; border:1px solid #E2E8F0; border-radius:8px;">
+                    <p style="padding:12px; font-size:12px; color:#64748B;">Cargando historial de Dietowin...</p>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding:14px 20px; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border-radius:0 0 12px 12px;">
+                <button type="button" onclick="closeDietowinSheetModal()" class="btn-anyd btn-outline" style="padding:8px 16px;">Cerrar</button>
+                <button type="button" onclick="saveDietowinSheet()" class="btn-anyd" style="background:#4F46E5; color:white; padding:8px 20px; font-weight:700;">💾 Guardar en Expediente & Aplicar al Planificador</button>
             </div>
         </div>
     </div>
@@ -2631,13 +2808,19 @@
                             ` : ''}
 
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                                ${filesCount > 0 ? `
-                                    <button type="button" onclick="openAthleteDriveTrainingModal()" class="btn-anyd" style="background:#EA580C; font-size:11px; padding:4px 10px;">
-                                        🏃 ${filesCount} documentos de entrenamiento en Drive (Cargar ACSM)
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <button type="button" onclick="openPasteTrainingModal()" class="btn-anyd" style="background:#10B981; font-size:11px; padding:4px 10px;" title="Pegar entrenamientos en texto y aplicar al patrón de diseño">
+                                        📋 Pegar Entrenamientos (Copy-Paste)
                                     </button>
-                                ` : `
-                                    <span style="font-size:11px; color:#64748B;">Sin archivos de entrenamiento detectados automáticamente en Drive</span>
-                                `}
+                                    <button type="button" onclick="openDietowinSheetModal()" class="btn-anyd" style="background:#4F46E5; font-size:11px; padding:4px 10px;" title="Ver y editar ficha Dietowin y composición corporal">
+                                        📊 Ficha Dietowin & Composición Corporal
+                                    </button>
+                                    ${filesCount > 0 ? `
+                                        <button type="button" onclick="openAthleteDriveTrainingModal()" class="btn-anyd" style="background:#EA580C; font-size:11px; padding:4px 10px;">
+                                            🏃 ${filesCount} docs Drive (ACSM)
+                                        </button>
+                                    ` : ''}
+                                </div>
                                 <span style="font-size:11px; color:#475569;">
                                     ${data.client && data.client.email ? '✉️ ' + data.client.email : ''} ${data.client && data.client.phone ? '· 📞 ' + data.client.phone : ''}
                                 </span>
@@ -4438,6 +4621,323 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
+
+        // ==============================================================================
+        // --- FUNCIONES COPY-PASTE DE ENTRENAMIENTOS Y FICHA DIETOWIN ---
+        // ==============================================================================
+
+        function openPasteTrainingModal() {
+            const modal = document.getElementById('paste-training-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                const textarea = document.getElementById('paste-training-textarea');
+                if (textarea && !textarea.value.trim()) {
+                    setPastePreset('crossfit_haltero');
+                }
+                setTimeout(() => { if (textarea) textarea.focus(); }, 150);
+            }
+        }
+
+        function closePasteTrainingModal() {
+            const modal = document.getElementById('paste-training-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        const PASTE_PRESETS = {
+            crossfit_haltero: `Lunes: Halterofilia de 18:00 a 19:00 (1 hora)
+Martes: 19:30 Pesas fuerza tren superior 75 min
+Miércoles: Descanso total
+Jueves: 18:00 Series en pista 8x1000m muy fuerte 50 min
+Viernes: CrossFit WOD 60 min a las 19:00
+Sábado: Rodaje largo en bici de carretera 120 min por la mañana a las 9am
+Domingo: descanso`,
+            running_series: `Lunes: 19:00 Carrera continua Z2 suave 50 min
+Martes: 18:30 Series en pista 8x400m VO2max 60 min
+Miércoles: 19:30 Hipertrofia y fuerza torso/pierna 60 min
+Jueves: Descanso total
+Viernes: 18:00 Carrera ritmo tempo maratón 70 min
+Sábado: 09:30 Tirada larga Z2 90 min por el río
+Domingo: Recuperación activa y movilidad 40 min`,
+            ciclismo_triatlon: `Lunes: 07:30 Natación crol Z2 fondo 60 min
+Martes: 18:00 Rodillo / spinning series de umbral 60 min
+Miércoles: 19:00 Fuerza gimnasio tren inferior 60 min
+Jueves: 07:30 Natación series umbral 50 min
+Viernes: Descanso
+Sábado: 08:30 Ciclismo de carretera Z2 fondo 150 min
+Domingo: 09:00 Carrera continua Z2 60 min`,
+            futbol: `Lunes: 19:30 Entrenamiento técnico-táctico fútbol 90 min
+Martes: 18:30 Gimnasio hipertrofia y fuerza 60 min
+Miércoles: 19:30 Fútbol entrenamiento 80 min
+Jueves: 19:00 Gimnasio tren superior y core 50 min
+Viernes: 18:00 Activación previa al partido 45 min
+Sábado: 17:00 Partido oficial de fútbol competición 90 min
+Domingo: Descanso total`,
+            clear: ""
+        };
+
+        function setPastePreset(key) {
+            const textarea = document.getElementById('paste-training-textarea');
+            if (textarea && PASTE_PRESETS[key] !== undefined) {
+                textarea.value = PASTE_PRESETS[key];
+            }
+        }
+
+        async function previewPasteTraining() {
+            const text = document.getElementById('paste-training-textarea').value.trim();
+            if (!text) {
+                alert("Por favor, introduce o pega el texto de los entrenamientos.");
+                return;
+            }
+            const weight = parseFloat(document.getElementById('p-weight').value) || 75.0;
+            const previewEl = document.getElementById('paste-training-preview');
+            previewEl.style.display = 'block';
+            previewEl.innerHTML = '<span style="color:#0284C7; font-size:12px; font-weight:700;">⏳ Analizando texto con el Compendio ACSM...</span>';
+
+            try {
+                const res = await fetch('/api/diet/parse-pasted-training', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        weight_kg: weight,
+                        auto_periodize_carbs: document.getElementById('paste-opt-periodize').checked,
+                        auto_adjust_digestibility: document.getElementById('paste-opt-digestibility').checked
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.workouts_by_day) {
+                    let out = `<div style="font-size:12px; font-weight:800; color:#0F172A; margin-bottom:8px;">Resumen: ${data.summary.total_sessions} sesiones detectadas (~${Math.round(data.summary.total_kcal)} kcal totales):</div>`;
+                    out += `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:6px;">`;
+                    DAYS.forEach(day => {
+                        const ws = data.workouts_by_day[day] || [];
+                        const cho = data.periodized_carbs ? data.periodized_carbs[day] : null;
+                        out += `<div style="background:white; border:1px solid #CBD5E1; border-radius:6px; padding:6px; font-size:10.5px;">`;
+                        out += `<div style="font-weight:800; color:#0F172A; margin-bottom:2px;">${day}</div>`;
+                        if (ws.length === 0 || ws[0].is_rest) {
+                            out += `<div style="color:#64748B;">🛌 Descanso</div>`;
+                        } else {
+                            ws.forEach(w => {
+                                out += `<div style="color:#C2410C; font-weight:700;">🏃 ${w.start_time} (${w.duration_min}')</div>`;
+                                out += `<div style="color:#1E293B; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${w.sport}</div>`;
+                            });
+                        }
+                        if (cho) {
+                            out += `<div style="margin-top:4px; font-size:9.5px; color:${cho.badge_color}; font-weight:800;">🍚 ${cho.cho_total_g}g CHO</div>`;
+                        }
+                        out += `</div>`;
+                    });
+                    out += `</div>`;
+                    previewEl.innerHTML = out;
+                } else {
+                    previewEl.innerHTML = `<span style="color:#DC2626;">No se pudieron detectar entrenamientos. Revisa el texto.</span>`;
+                }
+            } catch (err) {
+                previewEl.innerHTML = `<span style="color:#DC2626;">Error de conexión: ${err.message}</span>`;
+            }
+        }
+
+        async function submitPasteTraining() {
+            const text = document.getElementById('paste-training-textarea').value.trim();
+            if (!text) {
+                alert("Por favor, introduce o pega el texto de los entrenamientos.");
+                return;
+            }
+            const weight = parseFloat(document.getElementById('p-weight').value) || 75.0;
+            const overwrite = document.getElementById('paste-opt-overwrite').checked;
+            const autoPeriodize = document.getElementById('paste-opt-periodize').checked;
+
+            try {
+                const res = await fetch('/api/diet/parse-pasted-training', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        weight_kg: weight,
+                        auto_periodize_carbs: autoPeriodize,
+                        auto_adjust_digestibility: document.getElementById('paste-opt-digestibility').checked
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.workouts_by_day) {
+                    let count = 0;
+                    DAYS.forEach(day => {
+                        if (overwrite || !currentWeekState[day].workouts) {
+                            currentWeekState[day].workouts = [];
+                        }
+                        const incoming = data.workouts_by_day[day] || [];
+                        const validWorkouts = incoming.filter(w => !w.is_rest);
+                        if (validWorkouts.length > 0) {
+                            currentWeekState[day].workouts = validWorkouts;
+                            count += validWorkouts.length;
+                        }
+                    });
+
+                    renderWeekGrid();
+                    closePasteTrainingModal();
+
+                    let msg = `✓ ¡Éxito! Se han aplicado ${count} sesiones de entrenamiento al patrón de diseño.\n\n`;
+                    msg += `• Mapeo oficial con las 28 disciplinas del Compendio ACSM.\n`;
+                    msg += `• Digestibilidad pre-entreno configurada (0% legumbres, 0% crucíferas, <5g grasa).\n`;
+                    if (autoPeriodize) {
+                        msg += `• Periodización de carbohidratos IOC/ACSM calculada para cada día según carga metabólica.`;
+                    }
+                    alert(msg);
+                } else {
+                    alert("No se pudieron procesar las sesiones del texto.");
+                }
+            } catch (err) {
+                alert("Error al aplicar entrenamientos: " + err.message);
+            }
+        }
+
+        // ==============================================================================
+        // --- MODAL: FICHA DIETOWIN & COMPOSICIÓN CORPORAL ---
+        // ==============================================================================
+
+        let currentDietowinSheetData = null;
+
+        async function openDietowinSheetModal() {
+            const clientName = document.getElementById('p-client-name').value.trim();
+            if (!clientName) {
+                alert("Por favor, selecciona primero un deportista en el planificador.");
+                return;
+            }
+
+            const modal = document.getElementById('dietowin-sheet-modal');
+            if (modal) modal.classList.remove('hidden');
+
+            document.getElementById('dw-sheet-client-name').innerText = `Expediente: ${clientName}`;
+            document.getElementById('dw-sheet-folder').innerText = 'Buscando en Drive...';
+            document.getElementById('dw-sheet-history-container').innerHTML = '<p style="padding:12px; font-size:12px; color:#4F46E5;">⏳ Escaneando SuiteBiológica 11, DietaWeb y Google Drive...</p>';
+
+            try {
+                const res = await fetch(`/api/diet/dietowin-client-sheet/${encodeURIComponent(clientName)}`);
+                const data = await res.json();
+                currentDietowinSheetData = data;
+
+                document.getElementById('dw-sheet-folder').innerText = data.matched_folder ? data.matched_folder.split('\\').pop() : 'No encontrada';
+                document.getElementById('dw-sheet-source-badge').innerText = data.source || 'Sin registro previo';
+
+                const compo = data.composition || {};
+                document.getElementById('dw-sheet-date').innerText = compo.measurement_date || 'Sin fecha registrada';
+
+                // Rellenar campos de composición
+                const w = compo.weight_kg || parseFloat(document.getElementById('p-weight').value) || 75.0;
+                const fatPct = compo.fat_percent || 15.0;
+                const ffm = compo.ffm_kg || parseFloat(document.getElementById('p-ffm').value) || roundNum(w * (1 - fatPct/100), 1);
+                const fatKg = compo.fat_mass_kg || roundNum(w * (fatPct/100), 1);
+                const muscle = compo.muscle_mass_kg || roundNum(ffm * 0.94, 1);
+                const water = compo.water_percent || 60.0;
+                const bone = compo.bone_mass_kg || 2.8;
+                const visceral = compo.visceral_fat || 2;
+                const bmrC = compo.bmr_cunningham || Math.round(500 + 22 * ffm);
+                const bmrDw = compo.bmr_dietowin || '--';
+
+                document.getElementById('dw-input-weight').value = w;
+                document.getElementById('dw-input-ffm').value = ffm;
+                document.getElementById('dw-input-fat-pct').value = fatPct;
+                document.getElementById('dw-input-fat-kg').value = fatKg;
+                document.getElementById('dw-input-muscle').value = muscle;
+                document.getElementById('dw-input-water').value = water;
+                document.getElementById('dw-input-bone').value = bone;
+                document.getElementById('dw-input-visceral').value = visceral;
+                document.getElementById('dw-input-cunningham').value = bmrC;
+                document.getElementById('dw-input-bmr-dietowin').value = bmrDw !== '--' ? bmrDw : '';
+
+                // Renderizar historial Dietowin
+                const hist = data.dietowin_history || [];
+                document.getElementById('dw-history-count').innerText = `${hist.length} versiones registradas`;
+
+                if (hist.length === 0) {
+                    document.getElementById('dw-sheet-history-container').innerHTML = '<p style="padding:12px; font-size:12px; color:#64748B;">No se detectaron dietas previas en DietaWeb para este paciente.</p>';
+                } else {
+                    let hHtml = '<table style="width:100%; border-collapse:collapse; font-size:11.5px;">';
+                    hHtml += '<tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; color:#475569;"><th style="padding:6px 10px; text-align:left;">Título del Patrón</th><th style="padding:6px 10px; text-align:left;">Tipo / Formato</th><th style="padding:6px 10px; text-align:left;">Archivo</th></tr>';
+                    hist.forEach(h => {
+                        hHtml += `<tr style="border-bottom:1px solid #F1F5F9;">
+                            <td style="padding:6px 10px; font-weight:700; color:#1E293B;">${h.title}</td>
+                            <td style="padding:6px 10px; color:#4338CA;">${h.type || 'Patrón Dietowin'}</td>
+                            <td style="padding:6px 10px; font-family:monospace; color:#64748B;">${h.file}</td>
+                        </tr>`;
+                    });
+                    hHtml += '</table>';
+                    document.getElementById('dw-sheet-history-container').innerHTML = hHtml;
+                }
+
+            } catch (err) {
+                alert("Error cargando ficha Dietowin: " + err.message);
+            }
+        }
+
+        function closeDietowinSheetModal() {
+            const modal = document.getElementById('dietowin-sheet-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function recalcDietowinModalValues() {
+            const w = parseFloat(document.getElementById('dw-input-weight').value) || 0;
+            const fatPct = parseFloat(document.getElementById('dw-input-fat-pct').value) || 0;
+            if (w > 0 && fatPct > 0) {
+                const fatKg = roundNum(w * (fatPct / 100), 1);
+                document.getElementById('dw-input-fat-kg').value = fatKg;
+                const ffm = roundNum(w - fatKg, 1);
+                document.getElementById('dw-input-ffm').value = ffm;
+                const cunningham = Math.round(500 + 22 * ffm);
+                document.getElementById('dw-input-cunningham').value = cunningham;
+            }
+        }
+
+        function roundNum(val, dec = 1) {
+            return Number(Math.round(val + 'e' + dec) + 'e-' + dec);
+        }
+
+        async function saveDietowinSheet() {
+            const clientName = document.getElementById('p-client-name').value.trim();
+            if (!clientName) return;
+
+            const w = parseFloat(document.getElementById('dw-input-weight').value);
+            const ffm = parseFloat(document.getElementById('dw-input-ffm').value);
+            const fatPct = parseFloat(document.getElementById('dw-input-fat-pct').value);
+            const muscle = parseFloat(document.getElementById('dw-input-muscle').value);
+            const water = parseFloat(document.getElementById('dw-input-water').value);
+            const bone = parseFloat(document.getElementById('dw-input-bone').value);
+            const visceral = parseFloat(document.getElementById('dw-input-visceral').value);
+
+            try {
+                const res = await fetch('/api/diet/save-dietowin-composition', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_name: clientName,
+                        weight: w,
+                        ffm: ffm,
+                        fat_percent: fatPct,
+                        muscle_mass: muscle,
+                        water_percent: water,
+                        bone_mass: bone,
+                        visceral_fat: visceral
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Actualizar inputs del planificador principal
+                    if (w) document.getElementById('p-weight').value = w.toFixed(1);
+                    if (ffm) document.getElementById('p-ffm').value = ffm.toFixed(1);
+                    recalcMetabolism();
+
+                    // Recargar datos clínicos del deportista en el banner
+                    await onClientSelectChange();
+
+                    closeDietowinSheetModal();
+                    alert("✓ Composición corporal guardada con éxito en el expediente del deportista y aplicada al planificador.");
+                } else {
+                    alert("Error guardando composición: " + (data.message || "Error desconocido"));
+                }
+            } catch (err) {
+                alert("Error de conexión guardando ficha: " + err.message);
+            }
+        }
+
     </script>
     </body>
     
