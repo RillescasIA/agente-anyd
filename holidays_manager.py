@@ -57,7 +57,8 @@ OFFICIAL_HOLIDAYS = [
 ]
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    current_db = os.environ.get("DB_PATH", DB_PATH)
+    conn = sqlite3.connect(current_db)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -71,9 +72,14 @@ def init_holidays_table():
         name TEXT NOT NULL,
         scope TEXT NOT NULL,
         is_closed INTEGER DEFAULT 1,
+        color TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    cursor.execute("PRAGMA table_info(holidays)")
+    cols = [r[1] for r in cursor.fetchall()]
+    if "color" not in cols:
+        cursor.execute("ALTER TABLE holidays ADD COLUMN color TEXT")
 
     for h in OFFICIAL_HOLIDAYS:
         cursor.execute("""
@@ -178,7 +184,7 @@ def is_holiday(date_str: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
 def get_holidays_list(start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
     conn = get_db()
     cursor = conn.cursor()
-    query = "SELECT id, date, name, scope, is_closed FROM holidays"
+    query = "SELECT id, date, name, scope, is_closed, color FROM holidays"
     params = []
     if start_date and end_date:
         query += " WHERE date >= ? AND date <= ?"

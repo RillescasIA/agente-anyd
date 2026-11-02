@@ -2240,7 +2240,9 @@ def api_add_holiday(req: AddHolidayRequest):
 
     while cur_dt <= end_dt:
         cur_str = cur_dt.strftime("%Y-%m-%d")
-        holidays_manager.add_custom_holiday(cur_str, name, scope, req.is_closed, req.color)
+        ok = holidays_manager.add_custom_holiday(cur_str, name, scope, req.is_closed, req.color)
+        if not ok:
+            raise HTTPException(status_code=500, detail=f"No se pudo guardar el bloqueo para el día {cur_str} en la base de datos.")
         count += 1
         cur_dt += timedelta(days=1)
 
