@@ -2311,13 +2311,15 @@ Domingo: descanso"></textarea>
         let currentEvolutionHistory = null;
         let selectedConsultationIndex = 0;
 
-        async function loadOrRegisterActivePatient() {
+        async function loadOrRegisterActivePatient(skipWeekGridReload = false) {
             const nameInput = document.getElementById('p-client-name');
             const clientName = nameInput ? nameInput.value.trim() : '';
             if (!clientName) {
-                alert("Por favor introduce el nombre del paciente o deportista.");
                 return;
             }
+
+            const btn = document.querySelector('button[onclick*="loadOrRegisterActivePatient"]');
+            if (btn) btn.innerHTML = "<span>⏳</span> Cargando...";
 
             try {
                 const res = await fetch('/api/diet/load-or-register-patient', {
@@ -2330,20 +2332,15 @@ Domingo: descanso"></textarea>
                 });
                 const data = await res.json();
                 if (!data.success) {
-                    alert("Error al procesar paciente: " + (data.message || 'Error desconocido'));
+                    console.error("Error al procesar paciente:", data.message);
                     return;
-                }
-
-                // 1. Notificación de alta o carga
-                if (data.action === 'registered') {
-                    alert(`✓ ¡Nuevo paciente '${data.client.fullname}' dado de alta con éxito en el sistema!`);
                 }
 
                 if (data.client && data.client.fullname) {
                     nameInput.value = data.client.fullname;
                 }
 
-                // 2. Aplicar composición corporal de Dietowin si existe
+                // 1. Aplicar composición corporal de Dietowin si existe
                 if (data.composition) {
                     const c = data.composition;
                     if (c.weight_kg) document.getElementById('p-weight').value = Number(c.weight_kg).toFixed(1);
@@ -2351,27 +2348,119 @@ Domingo: descanso"></textarea>
                     recalcMetabolism();
                 }
 
-                // 3. Cargar el último patrón de Dietowin si existe
-                if (data.dietowin_pattern && data.dietowin_pattern.weekly_data) {
+                // 2. Cargar el último patrón de Dietowin si existe
+                let hasDW = false;
+                if (!skipWeekGridReload && data.dietowin_pattern && data.dietowin_pattern.weekly_data) {
                     currentWeekState = data.dietowin_pattern.weekly_data;
                     if (data.dietowin_pattern.active_slots && Array.isArray(data.dietowin_pattern.active_slots)) {
                         activeSlots = data.dietowin_pattern.active_slots;
                         MEAL_SLOTS = activeSlots;
                     }
                     renderWeekGrid();
-                    alert(`✨ ¡Último patrón de Dietowin cargado en el cuadrante del agente!
-
-• Título: ${data.dietowin_pattern.title}
-• Fecha: ${data.dietowin_pattern.date_str}
-• Archivo: ${data.dietowin_pattern.file}`);
+                    hasDW = true;
                 }
 
-                // 4. Actualizar ficha clínica y notas particulares en banner
-                await onClientSelectChange();
+                // 3. Renderizar banner clínico con notas agregadas
+                renderClinicalBannerWithData(data);
+
+                // 4. Notificación visual en el chip de estado
+                const statusChip = document.getElementById('tanita-status-chip');
+                if (statusChip) {
+                    statusChip.style.display = 'inline-block';
+                    if (hasDW) {
+                        statusChip.innerHTML = `<span style="background:#ECFDF5; color:#065F46; border:1px solid #A7F3D0; padding:4px 8px; border-radius:6px; font-weight:700;">✓ Patrón Dietowin: ${data.dietowin_pattern.title || 'Patrón 7 días'} (${data.dietowin_pattern.file || ''})</span>`;
+                    } else if (data.composition) {
+                        statusChip.innerHTML = `<span style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; padding:4px 8px; border-radius:6px; font-weight:700;">✓ Composición Tanita cargada (${data.composition.weight_kg}kg · ${data.composition.fat_percent || ''}%)</span>`;
+                    }
+                }
 
             } catch (err) {
-                alert("Error al cargar datos del paciente: " + err.message);
+                console.error("Error al cargar datos del paciente:", err);
+            } finally {
+                if (btn) btn.innerHTML = "<span>🔍</span> Cargar / Alta";
             }
+        }
+
+        function renderClinicalBannerWithData(data) {
+            const clinicalBanner = document.getElementById('athlete-clinical-banner');
+            if (!clinicalBanner) return;
+
+            clinicalBanner.style.display = 'block';
+            const c = data.composition || {};
+            const p = data.particular_notes || {};
+            const client = data.client || {};
+
+            const consejos = p.dietowin_consejos || [];
+            const evol = p.clinical_evolution || [];
+
+            clinicalBanner.innerHTML = `
+                <div style="background:#F0F9FF; border:1.5px solid #BAE6FD; border-radius:8px; padding:12px; margin-top:6px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px; border-bottom:1px solid #E0F2FE; padding-bottom:6px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">🧬</span>
+                            <strong style="color:#0369A1; font-size:12.5px;">Composición Corporal & Ficha Clínica (Tanita MC-580 / FFM)</strong>
+                        </div>
+                        <span style="font-size:11px; color:#0284C7; font-weight:700;">
+                            ${c.measurement_date ? 'Último pesaje: ' + c.measurement_date : 'Datos de Dietowin'}
+                        </span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin-bottom:8px;">
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                            <div style="font-size:10px; color:#64748B; font-weight:700; text-transform:uppercase;">Peso Total</div>
+                            <div style="font-size:14px; font-weight:800; color:#0F172A;">${c.weight_kg ? c.weight_kg + ' kg' : document.getElementById('p-weight').value + ' kg'}</div>
+                        </div>
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                            <div style="font-size:10px; color:#047857; font-weight:700; text-transform:uppercase;">FFM (Masa Magra)</div>
+                            <div style="font-size:14px; font-weight:800; color:#065F46;">${c.ffm_kg ? c.ffm_kg + ' kg' : document.getElementById('p-ffm').value + ' kg'}</div>
+                        </div>
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                            <div style="font-size:10px; color:#9A3412; font-weight:700; text-transform:uppercase;">Grasa %</div>
+                            <div style="font-size:14px; font-weight:800; color:#C2410C;">${c.fat_percent ? c.fat_percent + '%' : (c.fat_mass_kg ? c.fat_mass_kg + ' kg' : '--')}</div>
+                        </div>
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                            <div style="font-size:10px; color:#1D4ED8; font-weight:700; text-transform:uppercase;">Masa Muscular</div>
+                            <div style="font-size:14px; font-weight:800; color:#1E40AF;">${c.muscle_mass_kg ? c.muscle_mass_kg + ' kg' : '--'}</div>
+                        </div>
+                        <div style="background:white; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                            <div style="font-size:10px; color:#6D28D9; font-weight:700; text-transform:uppercase;">BMR Cunningham</div>
+                            <div style="font-size:14px; font-weight:800; color:#5B21B6;">${c.bmr_cunningham ? c.bmr_cunningham + ' kcal' : Math.round(500 + 22 * (parseFloat(document.getElementById('p-ffm').value) || 60)) + ' kcal'}</div>
+                        </div>
+                    </div>
+
+                    ${consejos.length > 0 ? `
+                        <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:6px; padding:8px 12px; font-size:11.5px; color:#92400E; margin-bottom:8px;">
+                            <strong>📝 Notas & Consejos Particulares de Dietowin:</strong>
+                            <div style="margin-top:4px; max-height:80px; overflow-y:auto; line-height:1.4;">
+                                ${consejos.slice(0, 6).map(cs => '• ' + cs).join('<br>')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${p.anamnesis_docx_summary ? `
+                        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:6px 10px; font-size:11px; color:#334155; margin-bottom:8px;">
+                            📋 <strong>Anamnesis Drive:</strong> ${p.anamnesis_docx_summary}
+                        </div>
+                    ` : ''}
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <button type="button" onclick="openEvolutionModal()" class="btn-anyd" style="background:#0F172A; font-size:11px; padding:5px 12px; display:inline-flex; align-items:center; gap:4px;" title="Ver evolutivo histórico de consultas, pesajes y gráficos">
+                                📈 Evolutivo & Consultas
+                            </button>
+                            <button type="button" onclick="openPasteTrainingModal()" class="btn-anyd" style="background:#10B981; font-size:11px; padding:5px 12px;">
+                                📋 Pegar Entrenamientos
+                            </button>
+                            <button type="button" onclick="openDietowinSheetModal()" class="btn-anyd" style="background:#4F46E5; font-size:11px; padding:5px 12px;">
+                                📊 Ficha Dietowin
+                            </button>
+                        </div>
+                        <span style="font-size:11px; color:#475569;">
+                            ${client.email ? '✉️ ' + client.email : ''} ${client.phone ? '· 📞 ' + client.phone : ''}
+                        </span>
+                    </div>
+                </div>
+            `;
         }
 
         async function openEvolutionModal() {
@@ -3632,6 +3721,17 @@ Domingo: descanso"></textarea>
             const clinicalBanner = document.getElementById('athlete-clinical-banner');
 
             if (!clientName) {
+                if (statusChip) statusChip.style.display = 'none';
+                if (clinicalBanner) clinicalBanner.style.display = 'none';
+                currentAthleteData = null;
+                return;
+            }
+
+            // Auto-cargar automáticamente la composición, notas y patrón Dietowin al seleccionar
+            if (!isAutoLoadingPatient) {
+                await loadOrRegisterActivePatient();
+                return;
+            }
                 if (statusChip) statusChip.style.display = 'none';
                 if (clinicalBanner) clinicalBanner.style.display = 'none';
                 currentAthleteData = null;

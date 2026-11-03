@@ -68,52 +68,63 @@ def get_client_aliases(client_name: str) -> List[str]:
     return aliases
 
 def find_athlete_drive_folder(client_name: str) -> Optional[str]:
-    """Busca la carpeta del deportista en G:\\Mi unidad\\1.- ANyD\\1.- Deportistas."""
+    """Busca la carpeta del deportista en G:\\Mi unidad\\1.- ANyD\\1.- Deportistas con ponderación estricta."""
     if not os.path.exists(DEPORTISTAS_DIR):
         return None
 
+    norm_target = normalize_text(client_name)
     aliases = get_client_aliases(client_name)
-    norm_aliases = [normalize_text(a) for a in aliases if normalize_text(a)]
+    all_names = [client_name] + aliases
+    norm_aliases = [normalize_text(a) for a in all_names if normalize_text(a)]
 
     try:
         folders = [f for f in os.listdir(DEPORTISTAS_DIR) if os.path.isdir(os.path.join(DEPORTISTAS_DIR, f))]
         
-        # 1. Pase prioritario: Coincidencia EXACTA con cualquier alias o nombre de cliente
+        # 1. Coincidencia EXACTA con cualquier alias o nombre de cliente
         for folder in folders:
             folder_norm = normalize_text(folder)
             for na in norm_aliases:
                 if folder_norm == na:
                     return os.path.join(DEPORTISTAS_DIR, folder)
 
-        # 2. Pase secundario: Todos los tokens del alias presentes en el nombre de carpeta
-        for folder in folders:
-            folder_norm = normalize_text(folder)
-            for na in norm_aliases:
-                toks = [t for t in na.split() if len(t) >= 3]
-                if len(toks) >= 2 and all(t in folder_norm for t in toks):
-                    return os.path.join(DEPORTISTAS_DIR, folder)
-
-        # 3. Pase terciario: Puntuación por tokens coincidentes
-        best_match = None
-        best_score = 0
-        all_tokens = set()
+        # 2. Puntuación ponderada de tokens
+        scored = []
+        target_tokens = set()
         for na in norm_aliases:
-            for tok in na.split():
-                if len(tok) >= 3:
-                    all_tokens.add(tok)
+            for t in na.split():
+                if len(t) >= 3:
+                    target_tokens.add(t)
+
+        client_tokens = [t for t in normalize_text(client_name).split() if len(t) >= 3]
 
         for folder in folders:
             folder_norm = normalize_text(folder)
+            f_toks = set([t for t in folder_norm.split() if len(t) >= 3])
+            common = target_tokens.intersection(f_toks)
+
             score = 0
-            for tok in all_tokens:
-                if tok in folder_norm:
-                    score += 2 if len(tok) > 4 else 1
+            if len(common) >= 2:
+                score = 100 + len(common) * 30
+            elif len(common) == 1:
+                tok = list(common)[0]
+                if len(tok) >= 4:
+                    score = 25
+                    if any(na in folder_norm or folder_norm in na for na in norm_aliases if len(na) >= 4):
+                        score = 45
 
-            if score > best_score and score >= 2:
-                best_score = score
-                best_match = os.path.join(DEPORTISTAS_DIR, folder)
+            # Bonificación estricta por tokens del nombre primario solicitado
+            for ct in client_tokens:
+                if ct in folder_norm:
+                    score += 40
 
-        return best_match
+            if score > 0:
+                scored.append((score, os.path.join(DEPORTISTAS_DIR, folder)))
+
+        if scored:
+            scored.sort(key=lambda x: x[0], reverse=True)
+            return scored[0][1]
+
+        return None
     except Exception as e:
         print(f"Error escaneando carpetas de deportistas: {e}")
         return None
@@ -541,23 +552,17 @@ def scan_client_dietowin_profile(client_name: str) -> Dict[str, Any]:
         result["composition"] = candidates_compo[0]
         result["found"] = True
         result["source"] = result["composition"].get("source_type", "Composición Corporal")
+        # Auto-guardar en la base de datos de mediciones si proviene de un archivo externo
+        if "Registro Consulta" not in result["source"]:
+            save_dietowin_composition_to_db(client_name, result["composition"])
     
     result["dietowin_history"] = diet_history[:15]
     return result
 
 def save_dietowin_composition_to_db(client_name: str, compo: Dict[str, Any]) -> bool:
-    """Guarda o actualiza la composición corporal en la base de datos tanita_measurements."""
+    """Guarda o actualiza la composición corporal en la base de datos tanita_measurements en ambas BDs."""
     try:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        # Buscar ID de cliente
-        cursor.execute("SELECT id, fullname FROM clients WHERE LOWER(fullname) LIKE ? OR LOWER(firstname) LIKE ? LIMIT 1",
-                       (f"%{normalize_text(client_name)}%", f"%{normalize_text(client_name)}%"))
-        c_row = cursor.fetchone()
-        client_id = c_row["id"] if c_row else None
-        official_name = c_row["fullname"] if c_row else client_name
-        
+        norm_c = normalize_text(client_name)
         weight = float(compo.get("weight_kg") or compo.get("weight") or 70.0)
         fat_pct = float(compo.get("fat_percent") or 15.0)
         ffm = float(compo.get("ffm_kg") or compo.get("ffm") or round(weight * (1.0 - fat_pct/100.0), 1))
@@ -567,22 +572,42 @@ def save_dietowin_composition_to_db(client_name: str, compo: Dict[str, Any]) -> 
         bone = float(compo.get("bone_mass_kg") or compo.get("bone_mass") or 2.8)
         visceral = float(compo.get("visceral_fat") or 2.0)
         bmr_cunningham = round(500 + 22 * ffm)
-        meas_date = compo.get("measurement_date") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        cursor.execute("""
-            INSERT INTO tanita_measurements (
-                client_id, client_name, measurement_date, weight, bmi, fat_percent, fat_mass,
-                muscle_mass, ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            client_id, official_name, meas_date, weight, round(weight / (1.75**2), 1), fat_pct, fat_mass,
-            muscle, ffm, water, bone, visceral, bmr_cunningham, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ))
-        
-        conn.commit()
-        conn.close()
+        meas_date = str(compo.get("measurement_date") or datetime.now().strftime("%Y-%m-%d"))
+
+        for db_file in [os.path.join(BASE_DIR, "anyd_booking.db"), os.path.join(BASE_DIR, "anyd_booking_test.db")]:
+            if not os.path.exists(db_file):
+                continue
+            try:
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, fullname FROM clients WHERE LOWER(fullname) LIKE ? OR LOWER(firstname) LIKE ? LIMIT 1",
+                               (f"%{norm_c}%", f"%{norm_c}%"))
+                c_row = cursor.fetchone()
+                client_id = c_row[0] if c_row else None
+                official_name = c_row[1] if c_row else client_name
+
+                # Evitar registros duplicados para la misma fecha y paciente
+                cursor.execute("SELECT id FROM tanita_measurements WHERE (client_id = ? OR client_name = ?) AND measurement_date = ?",
+                               (client_id, official_name, meas_date))
+                existing = cursor.fetchone()
+                if not existing:
+                    cursor.execute("""
+                        INSERT INTO tanita_measurements (
+                            client_id, client_name, measurement_date, weight, bmi, fat_percent, fat_mass,
+                            muscle_mass, ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        client_id, official_name, meas_date, weight, round(weight / (1.75**2), 1), fat_pct, fat_mass,
+                        muscle, ffm, water, bone, visceral, bmr_cunningham, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    ))
+                    conn.commit()
+                conn.close()
+            except Exception:
+                pass
         return True
     except Exception as e:
+        print(f"Error guardando composición en DB: {e}")
+        return False
         print(f"Error guardando composición en base de datos: {e}")
         return False
 
@@ -598,35 +623,84 @@ def find_latest_dw11w_file(client_name: str) -> Optional[Dict[str, Any]]:
         return None
         
     norm_target = normalize_text(client_name)
-    target_tokens = set([t for t in norm_target.split() if len(t) >= 3])
+    aliases = get_client_aliases(client_name)
+    all_names = [client_name] + aliases
+    norm_aliases = [normalize_text(a) for a in all_names if normalize_text(a)]
     
+    target_tokens = set()
+    for na in norm_aliases:
+        for t in na.split():
+            if len(t) >= 3:
+                target_tokens.add(t)
+
+    # Detectar si hay un IDPaciente activo en Suite11.INI
+    active_patient_id = None
+    ini_path = os.path.join(SUITE_DIR, "Suite11.INI")
+    if os.path.exists(ini_path):
+        try:
+            with open(ini_path, "r", encoding="latin1") as f:
+                for line in f:
+                    if line.startswith("IDPaciente="):
+                        active_patient_id = line.strip().split("=", 1)[1]
+                        break
+        except Exception:
+            pass
+
     import glob
     files = glob.glob(os.path.join(dietaweb_dir, "*.DW11W"))
     matches = []
     
     for f in files:
+        # Descartar archivos vacíos (0 bytes)
         try:
+            if os.path.getsize(f) == 0:
+                continue
+        except Exception:
+            continue
+
+        try:
+            fname = os.path.basename(f)
             with open(f, 'rb') as fp:
                 head = fp.read(1500).decode('latin1', errors='replace')
                 m_nom = re.search(r'NombrePaciente=(.+)', head)
                 m_tit = re.search(r'Titulo=(.+)', head)
                 patient_name = m_nom.group(1).strip() if m_nom else ""
-                title = m_tit.group(1).strip() if m_tit else os.path.basename(f)
+                title = m_tit.group(1).strip() if m_tit else fname
                 
                 norm_p = normalize_text(patient_name)
+                if not norm_p or len(norm_p) < 2:
+                    continue
+
+                p_toks = set([t for t in norm_p.split() if len(t) >= 3])
+                common = target_tokens.intersection(p_toks)
                 score = 0
-                if norm_p == norm_target:
-                    score = 100
-                elif norm_target in norm_p or norm_p in norm_target:
-                    score = 80
-                else:
-                    p_toks = set([t for t in norm_p.split() if len(t) >= 3])
-                    common = target_tokens.intersection(p_toks)
-                    if len(common) >= 2:
-                        score = 50 + len(common) * 10
-                    elif len(common) == 1 and len(target_tokens) == 1:
-                        score = 40
-                
+
+                # 1. Coincidencia exacta con ID de paciente activo en Dietowin
+                if active_patient_id and fname.startswith(f"{active_patient_id}_"):
+                    if any(tok in norm_p for tok in target_tokens):
+                        score = 110
+
+                # 2. Coincidencia exacta con el nombre o cualquier alias
+                if score == 0:
+                    if any(norm_p == na for na in norm_aliases):
+                        score = 100
+                    elif any(len(na) >= 4 and (na in norm_p or norm_p in na) for na in norm_aliases):
+                        score = 85
+                    elif len(common) >= 2:
+                        score = 60 + len(common) * 10
+                    elif len(common) == 1 and len(list(common)[0]) >= 4:
+                        score = 45
+
+                # 3. Ponderación por nombre de pila para evitar falsos positivos familiares (ej: Ivan vs Carol)
+                if score > 0:
+                    q_first = norm_target.split()[0] if norm_target else ""
+                    p_first = norm_p.split()[0] if norm_p else ""
+                    if q_first and p_first:
+                        if p_first.startswith(q_first) or q_first.startswith(p_first):
+                            score += 40
+                        elif len(q_first) >= 4 and q_first not in norm_p:
+                            score -= 60
+
                 if score > 0:
                     mtime = os.path.getmtime(f)
                     matches.append((score, mtime, f, patient_name, title))
@@ -817,7 +891,7 @@ def parse_latest_dw11w_for_client(client_name: str) -> Optional[Dict[str, Any]]:
                 "id": "slot_recena", "key": "recena", "label": "Recena", "icon": "🥛", "time": "23:00", "defaultTime": "23:00", "type": "food", "isCustom": True
             })
             
-        return {
+        plan_result = {
             "found": True,
             "patient_name": latest["patient_name"],
             "title": latest["title"],
@@ -828,6 +902,35 @@ def parse_latest_dw11w_for_client(client_name: str) -> Optional[Dict[str, Any]]:
             "weekly_data": week_state,
             "active_slots": active_slots
         }
+
+        # Auto-guardar en la tabla diet_plans para que esté disponible en el historial
+        try:
+            norm_name = normalize_text(client_name)
+            c.execute("SELECT id, fullname FROM clients WHERE LOWER(fullname) LIKE ? OR LOWER(firstname) LIKE ? LIMIT 1",
+                      (f"%{norm_name}%", f"%{norm_name}%"))
+            c_row = c.fetchone()
+            cid = c_row["id"] if c_row else None
+            cname = c_row["fullname"] if c_row else client_name
+
+            for db_file in [os.path.join(BASE_DIR, "anyd_booking.db"), os.path.join(BASE_DIR, "anyd_booking_test.db")]:
+                if os.path.exists(db_file):
+                    try:
+                        c_db = sqlite3.connect(db_file)
+                        cur_db = c_db.cursor()
+                        cur_db.execute("SELECT id FROM diet_plans WHERE client_id = ? AND plan_name = ?", (cid, latest["title"]))
+                        if not cur_db.fetchone():
+                            cur_db.execute("""
+                                INSERT INTO diet_plans (client_id, client_name, plan_name, weekly_data_json, notes, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (cid, cname, latest["title"], json.dumps(week_state), os.path.basename(latest["file_path"]), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                            c_db.commit()
+                        c_db.close()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        return plan_result
     finally:
         conn.close()
 
@@ -997,6 +1100,22 @@ def get_athlete_evolution_history(client_name: str) -> Dict[str, Any]:
         ORDER BY measurement_date ASC, id ASC
     """, (client_id, f"%{norm_name}%", norm_name))
     rows = cursor.fetchall()
+    
+    # Si no hay mediciones en la BD para este deportista, escanear activamente Drive y Dietowin
+    if not rows:
+        conn.close()
+        scan_client_dietowin_profile(client_name)
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, measurement_date, weight, bmi, fat_percent, fat_mass, muscle_mass,
+                   ffm, water_percent, bone_mass, visceral_fat, bmr_cunningham, perimeters_json, created_at
+            FROM tanita_measurements
+            WHERE (client_id = ? OR LOWER(client_name) LIKE ? OR LOWER(client_name) = ?)
+            ORDER BY measurement_date ASC, id ASC
+        """, (client_id, f"%{norm_name}%", norm_name))
+        rows = cursor.fetchall()
+
     conn.close()
     
     consultations = []

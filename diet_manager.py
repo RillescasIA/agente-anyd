@@ -1928,6 +1928,28 @@ def get_athlete_clinical_parameters(client_name: str) -> Dict[str, Any]:
     tanita_row = cursor.fetchone()
     tanita_data = dict(tanita_row) if tanita_row else None
 
+    # Si no hay medición en la tabla, escanear activamente Drive y Dietowin
+    if not tanita_data:
+        try:
+            import dietowin_scanner
+            scan_res = dietowin_scanner.scan_client_dietowin_profile(client_name)
+            if scan_res.get("composition"):
+                c = scan_res["composition"]
+                tanita_data = {
+                    "weight": c.get("weight_kg") or c.get("weight"),
+                    "ffm": c.get("ffm_kg") or c.get("ffm"),
+                    "fat_percent": c.get("fat_percent"),
+                    "fat_mass": c.get("fat_mass_kg") or c.get("fat_mass"),
+                    "muscle_mass": c.get("muscle_mass_kg") or c.get("muscle_mass"),
+                    "water_percent": c.get("water_percent"),
+                    "bone_mass": c.get("bone_mass_kg") or c.get("bone_mass"),
+                    "visceral_fat": c.get("visceral_fat"),
+                    "bmr_cunningham": c.get("bmr_cunningham"),
+                    "measurement_date": c.get("measurement_date")
+                }
+        except Exception:
+            pass
+
     # 2. Perfil clínico
     profile_data = None
     if c_id:
