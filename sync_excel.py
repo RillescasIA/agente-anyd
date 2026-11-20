@@ -10,14 +10,18 @@ EXCEL_PATH = os.environ.get("EXCEL_PATH", DEFAULT_EXCEL)
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
 
 def determine_total_sessions(tipo_bono):
-    tipo = str(tipo_bono).upper()
-    if "3" in tipo:
-        return 3
-    elif "5" in tipo or "COMPET" in tipo:
-        return 5
+    tipo = str(tipo_bono or "").upper()
+    if "COMPET" in tipo or "COMPETIC" in tipo:
+        return 4
     elif "6" in tipo:
         return 6
-    elif "SUELTA" in tipo or "INDIVIDUAL" in tipo or "CONSULTA" in tipo:
+    elif "5" in tipo:
+        return 5
+    elif "4" in tipo:
+        return 4
+    elif "3" in tipo or "TRIMESTR" in tipo:
+        return 3
+    elif "SUELTA" in tipo or "INDIVIDUAL" in tipo or "CONSULTA" in tipo or "1" in tipo or "MENSUAL" in tipo or "SEGUIMIENTO" in tipo:
         return 1
     return 3 # default fallback
 

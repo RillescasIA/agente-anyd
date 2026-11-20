@@ -1,7 +1,51 @@
+import crm_manager
+import os
+import re
+
+def load_excel_consultations_cache():
+    """Lee las consultas registradas en Excel para cada bono activo (Consulta 1, 2, ...)."""
+    excel_path = os.environ.get("EXCEL_PATH", r"G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx")
+    if not os.path.exists(excel_path):
+        return {}
+    consultations_map = {}
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(excel_path, data_only=True, read_only=True)
+        if "Bonos activos" in wb.sheetnames:
+            ws = wb["Bonos activos"]
+            headers = []
+            for r_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=150, max_col=16, values_only=True), start=1):
+                if r_idx == 1:
+                    headers = [str(h or f"Consulta {idx-8}") for idx, h in enumerate(row)]
+                    continue
+                if not row or len(row) < 5:
+                    continue
+                nombre = str(row[1] or '').strip()
+                pedido = str(row[4] or '').strip()
+                if not nombre and not pedido:
+                    continue
+                c_list = []
+                for col_idx in range(9, min(15, len(row))):
+                    val = row[col_idx]
+                    if val is not None and str(val).strip():
+                        slot_name = headers[col_idx] if col_idx < len(headers) else f"Consulta {col_idx - 8}"
+                        c_list.append({
+                            "slot": slot_name,
+                            "text": str(val).strip()
+                        })
+                if pedido and pedido != "--":
+                    consultations_map[pedido] = c_list
+                if nombre:
+                    consultations_map[nombre.lower()] = c_list
+        wb.close()
+    except Exception as e:
+        print("[EXCEL CONSULTATIONS ERROR]", e)
+    return consultations_map
+
 import sqlite3
 import os
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Request, HTTPException, Body, UploadFile, File
+from fastapi import FastAPI, Request, HTTPException, Body, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -60,7 +104,10 @@ PUBLIC_PREFIXES = (
     "/api/bonos/",
     "/api/imap/",
     "/api/analytics/",
-    "/api/whatsapp/"
+    "/api/whatsapp/",
+    "/api/orders/",
+    "/api/appointments/",
+    "/api/complete-appointment"
 )
 
 @app.middleware("http")
@@ -192,6 +239,19 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (bono_id) REFERENCES bonos (id),
         FOREIGN KEY (client_id) REFERENCES clients (id)
+    )""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS order_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id TEXT UNIQUE,
+        client_name TEXT,
+        client_email TEXT,
+        client_phone TEXT,
+        tipo_bono TEXT,
+        price REAL,
+        source TEXT DEFAULT 'email',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_read INTEGER DEFAULT 0
     )""")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tanita_measurements (
@@ -506,6 +566,14 @@ class ActionAppointmentRequest(BaseModel):
     id: int
     notes: Optional[str] = None
 
+@app.get("/bonos", response_class=HTMLResponse)
+def page_bonos(
+    request: Request,
+    q: Optional[str] = None,
+    page: int = 1
+):
+    return page_admin(request=request, tab="past", q=q, page=page)
+
 @app.get("/admin", response_class=HTMLResponse)
 def page_admin(
     request: Request,
@@ -513,6 +581,8 @@ def page_admin(
     q: Optional[str] = None,
     page: int = 1
 ):
+    if tab in ["bonos", "finanzas"]:
+        tab = "past"
     conn = get_db()
     cursor = conn.cursor()
 
@@ -536,6 +606,9 @@ def page_admin(
 
     cursor.execute("SELECT COUNT(*) FROM appointments")
     all_count = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM appointments WHERE status = 'Pendiente de Bono'")
+    pending_bono_appts_count = cursor.fetchone()[0]
 
     # Construcción de la consulta según la pestaña seleccionada (pasado, presente, futuro)
     query_parts = ["SELECT id, bono_id, client_name, client_email, client_phone, appointment_date, appointment_time, modality, status, reminder_sent, notes FROM appointments WHERE 1=1"]
@@ -569,19 +642,178 @@ def page_admin(
     cursor.execute(full_query, params)
     appointments = cursor.fetchall()
 
-    # Obtener lista de bonos activos con datos de contacto
+    # Obtener lista completa de bonos (Activos y Completados/Agotados) con todos sus metadatos
     cursor.execute("""
-    SELECT b.id, b.order_id, b.client_name, COALESCE(b.client_email, c.email, '') as client_email,
+    SELECT b.id, b.order_id, b.client_id, b.client_name, COALESCE(b.client_email, c.email, '') as client_email,
            COALESCE(c.phone, '') as client_phone, b.tipo_bono, b.purchase_date, b.used_sessions,
-           b.total_sessions, b.status
+           b.total_sessions, b.status, COALESCE(b.price, 0) as price,
+           COALESCE(b.forma_pago, 'Online') as forma_pago, COALESCE(b.centro, 'ANYD') as centro,
+           COALESCE(b.nutri, 'Román') as nutri,
+           COALESCE(c.lastname, '') as lastname, COALESCE(c.firstname, '') as firstname
     FROM bonos b
     LEFT JOIN clients c ON b.client_id = c.id
-    WHERE b.status = 'Activo'
-    ORDER BY b.id DESC
+    ORDER BY CASE WHEN b.status = 'Activo' THEN 0 ELSE 1 END ASC, b.id DESC
     """)
-    bonos = cursor.fetchall()
+    bonos_raw = cursor.fetchall()
+    
+    # Cargar consultas del Excel y citas de la base de datos
+    excel_c_map = load_excel_consultations_cache()
+    
+    cursor.execute("""
+        SELECT a.id, a.bono_id, a.client_id, a.client_name, a.appointment_date,
+               a.appointment_time, a.modality, a.status, a.notes, a.service
+        FROM appointments a
+        WHERE (a.bono_id IS NOT NULL OR a.client_id IS NOT NULL)
+          AND a.status != 'Cancelada'
+        ORDER BY a.appointment_date ASC, a.appointment_time ASC
+    """)
+    all_appts = [dict(r) for r in cursor.fetchall()]
 
-    # Obtener lista de clientes para el selector de cita manual
+    appts_by_bono_id = {}
+    appts_by_client_id = {}
+    appts_by_client_name = {}
+    for a in all_appts:
+        if a.get("bono_id"):
+            appts_by_bono_id.setdefault(a["bono_id"], []).append(a)
+        if a.get("client_id"):
+            appts_by_client_id.setdefault(a["client_id"], []).append(a)
+        if a.get("client_name"):
+            clean_name = re.sub(r'\s*[-/].*$', '', a["client_name"]).strip().lower()
+            appts_by_client_name.setdefault(clean_name, []).append(a)
+
+    bonos = []
+    compound_first_names = [
+        "jose joaquin", "juan carlos", "maria del mar", "eva maria", "francisco jose",
+        "miguel angel", "jose antonio", "juan jose", "jose manuel", "ana maria", "maria carmen",
+        "maria teresa", "maria pilar", "maria dolores", "maria jose", "pedro jose", "jesus maria"
+    ]
+
+    last_session_count = 0
+    unstarted_count = 0
+    ficticio_count = 0
+    completed_bonos_count = 0
+    total_available_sessions = 0
+    real_active_bonos_count = 0
+
+    for r in bonos_raw:
+        item = dict(r)
+        c_name = (item.get("client_name") or "").strip()
+        ln = (item.get("lastname") or "").strip()
+        if not ln or ln.lower() == "none":
+            clean = re.sub(r'\s*[-/].*$', '', c_name).strip()
+            parts = clean.split()
+            if len(parts) > 1:
+                clean_l = clean.lower()
+                matched = next((cfn for cfn in compound_first_names if clean_l.startswith(cfn + " ")), None)
+                if matched:
+                    c_len = len(matched.split())
+                    ln = " ".join(parts[c_len:]) or parts[-1]
+                else:
+                    ln = " ".join(parts[1:])
+            else:
+                ln = clean
+        item["lastname"] = ln
+        
+        # Desglose de consultas del bono
+        p_id = str(item.get("order_id") or "").strip()
+        c_name_clean = re.sub(r'\s*[-/].*$', '', c_name).strip().lower()
+        ex_consultas = excel_c_map.get(p_id) or excel_c_map.get(c_name.lower()) or excel_c_map.get(c_name_clean) or []
+        
+        b_id = item.get("id")
+        cl_id = item.get("client_id")
+        p_date = str(item.get("purchase_date") or "2020-01-01")[:10]
+        
+        b_appts = appts_by_bono_id.get(b_id, [])
+        if not b_appts and cl_id:
+            b_appts = [a for a in appts_by_client_id.get(cl_id, []) if str(a.get("appointment_date") or "") >= p_date]
+        if not b_appts:
+            b_appts = [a for a in appts_by_client_name.get(c_name_clean, []) if str(a.get("appointment_date") or "") >= p_date]
+            
+        tot = item.get("total_sessions") or 3
+        used = item.get("used_sessions") or 0
+        num_done = min(tot, max(used, len(ex_consultas), len(b_appts)))
+        item["used_sessions"] = num_done
+        rem_sessions = max(0, tot - num_done)
+        item["remaining_sessions"] = rem_sessions
+
+        is_ficticio = p_id.upper().startswith("FIC-") or "ficticio" in str(item.get("forma_pago") or "").lower()
+        item["is_ficticio"] = is_ficticio
+
+        if item.get("status") != "Activo" or rem_sessions == 0:
+            item["computed_state"] = "completado"
+            completed_bonos_count += 1
+        else:
+            real_active_bonos_count += 1
+            total_available_sessions += rem_sessions
+            if rem_sessions == 1:
+                item["computed_state"] = "ultima"
+                last_session_count += 1
+            elif num_done == 0:
+                item["computed_state"] = "nuevo"
+                unstarted_count += 1
+            else:
+                item["computed_state"] = "en_curso"
+            if is_ficticio:
+                ficticio_count += 1
+        
+        slots = []
+        for i in range(1, tot + 1):
+            is_done = i <= num_done
+            ex_item = ex_consultas[i-1]["text"] if i <= len(ex_consultas) else ""
+            appt_item = b_appts[i-1] if i <= len(b_appts) else None
+            
+            d_str = ""
+            short_d_str = ""
+            nutri_str = item.get("nutri") or "Román"
+            mod_str = "Presencial"
+            notes_str = ex_item or ""
+            t_str = ""
+            
+            if ex_item:
+                m_dt = re.search(r'(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})', ex_item)
+                if m_dt:
+                    d_str = m_dt.group(1)
+                if "online" in ex_item.lower():
+                    mod_str = "Online"
+                    
+            if appt_item:
+                if not d_str:
+                    d_str = appt_item.get("appointment_date") or ""
+                t_str = appt_item.get("appointment_time") or ""
+                mod_str = appt_item.get("modality") or mod_str
+                if not notes_str:
+                    notes_str = appt_item.get("notes") or ""
+
+            if d_str:
+                # Formatear etiqueta corta DD/MM para la píldora rápida
+                if re.match(r'^\d{4}-\d{2}-\d{2}', d_str):
+                    parts_d = d_str[:10].split("-")
+                    short_d_str = f"{parts_d[2]}/{parts_d[1]}"
+                    d_str = f"{parts_d[2]}/{parts_d[1]}/{parts_d[0]}"
+                else:
+                    parts_d = re.split(r'[\/\-\.]', d_str)
+                    if len(parts_d) >= 2:
+                        short_d_str = f"{parts_d[0].zfill(2)}/{parts_d[1].zfill(2)}"
+                    else:
+                        short_d_str = d_str
+                    
+            slots.append({
+                "slot_number": i,
+                "slot_label": f"Consulta {i}",
+                "is_done": is_done,
+                "status": "Realizada" if is_done else "Disponible",
+                "date": d_str,
+                "short_date": short_d_str or (f"{i}ª OK" if is_done else f"{i}ª libre"),
+                "time": t_str,
+                "nutri": nutri_str,
+                "modality": mod_str,
+                "notes": notes_str
+            })
+            
+        item["consultation_slots"] = slots
+        bonos.append(item)
+
+    # Obtener lista de clientes para el selector de cita manual y alta de bono
     cursor.execute("SELECT id, fullname, email, phone FROM clients WHERE fullname IS NOT NULL AND fullname != '' ORDER BY fullname ASC")
     clients_list = cursor.fetchall()
 
@@ -589,7 +821,13 @@ def page_admin(
 
     stats = {
         "total_clients": total_clients,
-        "active_bonos": active_bonos_count,
+        "active_bonos": real_active_bonos_count or active_bonos_count,
+        "last_session_bonos": last_session_count,
+        "unstarted_bonos": unstarted_count,
+        "ficticio_bonos": ficticio_count,
+        "completed_bonos": completed_bonos_count,
+        "pending_bono_appts": pending_bono_appts_count,
+        "total_available_sessions": total_available_sessions,
         "today_count": today_count,
         "future_count": future_count,
         "past_count": past_count,
@@ -684,9 +922,16 @@ def get_calendar_events(start: Optional[str] = None, end: Optional[str] = None):
             border_color = "#93C5FD"
             text_color = "#1E40AF"
 
+        event_title = r["client_name"]
+        if r["status"] == "Pendiente de Bono":
+            bg_color = "#FEF3C7"
+            border_color = "#F59E0B"
+            text_color = "#92400E"
+            event_title = f"⏳ {r['client_name']} (Pendiente Bono)"
+
         events.append({
             "id": r["id"],
-            "title": r["client_name"],
+            "title": event_title,
             "start": start_iso,
             "end": end_iso,
             "backgroundColor": bg_color,
@@ -1274,6 +1519,303 @@ def book_appointment(req: BookingRequest):
         "remaining_sessions": remaining
     }
 
+# --- CONTROL CLÍNICO DE BONOS ACTIVOS, BONOS FICTICIOS Y PENDIENTES ---
+
+@app.get("/api/appointments/{id}/bono-status")
+def get_appointment_bono_status(id: int):
+    """
+    Comprueba si la cita tiene un bono activo con sesiones disponibles.
+    Si no lo tiene directamente vinculado, busca si el paciente dispone de algún otro bono activo.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM appointments WHERE id = ?", (id,))
+    appt = cursor.fetchone()
+    if not appt:
+        conn.close()
+        return {"success": False, "message": "Cita no encontrada."}
+
+    client_name = (appt["client_name"] or "").strip()
+    client_email = (appt["client_email"] or "").strip().lower()
+    bono_id = appt["bono_id"]
+
+    active_bono = None
+
+    # 1. Comprobar bono directamente vinculado
+    if bono_id:
+        cursor.execute("SELECT * FROM bonos WHERE id = ?", (bono_id,))
+        b = cursor.fetchone()
+        if b and b["status"] == "Activo" and (b["total_sessions"] - b["used_sessions"]) > 0:
+            active_bono = b
+
+    # 2. Si no hay bono vinculado o está agotado, buscar bonos activos del paciente
+    if not active_bono:
+        cursor.execute("""
+            SELECT * FROM bonos 
+            WHERE (LOWER(client_name) = LOWER(?) OR (LOWER(client_email) = LOWER(?) AND client_email != ''))
+              AND status = 'Activo'
+              AND used_sessions < total_sessions
+            ORDER BY purchase_date DESC, id DESC
+        """, (client_name, client_email))
+        active_bono = cursor.fetchone()
+
+    # 3. Búsqueda por similitud de nombre si tiene 2 o más palabras
+    if not active_bono and client_name:
+        parts = client_name.split()
+        if len(parts) >= 2:
+            p1, p2 = parts[0], parts[1]
+            cursor.execute("""
+                SELECT * FROM bonos 
+                WHERE (client_name LIKE ? OR client_name LIKE ?)
+                  AND status = 'Activo'
+                  AND used_sessions < total_sessions
+                ORDER BY purchase_date DESC, id DESC
+            """, (f"%{p1}%", f"%{p2}%"))
+            candidates = cursor.fetchall()
+            for cand in candidates:
+                if p1.lower() in cand["client_name"].lower() and cand["total_sessions"] > cand["used_sessions"]:
+                    active_bono = cand
+                    break
+
+    res_bono = None
+    if active_bono:
+        rem = active_bono["total_sessions"] - active_bono["used_sessions"]
+        res_bono = {
+            "id": active_bono["id"],
+            "order_id": active_bono["order_id"],
+            "tipo_bono": active_bono["tipo_bono"],
+            "total_sessions": active_bono["total_sessions"],
+            "used_sessions": active_bono["used_sessions"],
+            "remaining": rem,
+            "purchase_date": active_bono["purchase_date"]
+        }
+
+    conn.close()
+    return {
+        "success": True,
+        "has_active_bono": bool(active_bono),
+        "bono": res_bono,
+        "appointment_id": id,
+        "client_name": client_name,
+        "client_email": client_email,
+        "client_phone": appt["client_phone"] or "",
+        "appointment_date": appt["appointment_date"] or "",
+        "appointment_time": appt["appointment_time"] or "",
+        "modality": appt["modality"] or "Presencial"
+    }
+
+@app.post("/api/appointments/{id}/create-ficticio-bono")
+def create_ficticio_bono(
+    id: int,
+    tipo_bono: str = Form("Bono Trimestral (3 Sesiones)"),
+    order_id: Optional[str] = Form(None),
+    price: Optional[float] = Form(159.0)
+):
+    """
+    Crea un bono ficticio / provisional e imputa la 1ª sesión completada.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM appointments WHERE id = ?", (id,))
+    appt = cursor.fetchone()
+    if not appt:
+        conn.close()
+        return {"success": False, "message": "Cita no encontrada."}
+
+    client_name = appt["client_name"] or "Deportista"
+    client_email = appt["client_email"] or ""
+    client_phone = appt["client_phone"] or ""
+    client_id = appt["client_id"]
+
+    # Calcular sesiones según el tipo
+    total_sessions = excel_manager.determine_num_sessions(tipo_bono)
+
+    import time
+    final_order_id = (order_id or "").strip()
+    if not final_order_id:
+        final_order_id = f"FIC-{int(time.time()) % 100000:05d}"
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    status = "Activo" if total_sessions > 1 else "Completado"
+
+    # 1. Insertar bono ficticio
+    cursor.execute("""
+    INSERT INTO bonos (order_id, client_id, client_name, client_email, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
+    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 'ANYD', 'Ficticio / Regularización', 'Román')
+    """, (final_order_id, client_id, client_name, client_email, tipo_bono, total_sessions, today_str, float(price or 159.0), status))
+    new_bono_id = cursor.lastrowid
+
+    # 2. Actualizar cita
+    cursor.execute("UPDATE appointments SET status = 'Completada', bono_id = ? WHERE id = ?", (new_bono_id, id))
+
+    conn.commit()
+    conn.close()
+
+    # 3. Intentar registrar en Excel si procede
+    try:
+        date_formatted = datetime.strptime(appt["appointment_date"], "%Y-%m-%d").strftime("%d/%m/%Y")
+        excel_manager.add_purchase_to_excel(
+            centro="ANYD",
+            nombre=client_name,
+            tipo_bono=tipo_bono,
+            fecha_compra=today_str,
+            n_pedido=final_order_id,
+            importe=price or 159.0,
+            forma_pago="Ficticio / Regularización",
+            nutri="Román",
+            num_sesiones=total_sessions
+        )
+        excel_manager.record_consultation_in_excel(
+            n_pedido=final_order_id,
+            nombre=client_name,
+            date_str=date_formatted,
+            nutri="Román"
+        )
+    except Exception as e:
+        print(f"Excel record notice: {e}")
+
+    return {
+        "success": True,
+        "message": f"Bono ficticio #{final_order_id} ({tipo_bono}) creado y 1ª sesión imputada (1/{total_sessions}).",
+        "bono_id": new_bono_id,
+        "order_id": final_order_id
+    }
+
+@app.post("/api/appointments/{id}/mark-pending-bono")
+def mark_appointment_pending_bono(id: int):
+    """
+    Marca la cita como 'Pendiente de Bono' a la espera de que el cliente adquiera su bono.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM appointments WHERE id = ?", (id,))
+    appt = cursor.fetchone()
+    if not appt:
+        conn.close()
+        return {"success": False, "message": "Cita no encontrada."}
+
+    cursor.execute("UPDATE appointments SET status = 'Pendiente de Bono' WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "message": f"Consulta de {appt['client_name']} añadida a la lista de bonos pendientes de compra.",
+        "appointment_id": id,
+        "client_name": appt["client_name"]
+    }
+
+@app.get("/api/appointments/pending-bonos")
+def get_pending_bono_appointments():
+    """
+    Retorna el listado de consultas que están pendientes de compra de bono.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT a.id, a.client_id, a.client_name, a.client_email, a.client_phone,
+               a.appointment_date, a.appointment_time, a.modality, a.service, a.notes, a.status,
+               c.phone as client_phone_alt
+        FROM appointments a
+        LEFT JOIN clients c ON a.client_id = c.id
+        WHERE a.status = 'Pendiente de Bono'
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    results = []
+    for r in rows:
+        phone = r["client_phone"] or r["client_phone_alt"] or ""
+        results.append({
+            "id": r["id"],
+            "client_name": r["client_name"],
+            "client_email": r["client_email"] or "",
+            "client_phone": phone,
+            "appointment_date": r["appointment_date"] or "",
+            "appointment_time": r["appointment_time"] or "",
+            "modality": r["modality"] or "Presencial",
+            "service": r["service"] or "Anyd Nutrición Deportiva",
+            "notes": r["notes"] or "",
+            "status": r["status"]
+        })
+    return results
+
+@app.post("/api/appointments/{id}/resolve-pending-bono")
+def resolve_pending_bono(
+    id: int,
+    order_id: Optional[str] = Form(None)
+):
+    """
+    Resuelve una consulta pendiente de bono: la asocia a un bono existente o la marca como completada.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM appointments WHERE id = ?", (id,))
+    appt = cursor.fetchone()
+    if not appt:
+        conn.close()
+        return {"success": False, "message": "Cita no encontrada."}
+
+    matched_bono_id = None
+    if order_id:
+        cursor.execute("SELECT * FROM bonos WHERE order_id = ?", (order_id.strip(),))
+        b = cursor.fetchone()
+        if b:
+            matched_bono_id = b["id"]
+            new_used = b["used_sessions"] + 1
+            new_status = "Completado" if new_used >= b["total_sessions"] else "Activo"
+            cursor.execute("UPDATE bonos SET used_sessions = ?, status = ? WHERE id = ?", (new_used, new_status, b["id"]))
+
+    cursor.execute("UPDATE appointments SET status = 'Completada', bono_id = COALESCE(?, bono_id) WHERE id = ?", (matched_bono_id, id))
+    conn.commit()
+    conn.close()
+
+    return {"success": True, "message": f"Consulta de {appt['client_name']} regularizada y completada con éxito."}
+
+
+@app.delete("/api/admin/bonos/{bono_id}")
+def api_delete_bono(bono_id: int, delete_excel: bool = True):
+    """
+    Borra un pedido/bono (p. ej. pedidos de prueba o duplicados).
+    - Desvincula las citas asociadas (no se borran las consultas).
+    - Elimina su aviso del banner de nuevos pedidos.
+    - Elimina la fila en Excel (con copia de seguridad previa) si delete_excel=True.
+    Requiere sesión iniciada (no está bajo prefijos públicos).
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bonos WHERE id = ?", (bono_id,))
+    bono = cursor.fetchone()
+    if not bono:
+        conn.close()
+        return {"success": False, "message": "Bono no encontrado."}
+
+    order_id = bono["order_id"]
+    cursor.execute("UPDATE appointments SET bono_id = NULL WHERE bono_id = ?", (bono_id,))
+    unlinked = cursor.rowcount
+    cursor.execute("DELETE FROM order_notifications WHERE order_id = ?", (order_id,))
+    cursor.execute("DELETE FROM bonos WHERE id = ?", (bono_id,))
+    conn.commit()
+    conn.close()
+
+    excel_msg = ""
+    if delete_excel:
+        try:
+            if excel_manager.delete_purchase_from_excel(order_id):
+                excel_msg = " Fila eliminada del Excel (copia de seguridad creada)."
+            else:
+                excel_msg = " No estaba en el Excel."
+        except Exception as e:
+            excel_msg = f" Aviso: no se pudo borrar del Excel ({e}). Bórralo a mano si estaba abierto."
+
+    return {
+        "success": True,
+        "message": f"Pedido #{order_id} de {bono['client_name']} borrado. {unlinked} cita(s) desvinculada(s).{excel_msg}"
+    }
+
 @app.post("/api/complete-appointment")
 def complete_appointment(id: int):
     """
@@ -1539,50 +2081,69 @@ async def woocommerce_webhook(request: Request):
     line_items = payload.get("line_items", [])
     product_name = line_items[0].get("name", "Bono Consulta") if line_items else "Bono Consulta"
 
-    # Determinar sesiones
-    p_upper = product_name.upper()
-    if "3" in p_upper:
-        total_sessions = 3
-    elif "5" in p_upper or "COMPET" in p_upper:
-        total_sessions = 5
-    elif "6" in p_upper:
-        total_sessions = 6
-    else:
-        total_sessions = 3
+    # Determinar sesiones (regla única: Nutrición y Competición = 4 sesiones)
+    total_sessions = excel_manager.determine_num_sessions(product_name)
 
-    # 1. Registrar en Excel
-    excel_manager.add_purchase_to_excel(
-        centro="ANYD",
-        nombre=full_name,
-        tipo_bono=product_name,
-        fecha_compra=date_created,
-        n_pedido=order_id,
-        importe=total,
-        forma_pago=payment_method,
-        nutri="Román",
-        num_sesiones=total_sessions
-    )
+    # 1. Registrar en Excel (no bloqueante si el archivo está abierto)
+    try:
+        excel_manager.add_purchase_to_excel(
+            centro="ANYD",
+            nombre=full_name,
+            tipo_bono=product_name,
+            fecha_compra=date_created,
+            n_pedido=order_id,
+            importe=total,
+            forma_pago=payment_method,
+            nutri="Román",
+            num_sesiones=total_sessions
+        )
+    except Exception as e:
+        print(f"[AVISO EXCEL] Webhook: no se pudo escribir el pedido #{order_id} en Excel: {e}")
 
-    # 2. Registrar en Base de Datos Local
+    # 2. Registrar en Base de Datos Local: Comprobar alta de cliente o registrar automáticamente
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("""
-    INSERT INTO clients (firstname, lastname, fullname, email, phone)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(email) DO UPDATE SET
-        fullname = excluded.fullname,
-        phone = COALESCE(NULLIF(excluded.phone, ''), clients.phone)
-    """, (first_name, last_name, full_name, email, phone))
-
-    cursor.execute("SELECT id FROM clients WHERE email = ?", (email,))
-    client_id = cursor.fetchone()["id"]
+    client_id, was_created, crm_msg = crm_manager.find_or_create_client_for_bono(
+        conn=conn,
+        client_name=full_name,
+        email=email,
+        phone=phone,
+        order_id=order_id,
+        tipo_bono=product_name
+    )
+    print(f"[CRM Webhook] {crm_msg} para el bono #{order_id}")
 
     cursor.execute("""
     INSERT INTO bonos (order_id, client_id, client_name, client_email, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 'Activo', 'ANYD', ?, 'Román')
     ON CONFLICT(order_id) DO NOTHING
     """, (order_id, client_id, full_name, email, product_name, total_sessions, str(date_created)[:10], float(total), payment_method))
+
+    # Registrar notificación para el banner del UI
+    try:
+        cursor.execute("""
+        INSERT INTO order_notifications (order_id, client_name, client_email, client_phone, tipo_bono, price, source, is_read)
+        VALUES (?, ?, ?, ?, ?, ?, 'webhook', 0)
+        ON CONFLICT(order_id) DO NOTHING
+        """, (order_id, full_name, email, phone, product_name, float(total or 0)))
+    except Exception as e:
+        print(f"Error registrando notificación webhook: {e}")
+
+    # Auto-vincular a cita pendiente si el cliente tenía una consulta en espera
+    try:
+        cursor.execute("SELECT id FROM bonos WHERE order_id = ?", (order_id,))
+        b_row = cursor.fetchone()
+        if b_row:
+            crm_manager.auto_link_bono_to_pending_appointment(
+                conn=conn,
+                client_id=client_id,
+                bono_id=b_row["id"],
+                order_id=order_id,
+                client_name=full_name
+            )
+    except Exception as e:
+        print(f"Error auto-vinculando en webhook: {e}")
 
     conn.commit()
     conn.close()
@@ -1613,6 +2174,25 @@ class CreateBonoRequest(BaseModel):
     fecha_compra: Optional[str] = None
     centro: Optional[str] = "ANYD"
     nutri: Optional[str] = "Román"
+    consume_first_session: Optional[bool] = False
+
+class ConsumeBonoSessionRequest(BaseModel):
+    date: Optional[str] = None
+    modality: Optional[str] = "Presencial"
+    nutri: Optional[str] = "Román"
+    notes: Optional[str] = ""
+
+class UpdateBonoRequest(BaseModel):
+    order_id: Optional[str] = None
+    client_name: Optional[str] = None
+    tipo_bono: Optional[str] = None
+    total_sessions: Optional[int] = None
+    used_sessions: Optional[int] = None
+    price: Optional[float] = None
+    forma_pago: Optional[str] = None
+    centro: Optional[str] = None
+    purchase_date: Optional[str] = None
+    status: Optional[str] = None
 
 @app.post("/api/bonos/crear")
 def api_crear_bono(req: CreateBonoRequest):
@@ -1630,7 +2210,7 @@ def api_crear_bono(req: CreateBonoRequest):
 
     num_sessions = req.total_sessions or excel_manager.determine_num_sessions(req.tipo_bono)
 
-    order_id = req.order_id
+    order_id = (req.order_id or "").strip()
     if not order_id:
         cursor.execute("SELECT MAX(CAST(order_id AS INTEGER)) FROM bonos WHERE order_id GLOB '[0-9]*'")
         row = cursor.fetchone()
@@ -1639,61 +2219,210 @@ def api_crear_bono(req: CreateBonoRequest):
 
     fecha = req.fecha_compra or datetime.now().strftime("%Y-%m-%d")
 
-    excel_created = excel_manager.add_purchase_to_excel(
-        centro=req.centro or "ANYD",
-        nombre=client_name,
-        tipo_bono=req.tipo_bono,
-        fecha_compra=fecha,
-        n_pedido=order_id,
-        importe=req.price or 0.0,
-        forma_pago=req.forma_pago or "Transferencia",
-        nutri=req.nutri or "Román",
-        num_sesiones=num_sessions
-    )
-
-    parts = client_name.split(" ", 1)
-    fname = parts[0]
-    lname = parts[1] if len(parts) > 1 else ""
+    excel_created = False
+    try:
+        excel_created = excel_manager.add_purchase_to_excel(
+            centro=req.centro or "ANYD",
+            nombre=client_name,
+            tipo_bono=req.tipo_bono,
+            fecha_compra=fecha,
+            n_pedido=order_id,
+            importe=req.price or 0.0,
+            forma_pago=req.forma_pago or "Transferencia",
+            nutri=req.nutri or "Román",
+            num_sesiones=num_sessions
+        )
+    except Exception as e:
+        print(f"[AVISO EXCEL] Error añadiendo bono manual a Excel: {e}")
 
     email = (req.email or "").strip().lower()
     phone = (req.phone or "").strip()
 
-    cursor.execute("""
-    INSERT INTO clients (firstname, lastname, fullname, email, phone)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(email) DO UPDATE SET
-        fullname = excluded.fullname,
-        phone = COALESCE(NULLIF(excluded.phone, ''), clients.phone)
-    """, (fname, lname, client_name, email if email else None, phone if phone else None))
+    client_id, was_created, crm_msg = crm_manager.find_or_create_client_for_bono(
+        conn=conn,
+        client_name=client_name,
+        email=email,
+        phone=phone,
+        order_id=order_id,
+        tipo_bono=req.tipo_bono
+    )
+    print(f"[CRM Manual] {crm_msg} para el bono #{order_id}")
 
-    cursor.execute("SELECT id FROM clients WHERE fullname = ? ORDER BY id DESC LIMIT 1", (client_name,))
-    c_row = cursor.fetchone()
-    client_id = c_row["id"] if c_row else None
+    init_used = 1 if req.consume_first_session else 0
+    init_status = "Completado" if init_used >= num_sessions else "Activo"
 
     cursor.execute("""
     INSERT INTO bonos (order_id, client_id, client_name, client_email, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
-    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 'Activo', ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(order_id) DO UPDATE SET
         client_name = excluded.client_name,
         tipo_bono = excluded.tipo_bono,
         total_sessions = excluded.total_sessions,
+        used_sessions = excluded.used_sessions,
+        status = excluded.status,
         price = excluded.price,
-        forma_pago = excluded.forma_pago
-    """, (order_id, client_id, client_name, email, req.tipo_bono, num_sessions, str(fecha)[:10], float(req.price or 0.0), req.centro or "ANYD", req.forma_pago or "Transferencia", req.nutri or "Román"))
+        forma_pago = excluded.forma_pago,
+        centro = excluded.centro
+    """, (order_id, client_id, client_name, email, req.tipo_bono, num_sessions, init_used, str(fecha)[:10], float(req.price or 0.0), init_status, req.centro or "ANYD", req.forma_pago or "Transferencia", req.nutri or "Román"))
+
+    cursor.execute("SELECT id FROM bonos WHERE order_id = ?", (order_id,))
+    bono_row = cursor.fetchone()
+    bono_id = bono_row["id"] if bono_row else None
+
+    if req.consume_first_session and bono_id:
+        today_iso = datetime.now().strftime("%Y-%m-%d")
+        date_fmt = datetime.now().strftime("%d/%m/%Y")
+        cursor.execute("""
+            INSERT INTO appointments (bono_id, client_id, client_name, client_email, client_phone, appointment_date, appointment_time, duration_minutes, modality, status, notes, service)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 30, 'Presencial', 'Completada', '1ª sesión imputada al crear el bono', 'Anyd Nutrición Deportiva')
+        """, (bono_id, client_id, client_name, email, phone, today_iso, datetime.now().strftime("%H:%M")))
+        try:
+            excel_manager.record_consultation_in_excel(n_pedido=order_id, nombre=client_name, date_str=date_fmt, nutri=req.nutri or "Román")
+        except Exception as e:
+            print(f"[AVISO EXCEL] Error firmando 1ª sesión al crear bono: {e}")
+    elif bono_id:
+        try:
+            crm_manager.auto_link_bono_to_pending_appointment(
+                conn=conn,
+                client_id=client_id,
+                bono_id=bono_id,
+                order_id=order_id,
+                client_name=client_name
+            )
+        except Exception as e:
+            print(f"[CRM AutoLink] {e}")
 
     conn.commit()
     conn.close()
 
     return {
         "success": True,
+        "bono_id": bono_id,
         "order_id": order_id,
         "client_id": client_id,
         "client_name": client_name,
         "tipo_bono": req.tipo_bono,
         "total_sessions": num_sessions,
+        "used_sessions": init_used,
         "cells_created": num_sessions,
         "excel_created": excel_created,
-        "message": f"Bono {req.tipo_bono} creado con éxito. Se han configurado {num_sessions} celdas de consultas en Excel."
+        "message": f"Bono #{order_id} ({req.tipo_bono}) creado con éxito para {client_name}."
+    }
+
+@app.post("/api/bonos/{bono_id}/consume-session")
+def api_consume_bono_session(bono_id: int, req: ConsumeBonoSessionRequest):
+    """
+    Firma e imputa 1 sesión en el bono directamente con 1 clic desde el Centro de Control de Bonos.
+    Sincroniza tanto en SQLite (bonos y appointments) como en el Excel 'Bonos activos_claude.xlsx'.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bonos WHERE id = ?", (bono_id,))
+    bono = cursor.fetchone()
+    if not bono:
+        conn.close()
+        return {"success": False, "message": "Bono no encontrado."}
+
+    tot = bono["total_sessions"] or 3
+    used = bono["used_sessions"] or 0
+    if used >= tot:
+        conn.close()
+        return {"success": False, "message": f"Este bono (#{bono['order_id']}) ya tiene todas sus sesiones consumidas ({used}/{tot})."}
+
+    raw_date = (req.date or datetime.now().strftime("%Y-%m-%d")).strip()
+    try:
+        dt_obj = datetime.strptime(raw_date[:10], "%Y-%m-%d")
+        iso_date = dt_obj.strftime("%Y-%m-%d")
+        excel_date_str = dt_obj.strftime("%d/%m/%Y")
+    except Exception:
+        iso_date = datetime.now().strftime("%Y-%m-%d")
+        excel_date_str = datetime.now().strftime("%d/%m/%Y")
+
+    nutri = (req.nutri or bono["nutri"] or "Román").strip()
+    modality = (req.modality or "Presencial").strip()
+    notes = (req.notes or f"Sesión {used + 1}/{tot} firmada desde Control de Bonos").strip()
+
+    new_used = used + 1
+    new_status = "Completado" if new_used >= tot else "Activo"
+
+    cursor.execute("UPDATE bonos SET used_sessions = ?, status = ? WHERE id = ?", (new_used, new_status, bono_id))
+
+    # Crear registro de consulta completada vinculada al bono para trazabilidad clínica
+    cursor.execute("""
+        INSERT INTO appointments (bono_id, client_id, client_name, client_email, appointment_date, appointment_time, duration_minutes, modality, status, notes, service)
+        VALUES (?, ?, ?, ?, ?, ?, 30, ?, 'Completada', ?, 'Anyd Nutrición Deportiva')
+    """, (bono_id, bono["client_id"], bono["client_name"], bono["client_email"] or "", iso_date, datetime.now().strftime("%H:%M"), modality, notes))
+
+    conn.commit()
+    conn.close()
+
+    excel_ok = False
+    try:
+        excel_ok, _ = excel_manager.record_consultation_in_excel(
+            n_pedido=bono["order_id"],
+            nombre=bono["client_name"],
+            date_str=excel_date_str,
+            nutri=nutri
+        )
+    except Exception as e:
+        print(f"[AVISO EXCEL] No se pudo anotar sesión en Excel: {e}")
+
+    return {
+        "success": True,
+        "bono_id": bono_id,
+        "used_sessions": new_used,
+        "total_sessions": tot,
+        "remaining": max(0, tot - new_used),
+        "status": new_status,
+        "excel_synced": excel_ok,
+        "message": f"Sesión {new_used}/{tot} firmada para {bono['client_name']} ({excel_date_str})."
+    }
+
+@app.post("/api/bonos/{bono_id}/update")
+def api_update_bono(bono_id: int, req: UpdateBonoRequest):
+    """
+    Permite editar o ajustar cualquier parámetro de un bono (sesiones consumidas,
+    sesiones totales, tipo de bono, nº pedido, precio, forma de pago, estado o centro).
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bonos WHERE id = ?", (bono_id,))
+    bono = cursor.fetchone()
+    if not bono:
+        conn.close()
+        return {"success": False, "message": "Bono no encontrado."}
+
+    order_id = (req.order_id if req.order_id is not None else bono["order_id"]).strip()
+    client_name = (req.client_name if req.client_name is not None else bono["client_name"]).strip()
+    tipo_bono = (req.tipo_bono if req.tipo_bono is not None else bono["tipo_bono"]).strip()
+    tot = int(req.total_sessions if req.total_sessions is not None else (bono["total_sessions"] or 3))
+    used = int(req.used_sessions if req.used_sessions is not None else (bono["used_sessions"] or 0))
+    used = max(0, min(tot, used))
+    price = float(req.price if req.price is not None else (bono["price"] or 0.0))
+    forma_pago = (req.forma_pago if req.forma_pago is not None else (bono["forma_pago"] or "Online")).strip()
+    centro = (req.centro if req.centro is not None else (bono["centro"] or "ANYD")).strip()
+    p_date = (req.purchase_date if req.purchase_date is not None else (bono["purchase_date"] or "")).strip()
+
+    if req.status is not None:
+        status = req.status
+    else:
+        status = "Completado" if used >= tot else "Activo"
+
+    cursor.execute("""
+        UPDATE bonos
+        SET order_id = ?, client_name = ?, tipo_bono = ?, total_sessions = ?,
+            used_sessions = ?, price = ?, forma_pago = ?, centro = ?,
+            purchase_date = ?, status = ?
+        WHERE id = ?
+    """, (order_id, client_name, tipo_bono, tot, used, price, forma_pago, centro, p_date, status, bono_id))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "bono_id": bono_id,
+        "message": f"Bono #{order_id} de {client_name} actualizado ({used}/{tot} sesiones · {status})."
     }
 
 @app.get("/api/bonos/activos-recientes")
@@ -1737,6 +2466,93 @@ def api_imap_scan_orders(mark_as_read: bool = False, max_messages: int = 25):
     """
     res = email_order_scanner.scan_imap_orders(mark_as_read=mark_as_read, max_messages=max_messages)
     return res
+
+# --- ENDPOINTS DE NOTIFICACIONES DE NUEVOS PEDIDOS (UI BANNER) ---
+
+@app.get("/api/orders/pending-notifications")
+def api_get_pending_order_notifications():
+    """
+    Retorna las notificaciones de nuevos pedidos que aún no han sido leídas por el usuario.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, order_id, client_name, client_email, client_phone, tipo_bono, price, source, created_at
+        FROM order_notifications
+        WHERE is_read = 0
+        ORDER BY id DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [{
+        "id": r["id"],
+        "order_id": r["order_id"],
+        "client_name": r["client_name"],
+        "client_email": r["client_email"],
+        "client_phone": r["client_phone"],
+        "tipo_bono": r["tipo_bono"],
+        "price": r["price"],
+        "source": r["source"],
+        "created_at": str(r["created_at"])[:19]
+    } for r in rows]
+
+@app.post("/api/orders/dismiss-notification/{notif_id}")
+def api_dismiss_order_notification(notif_id: int):
+    """
+    Marca como leída / descartada una notificación de nuevo pedido.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE order_notifications SET is_read = 1 WHERE id = ?", (notif_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "dismissed_id": notif_id}
+
+@app.post("/api/orders/dismiss-all-notifications")
+def api_dismiss_all_order_notifications():
+    """
+    Descarta todas las notificaciones pendientes.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE order_notifications SET is_read = 1 WHERE is_read = 0")
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+@app.post("/api/orders/simulate-new-order")
+def api_simulate_new_order(
+    order_id: Optional[str] = None,
+    client_name: Optional[str] = None,
+    tipo_bono: Optional[str] = None,
+    price: Optional[float] = 159.0
+):
+    """
+    Simula la llegada de un nuevo pedido para pruebas de la alerta y banner UI.
+    """
+    import random
+    o_id = order_id or f"TEST-{random.randint(10000, 99999)}"
+    c_name = client_name or "Deportista Prueba"
+    t_bono = tipo_bono or "Bono Trimestral (3 Sesiones)"
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO order_notifications (order_id, client_name, client_email, client_phone, tipo_bono, price, source, is_read)
+    VALUES (?, ?, 'prueba@anyd.es', '600123456', ?, ?, 'simulacion', 0)
+    ON CONFLICT(order_id) DO UPDATE SET
+        client_name = excluded.client_name,
+        tipo_bono = excluded.tipo_bono,
+        price = excluded.price,
+        is_read = 0,
+        created_at = CURRENT_TIMESTAMP
+    """, (o_id, c_name, t_bono, price))
+    cursor.execute("SELECT id FROM order_notifications WHERE order_id = ?", (o_id,))
+    row = cursor.fetchone()
+    new_id = row[0] if row else cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"success": True, "notification_id": new_id, "order_id": o_id, "client_name": c_name}
 
 
 # --- ENDPOINTS DE ANALÍTICA, INGRESOS Y CONTROL DE SESIONES ---
@@ -3281,3 +4097,57 @@ async def api_save_lab_test(client_id: int, request: Request):
 
 
 
+
+
+# ==========================================
+# DIETOWIN NEXT — BLOQUE A: CONSULTA + ANTROPOMETRÍA + EVOLUTIVO
+# ==========================================
+import consultation_manager
+
+@app.get("/evolutivo", response_class=HTMLResponse)
+@app.get("/consulta-evolutiva", response_class=HTMLResponse)
+def page_evolutivo(request: Request, client_id: Optional[int] = None):
+    """Ficha de consulta (Tanita + antropometría) e informe evolutivo."""
+    return templates.TemplateResponse(request=request, name="evolutivo.html", context={"initial_client_id": client_id})
+
+@app.get("/evolutivo/informe/{client_id}", response_class=HTMLResponse)
+def page_evolutivo_informe(request: Request, client_id: int):
+    """Informe evolutivo imprimible (A4) — Ctrl+P / Guardar como PDF."""
+    if not consultation_manager.get_patient(client_id):
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    return templates.TemplateResponse(request=request, name="informe_evolutivo.html", context={"client_id": client_id})
+
+@app.get("/api/evolutivo/{client_id}")
+def api_evolutivo(client_id: int):
+    data = consultation_manager.get_evolution(client_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    return data
+
+@app.post("/api/evolutivo/{client_id}/consulta")
+async def api_evolutivo_crear_consulta(client_id: int, request: Request):
+    payload = await request.json()
+    try:
+        return consultation_manager.save_consultation(client_id, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/evolutivo/{client_id}/consulta/{consultation_id}")
+async def api_evolutivo_editar_consulta(client_id: int, consultation_id: int, request: Request):
+    payload = await request.json()
+    try:
+        return consultation_manager.save_consultation(client_id, payload, consultation_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/evolutivo/{client_id}/consulta/{consultation_id}")
+def api_evolutivo_borrar_consulta(client_id: int, consultation_id: int):
+    if not consultation_manager.delete_consultation(client_id, consultation_id):
+        raise HTTPException(status_code=404, detail="Consulta no encontrada")
+    return {"success": True}
+
+@app.post("/api/evolutivo/{client_id}/datos-basicos")
+async def api_evolutivo_datos_basicos(client_id: int, request: Request):
+    payload = await request.json()
+    consultation_manager.update_patient_basics(client_id, payload)
+    return {"success": True, "patient": consultation_manager.get_patient(client_id)}

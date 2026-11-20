@@ -13,12 +13,14 @@ parámetros del bono y genera automáticamente la fila en Excel y SQLite.
 import imaplib
 import email
 from email.header import decode_header
+from email.utils import parsedate_to_datetime
 import re
 import os
 import json
 import sqlite3
 from datetime import datetime
 
+import crm_manager
 import excel_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,23 +28,28 @@ CONFIG_FILE = os.environ.get("CONFIG_FILE", os.path.join(BASE_DIR, "config.json"
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
 
 def load_imap_config():
-    """Carga los parámetros IMAP desde config.json o variables de entorno."""
+    """Carga los parámetros IMAP desde config.json o variables de entorno (activo por defecto en local y Render)."""
     cfg = {
         "imap_server": os.environ.get("IMAP_SERVER", "mail.anyd.es"),
         "imap_port": int(os.environ.get("IMAP_PORT", 993)),
         "imap_user": os.environ.get("IMAP_USER", "info@anyd.es"),
-        "imap_password": os.environ.get("IMAP_PASSWORD", ""),
-        "enable_live_imap": False
+        "imap_password": os.environ.get("IMAP_PASSWORD", "Romano.20"),
+        "enable_live_imap": True
     }
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 disk_cfg = json.load(f)
-                cfg["imap_server"] = disk_cfg.get("imap_server", cfg["imap_server"])
-                cfg["imap_port"] = int(disk_cfg.get("imap_port", cfg["imap_port"]))
-                cfg["imap_user"] = disk_cfg.get("imap_user", cfg["imap_user"])
-                cfg["imap_password"] = disk_cfg.get("imap_password", cfg["imap_password"])
-                cfg["enable_live_imap"] = disk_cfg.get("enable_live_imap", False)
+                if disk_cfg.get("imap_server"):
+                    cfg["imap_server"] = disk_cfg["imap_server"]
+                if disk_cfg.get("imap_port"):
+                    cfg["imap_port"] = int(disk_cfg["imap_port"])
+                if disk_cfg.get("imap_user"):
+                    cfg["imap_user"] = disk_cfg["imap_user"]
+                if disk_cfg.get("imap_password"):
+                    cfg["imap_password"] = disk_cfg["imap_password"]
+                if "enable_live_imap" in disk_cfg and disk_cfg.get("imap_password"):
+                    cfg["enable_live_imap"] = bool(disk_cfg["enable_live_imap"])
         except Exception as e:
             print(f"[IMAP CONFIG ERROR] {e}")
     return cfg
@@ -93,13 +100,26 @@ def extract_email_body(msg_obj):
 def parse_order_from_email_text(subject, body, date_str=None):
     """
     Parsea de forma determinista la estructura de los correos de WooCommerce:
-    '[ANyD Nutricionistas] Nuevo pedido de cliente (#25786)'
+    '[ANYD]: Tienes un nuevo pedido: #26223'
+    Ignora correos de pedidos cancelados, fallidos o reembolsados.
     """
+    subj_lower = (subject or "").lower()
+    if any(w in subj_lower for w in ["cancelado", "cancelled", "fallido", "failed", "reembolsado", "refunded"]):
+        return None
+
+    # Limpiar CSS y etiquetas HTML para extracción limpia
+    clean_body = re.sub(r"<style[^>]*>.*?</style>", " ", body or "", flags=re.S | re.I)
+    clean_body = re.sub(r"<[^>]+>", "\n", clean_body)
+    clean_body = re.sub(r"&nbsp;|\xa0", " ", clean_body)
+
+    if "pedido cancelado" in clean_body.lower() and "nuevo pedido" not in subj_lower:
+        return None
+
     # 1. Extracción de Order ID
     order_id = None
-    m_order = re.search(r'#(\d{4,8})', subject)
+    m_order = re.search(r"#(\d{4,8})", subject or "")
     if not m_order:
-        m_order = re.search(r'(?:pedido|orden|order)\s*[:#]?\s*(\d{4,8})', body, re.IGNORECASE)
+        m_order = re.search(r"(?:pedido|orden|order)\s*(?:n\.º|nº|[:#])?\s*(\d{4,8})", clean_body, re.IGNORECASE)
     if m_order:
         order_id = m_order.group(1).strip()
 
@@ -108,51 +128,53 @@ def parse_order_from_email_text(subject, body, date_str=None):
 
     # 2. Nombre del cliente
     client_name = ""
-    m_name = re.search(r'(?:Nombre|Cliente|Facturación|Billing name):\s*([^\n\r<]+)', body, re.IGNORECASE)
-    if m_name:
-        client_name = m_name.group(1).strip()
-    else:
-        # Intento de extraer por línea de saludo "Has recibido el siguiente pedido de Nombre Apellidos:"
-        m_saludo = re.search(r'pedido de\s+([A-Za-zÁÉÍÓÚáéíóúñÑçÇ\s]{4,40})[:\n\r]', body, re.IGNORECASE)
-        if m_saludo:
-            client_name = m_saludo.group(1).strip()
+    m_saludo = re.search(r"pedido de\s+([A-Za-zÁÉÍÓÚÜáéíóúüñÑçÇ\s\-]{3,55}?)\s*[:\n\r]", clean_body, re.IGNORECASE)
+    if m_saludo:
+        client_name = re.sub(r"\s+", " ", m_saludo.group(1)).strip()
+    if not client_name:
+        m_name = re.search(r"(?:Nombre|Cliente|Facturación|Billing name):\s*([^\n\r<]+)", clean_body, re.IGNORECASE)
+        if m_name:
+            client_name = re.sub(r"\s+", " ", m_name.group(1)).strip()
 
-    # 3. Email
+    # 3. Email del cliente
     client_email = ""
-    m_email = re.search(r'([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)', body)
-    if m_email and not "anyd.es" in m_email.group(1).lower():
-        client_email = m_email.group(1).strip().lower()
+    for m_em in re.finditer(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", clean_body):
+        cand_em = m_em.group(1).strip().lower()
+        if "anyd.es" not in cand_em and "woocommerce" not in cand_em:
+            client_email = cand_em
+            break
 
     # 4. Teléfono
     phone = ""
-    m_phone = re.search(r'(?:Teléfono|Phone|Móvil|WhatsApp):\s*([0-9+\s-]{9,16})', body, re.IGNORECASE)
+    m_phone = re.search(r"(?:Teléfono|Phone|Móvil|WhatsApp|tel)[:\s]*([+0-9\s\-]{9,16})", clean_body, re.IGNORECASE)
+    if not m_phone:
+        m_phone = re.search(r"href=[\"']tel:([+0-9\s\-]{9,15})[\"']", body or "", re.IGNORECASE)
     if m_phone:
-        phone = re.sub(r'[^0-9+]', '', m_phone.group(1))
+        phone = re.sub(r"[^0-9+]", "", m_phone.group(1))
 
     # 5. Detección del tipo de bono
-    tipo_bono = "Deportiva 3" # default fallback
-    body_upper = (subject + " " + body).upper()
+    tipo_bono = "Deportiva 3"
+    body_upper = ((subject or "") + " " + clean_body).upper()
 
     if "COMPETICIÓN" in body_upper or "COMPETICION" in body_upper:
         tipo_bono = "COMPETICIÓN"
-    elif "DEPORTIVA 5" in body_upper or "CLÍNICA 5" in body_upper or "CLINICA 5" in body_upper:
-        tipo_bono = "Deportiva 5" if "DEPORTIVA" in body_upper else "Bono Clínica 5"
-    elif "DEPORTIVA 3" in body_upper:
+    elif "DEPORTIVA 5" in body_upper or "5 CONSULTAS" in body_upper or "5 SESIONES" in body_upper or "CLÍNICA 5" in body_upper or "CLINICA 5" in body_upper:
+        tipo_bono = "Bono Clínica 5" if ("CLÍNICA" in body_upper or "CLINICA" in body_upper) else "Deportiva 5"
+    elif "DEPORTIVA 3" in body_upper or "3 CONSULTAS" in body_upper or "3 SESIONES" in body_upper or "TRIMESTRAL" in body_upper:
         tipo_bono = "Deportiva 3"
-    elif "SUELTA" in body_upper or "INDIVIDUAL" in body_upper or "1ª CONSULTA" in body_upper:
+    elif "SUELTA" in body_upper or "INDIVIDUAL" in body_upper or "1ª CONSULTA" in body_upper or "1 CONSULTA" in body_upper:
         tipo_bono = "Consulta Suelta"
 
     # 6. Importe total
     price = 159.0
-    m_price = re.search(r'(?:Total|Importe|Precio):\s*([0-9.,]+)\s*€', body, re.IGNORECASE)
+    m_price = re.search(r"(?:Total|Importe|Precio)[:\s]*([0-9]+(?:[.,][0-9]{1,2})?)\s*€", clean_body, re.IGNORECASE)
     if m_price:
         try:
-            val_str = m_price.group(1).replace(',', '.')
+            val_str = m_price.group(1).replace(",", ".")
             price = float(val_str)
         except:
             pass
     else:
-        # Precios oficiales ANyD de referencia
         if tipo_bono == "COMPETICIÓN": price = 284.0
         elif tipo_bono in ["Deportiva 5", "Bono Clínica 5"]: price = 249.0
         elif tipo_bono == "Deportiva 3": price = 159.0
@@ -160,11 +182,12 @@ def parse_order_from_email_text(subject, body, date_str=None):
 
     # 7. Forma de pago
     forma_pago = "Online"
-    if "transferencia" in body.lower():
+    lower_all = clean_body.lower()
+    if "transferencia" in lower_all:
         forma_pago = "Transferencia"
-    elif "tarjeta" in body.lower() or "redsys" in body.lower() or "stripe" in body.lower():
+    elif "tarjeta" in lower_all or "redsys" in lower_all or "stripe" in lower_all:
         forma_pago = "Tarjeta"
-    elif "bizum" in body.lower():
+    elif "bizum" in lower_all:
         forma_pago = "Bizum"
 
     fecha = date_str or datetime.now().strftime("%Y-%m-%d")
@@ -211,22 +234,16 @@ def register_order_to_crm_and_excel(order_data):
     forma_pago = order_data.get("forma_pago", "Online")
     fecha = order_data.get("fecha", datetime.now().strftime("%Y-%m-%d"))
 
-    # 1. Registrar / Actualizar en tabla 'clients'
-    parts = client_name.split(" ", 1)
-    fname = parts[0]
-    lname = parts[1] if len(parts) > 1 else ""
-
-    cursor.execute("""
-    INSERT INTO clients (firstname, lastname, fullname, email, phone)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(email) DO UPDATE SET
-        fullname = excluded.fullname,
-        phone = COALESCE(NULLIF(excluded.phone, ''), clients.phone)
-    """, (fname, lname, client_name, email_clean if email_clean else None, phone_clean if phone_clean else None))
-
-    cursor.execute("SELECT id FROM clients WHERE fullname = ? ORDER BY id DESC LIMIT 1", (client_name,))
-    c_row = cursor.fetchone()
-    client_id = c_row["id"] if c_row else None
+    # 1. Comprobar si el cliente está dado de alta o registrarlo automáticamente con los datos del bono
+    client_id, was_created, crm_msg = crm_manager.find_or_create_client_for_bono(
+        conn=conn,
+        client_name=client_name,
+        email=email_clean,
+        phone=phone_clean,
+        order_id=order_id,
+        tipo_bono=tipo_bono
+    )
+    print(f"[CRM] {crm_msg} para el pedido #{order_id}")
 
     # 2. Registrar en tabla 'bonos'
     cursor.execute("""
@@ -235,21 +252,52 @@ def register_order_to_crm_and_excel(order_data):
     ON CONFLICT(order_id) DO NOTHING
     """, (order_id, client_id, client_name, email_clean, tipo_bono, num_sessions, str(fecha)[:10], price, forma_pago))
 
+    # 2.1 Notificación reactiva para el banner de la interfaz
+    try:
+        cursor.execute("""
+        INSERT INTO order_notifications (order_id, client_name, client_email, client_phone, tipo_bono, price, source, is_read)
+        VALUES (?, ?, ?, ?, ?, ?, 'email', 0)
+        ON CONFLICT(order_id) DO NOTHING
+        """, (order_id, client_name, email_clean, phone_clean, tipo_bono, price))
+    except Exception as e:
+        print(f"Error registrando notificación de pedido: {e}")
+
+    # 2.2 Vincular automáticamente si tenía consulta pendiente de bono
+    try:
+        cursor.execute("SELECT id FROM bonos WHERE order_id = ?", (order_id,))
+        b_row = cursor.fetchone()
+        if b_row:
+            crm_manager.auto_link_bono_to_pending_appointment(
+                conn=conn,
+                client_id=client_id,
+                bono_id=b_row["id"],
+                order_id=order_id,
+                client_name=client_name
+            )
+    except Exception as e:
+        print(f"Error auto-vinculando bono a cita pendiente: {e}")
+
     conn.commit()
     conn.close()
 
     # 3. Registrar en Excel 'Bonos activos_claude.xlsx'
-    excel_created = excel_manager.add_purchase_to_excel(
-        centro="ANYD",
-        nombre=client_name,
-        tipo_bono=tipo_bono,
-        fecha_compra=fecha,
-        n_pedido=order_id,
-        importe=price,
-        forma_pago=forma_pago,
-        nutri="Román",
-        num_sesiones=num_sessions
-    )
+    excel_created = False
+    excel_error = None
+    try:
+        excel_created = excel_manager.add_purchase_to_excel(
+            centro="ANYD",
+            nombre=client_name,
+            tipo_bono=tipo_bono,
+            fecha_compra=fecha,
+            n_pedido=order_id,
+            importe=price,
+            forma_pago=forma_pago,
+            nutri="Román",
+            num_sesiones=num_sessions
+        )
+    except Exception as e:
+        excel_error = str(e)
+        print(f"[AVISO EXCEL] No se pudo escribir el pedido #{order_id} en Excel (¿archivo abierto?): {e}")
 
     return {
         "already_existed": False,
@@ -258,7 +306,8 @@ def register_order_to_crm_and_excel(order_data):
         "tipo_bono": tipo_bono,
         "total_sessions": num_sessions,
         "excel_created": excel_created,
-        "message": f"Pedido #{order_id} procesado con éxito. Bono {tipo_bono} creado con {num_sessions} sesiones en blanco."
+        "excel_error": excel_error,
+        "message": f"Pedido #{order_id} ({client_name}) procesado con éxito. Bono {tipo_bono} creado."
     }
 
 def scan_imap_orders(mark_as_read=False, max_messages=25):
@@ -278,6 +327,7 @@ def scan_imap_orders(mark_as_read=False, max_messages=25):
         }
 
     processed_orders = []
+    new_orders_count = 0
     try:
         mail = imaplib.IMAP4_SSL(cfg["imap_server"], cfg["imap_port"])
         mail.login(cfg["imap_user"], cfg["imap_password"])
@@ -291,23 +341,49 @@ def scan_imap_orders(mark_as_read=False, max_messages=25):
         msg_ids = messages[0].split() if (status == "OK" and messages[0]) else []
         recent_ids = msg_ids[-max_messages:] if len(msg_ids) > max_messages else msg_ids
 
+        # Primero identificar si algún pedido fue cancelado en los correos recientes
+        cancelled_order_ids = set()
+        fetched_messages = []
         for msg_id in reversed(recent_ids):
             res, data = mail.fetch(msg_id, "(RFC822)")
             if res != "OK":
                 continue
             raw_email = data[0][1]
             msg_obj = email.message_from_bytes(raw_email)
-
             subject = decode_mime_header(msg_obj.get("Subject", ""))
+            subj_l = subject.lower()
+            if any(w in subj_l for w in ["cancelado", "cancelled", "fallido", "failed", "reembolsado"]):
+                m_c = re.search(r"#(\d{4,8})", subject)
+                if m_c:
+                    cancelled_order_ids.add(m_c.group(1).strip())
+                continue
+            fetched_messages.append((msg_id, msg_obj, subject))
+
+        for msg_id, msg_obj, subject in fetched_messages:
             date_raw = msg_obj.get("Date", "")
+            email_date_str = None
+            if date_raw:
+                try:
+                    email_date_str = parsedate_to_datetime(date_raw).strftime("%Y-%m-%d")
+                except Exception:
+                    email_date_str = None
+
             body = extract_email_body(msg_obj)
 
-            parsed = parse_order_from_email_text(subject, body)
-            if parsed and parsed.get("order_id"):
-                reg_res = register_order_to_crm_and_excel(parsed)
-                processed_orders.append(reg_res)
-                if mark_as_read:
-                    mail.store(msg_id, "+FLAGS", "\\Seen")
+            try:
+                parsed = parse_order_from_email_text(subject, body, date_str=email_date_str)
+                if parsed and parsed.get("order_id"):
+                    if parsed["order_id"] in cancelled_order_ids:
+                        continue
+                    reg_res = register_order_to_crm_and_excel(parsed)
+                    processed_orders.append(reg_res)
+                    if not reg_res.get("already_existed"):
+                        new_orders_count += 1
+                    if mark_as_read:
+                        mail.store(msg_id, "+FLAGS", "\\Seen")
+            except Exception as e:
+                processed_orders.append({"error": str(e), "subject": subject})
+                print(f"[IMAP] Error procesando correo '{subject}': {e}")
 
         mail.close()
         mail.logout()
@@ -316,8 +392,9 @@ def scan_imap_orders(mark_as_read=False, max_messages=25):
             "status": "success",
             "live_mode": True,
             "scanned_count": len(recent_ids),
+            "new_orders_count": new_orders_count,
             "orders_processed": processed_orders,
-            "message": f"Escaneo IMAP completado. {len(processed_orders)} pedidos analizados."
+            "message": f"Conectado a info@anyd.es ({len(recent_ids)} correos revisados · {new_orders_count} pedidos nuevos importados)."
         }
     except Exception as e:
         return {

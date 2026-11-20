@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe evolutivo | ANyD Nutricionistas</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@page{size:A4;margin:12mm 12mm 14mm}
+:root{--blue:#0086cd;--blue-l:#e0f2fe;--dark:#0f172a;--text:#475569;--border:#e2e8f0;--green:#059669;--green-l:#d1fae5;--red:#b91c1c;--red-l:#fee2e2;--amber:#f59e0b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Lato,sans-serif;color:var(--text);background:#e2e8f0;font-size:12.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;padding:14mm 14mm 16mm;box-shadow:0 4px 20px rgba(0,0,0,.08);position:relative}
+h1,h2,h3{font-family:Montserrat,sans-serif;color:var(--dark)}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--blue);padding-bottom:10px;margin-bottom:14px}
+.hdr img{height:46px}
+.hdr h1{font-size:22px}
+.hdr .sub{font-size:12px;margin-top:2px}
+.sec{margin-bottom:16px;break-inside:avoid}
+.sec h2{font-size:13.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:9px}
+.pdata{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 14px}
+.pdata div b{display:block;font-size:10px;text-transform:uppercase;color:#94a3b8}
+.pdata div span{font-weight:700;color:var(--dark)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.c{border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:4px solid var(--blue)}
+.c .l{font-size:10px;text-transform:uppercase;font-weight:700;color:#94a3b8}
+.c .v{font:800 21px Montserrat;color:var(--dark)}
+.c .v small{font-size:11px;color:#94a3b8}
+.d{font-size:11px;font-weight:700;padding:1px 6px;border-radius:12px;margin-right:4px}
+.d.good{background:var(--green-l);color:var(--green)}.d.bad{background:var(--red-l);color:var(--red)}.d.neu{background:#f1f5f9}
+.summary{background:var(--blue-l);border-radius:10px;padding:11px 14px;line-height:1.6;color:var(--dark)}
+.range{position:relative;height:16px;border-radius:8px;display:flex;overflow:hidden;margin:6px 0 3px}
+.range div{height:100%}
+.marker{position:absolute;top:-4px;width:3px;height:24px;background:var(--dark);border-radius:2px}
+.rl{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chartbox{height:190px;border:1px solid var(--border);border-radius:10px;padding:8px}
+.chartbox h3{font-size:11px;margin-bottom:4px}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th,td{padding:4px 7px;border-bottom:1px solid var(--border);text-align:right}
+th:first-child,td:first-child{text-align:left}
+thead th{background:#f8fafc;font-size:10px;text-transform:uppercase;color:#64748b}
+tr.grp td{background:var(--blue-l);color:#0369a1;font-weight:800;font-size:10.5px;text-align:left}
+td.cur{font-weight:800;color:var(--dark)}
+.notes{border:1px dashed var(--border);border-radius:10px;padding:10px 12px;white-space:pre-wrap;min-height:40px}
+.foot{position:absolute;bottom:7mm;left:14mm;right:14mm;display:flex;justify-content:space-between;font-size:9.5px;color:#94a3b8;border-top:1px solid var(--border);padding-top:4px}
+.sign{margin-top:18px;text-align:right;font-size:11.5px}
+.sign b{font-family:Montserrat;color:var(--dark)}
+.toolbar{position:fixed;top:14px;right:14px;display:flex;gap:8px;z-index:9}
+.toolbar button{border:none;background:var(--blue);color:#fff;padding:10px 16px;border-radius:9px;font-weight:700;cursor:pointer;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.toolbar button.g{background:#fff;color:var(--blue)}
+@media print{body{background:#fff}.page{margin:0;box-shadow:none;width:auto;min-height:auto;padding:0}.toolbar{display:none}.foot{position:fixed;bottom:0;left:0;right:0}.pb{break-before:page}}
+</style>
+</head>
+<body>
+<div class="toolbar"><button class="g" onclick="history.length>1?history.back():window.close()">← Volver</button><button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
+<div id="root"><div class="page"><p>Cargando informe…</p></div></div>
+
+<script>
+const CLIENT_ID = {{ client_id }};
+const fmt=(v,d=1)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fdate=s=>new Date(s).toLocaleDateString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric"});
+function badge(d,better,dec=1){ if(d==null) return "<span class='d neu'>—</span>"; const cls=d===0||!better?"neu":((d<0)===(better==="down")?"good":"bad"); return `<span class="d ${cls}">${d>0?"+":""}${fmt(d,dec)}</span>`; }
+
+function narrative(ev,M){
+  const n=ev.count; if(n<2) return "Esta es la primera valoración registrada. Servirá como punto de partida para medir la evolución en las próximas consultas.";
+  const parts=[], dt=ev.days_total;
+  const ch=(k,txtDown,txtUp,unit,dec=1)=>{ const m=M[k]; if(!m||m.delta_first==null||m.delta_first===0) return; parts.push(`${m.delta_first<0?txtDown:txtUp} <b>${fmt(Math.abs(m.delta_first),dec)} ${unit}</b>`); };
+  ch("weight","el peso ha bajado","el peso ha subido","kg");
+  ch("fat_mass","la masa grasa se ha reducido","la masa grasa ha aumentado","kg");
+  ch("ffm","la masa libre de grasa ha disminuido","la masa libre de grasa ha aumentado","kg");
+  ch("muscle_mass","la masa muscular ha disminuido","la masa muscular ha aumentado","kg");
+  ch("per_waist","el perímetro de cintura se ha reducido","el perímetro de cintura ha aumentado","cm");
+  ch("sum6","el sumatorio de 6 pliegues ha bajado","el sumatorio de 6 pliegues ha subido","mm");
+  let t=`Desde la primera consulta (${fdate(ev.consultations[0].date)}${dt?`, hace ${dt} días`:""}) y a lo largo de <b>${n} valoraciones</b>, `;
+  t+= parts.length? parts.join(", ").replace(/, ([^,]*)$/," y $1")+"." : "los parámetros se mantienen estables.";
+  const fm=M.fat_mass, ff=M.ffm;
+  if(fm&&ff&&fm.delta_first!=null&&ff.delta_first!=null){
+    if(fm.delta_first<0&&ff.delta_first>=0) t+=" <b>Recomposición corporal favorable</b>: se pierde grasa preservando o ganando tejido magro.";
+    else if(fm.delta_first<0&&ff.delta_first<0) t+=" Parte de la pérdida procede de masa libre de grasa: conviene vigilar el aporte proteico y energético y la carga de fuerza.";
+  }
+  if(M.bmr_cunningham&&M.bmr_cunningham.last) t+=` Su metabolismo basal estimado (Cunningham, a partir de la masa libre de grasa) es de <b>${fmt(M.bmr_cunningham.last,0)} kcal/día</b>.`;
+  return t;
+}
+
+function card(M,k,label,unit){ const m=M[k]; if(!m) return "";
+  return `<div class="c"><div class="l">${label}</div><div class="v">${fmt(m.last,m.dec)} <small>${unit}</small></div><div>${badge(m.delta_prev,m.better,m.dec)}<small>vs anterior</small></div><div style="margin-top:2px">${badge(m.delta_first,m.better,m.dec)}<small>desde el inicio</small></div></div>`; }
+
+function chart(id,ev,keys,colors,shared=false){
+  const labels=ev.consultations.map(c=>new Date(c.date).toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"2-digit"}));
+  const ds=keys.map((k,i)=>{ const m=ev.metrics.find(x=>x.key===k); if(!m) return null; return {label:m.label+(m.unit?` (${m.unit})`:""),data:m.series.map(s=>s.value),borderColor:colors[i],backgroundColor:colors[i],tension:.3,spanGaps:true,yAxisID:shared?"y0":"y"+i,pointRadius:3,borderWidth:2}; }).filter(Boolean);
+  if(!ds.length) return false;
+  const scales={}; ds.forEach((d,i)=>{ if(!scales[d.yAxisID]) scales[d.yAxisID]={position:Object.keys(scales).length?"right":"left",grid:{drawOnChartArea:!Object.keys(scales).length},ticks:{font:{size:9}}}; });
+  new Chart(document.getElementById(id),{type:"line",data:{labels,datasets:ds},options:{animation:false,maintainAspectRatio:false,scales:{...scales,x:{ticks:{font:{size:9}}}},plugins:{legend:{labels:{font:{size:9},boxWidth:10}}}}});
+  return true;
+}
+
+(async()=>{
+  const r=await fetch(`/api/evolutivo/${CLIENT_ID}`); const ev=await r.json(); const p=ev.patient;
+  const M=Object.fromEntries(ev.metrics.map(m=>[m.key,m]));
+  const last=ev.consultations[ev.consultations.length-1];
+  const cols=[...ev.consultations].reverse().slice(0,5);
+  const ref=ev.fat_reference, fp=M.fat_percent?.last;
+  document.title=`Informe evolutivo - ${p.fullname}`;
+  const today=new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const hdr=`<div class="hdr"><div><h1>Informe evolutivo</h1><div class="sub"><b style="color:var(--dark);font-size:14px">${p.fullname}</b><br>${today}</div></div><img src="/static/logo_oficial.png"></div>`;
+  const foot=`<div class="foot"><span>ANyD Nutricionistas · Román Illescas Quiroga · Col. MAD00274 · www.anyd.es</span><span>Documento de carácter informativo y confidencial</span></div>`;
+
+  let tbl=`<table><thead><tr><th>Parámetro</th>${cols.map((c,i)=>`<th>${fdate(c.date)}</th>`).join("")}<th>Δ anterior</th><th>Δ inicio</th></tr></thead><tbody>`; let g="";
+  ev.metrics.forEach(m=>{ if(m.group!==g){ g=m.group; tbl+=`<tr class="grp"><td colspan="${cols.length+3}">${g}</td></tr>`; }
+    tbl+=`<tr><td>${m.label}${m.unit?` (${m.unit})`:""}</td>${cols.map((c,i)=>`<td class="${i?"":"cur"}">${fmt(c[m.key],m.dec)}</td>`).join("")}<td>${badge(m.delta_prev,m.better,m.dec)}</td><td>${badge(m.delta_first,m.better,m.dec)}</td></tr>`; });
+  tbl+="</tbody></table>";
+
+  let rangeHtml="";
+  if(fp!=null){ const max=Math.max(ref.obese+10,fp+5), pct=v=>v/max*100;
+    rangeHtml=`<div class="sec"><h2>% de grasa corporal actual</h2>
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font:800 18px Montserrat;color:var(--dark)">${fmt(fp)} %</b><small>${ref.label}</small></div>
+      <div class="range"><div style="width:${pct(ref.low)}%;background:#bfdbfe"></div><div style="width:${pct(ref.high-ref.low)}%;background:#bbf7d0"></div><div style="width:${pct(ref.obese-ref.high)}%;background:#fde68a"></div><div style="flex:1;background:#fecaca"></div><span class="marker" style="left:calc(${pct(fp)}% - 1px)"></span></div>
+      <div class="rl"><span>Bajo</span><span>Saludable</span><span>Elevado</span><span>Muy elevado</span></div></div>`; }
+
+  document.getElementById("root").innerHTML=`
+  <div class="page">${hdr}
+    <div class="sec"><h2>Datos del paciente</h2><div class="pdata">
+      <div><b>Sexo</b><span>${(p.gender||"").toUpperCase().startsWith("F")?"Mujer":p.gender?"Hombre":"—"}</span></div>
+      <div><b>Edad</b><span>${p.age!=null?p.age+" años":"—"}</span></div>
+      <div><b>Altura</b><span>${p.height_cm?fmt(p.height_cm,0)+" cm":"—"}</span></div>
+      <div><b>Consultas</b><span>${ev.count}${ev.days_total?` · ${ev.days_total} días`:""}</span></div>
+      <div><b>Deporte</b><span>${p.sport_discipline||"—"}</span></div>
+      <div style="grid-column:span 2"><b>Objetivo</b><span>${p.main_goal||"—"}</span></div>
+      <div><b>Última valoración</b><span>${last?fdate(last.date):"—"}</span></div></div></div>
+    <div class="sec"><h2>Resumen de la evolución</h2><div class="summary">${narrative(ev,M)}</div></div>
+    <div class="sec"><h2>Indicadores clave</h2><div class="cards">
+      ${card(M,"weight","Peso","kg")}${card(M,"fat_mass","Masa grasa","kg")}${card(M,"ffm","Masa libre de grasa","kg")}
+      ${card(M,"muscle_mass","Masa muscular","kg")}${card(M,"per_waist","Cintura","cm")}${M.sum6?card(M,"sum6","Σ 6 pliegues","mm"):card(M,"water_percent","Agua corporal","%")}</div></div>
+    ${rangeHtml}
+    <div class="sec"><h2>Gráficas evolutivas</h2><div class="charts">
+      <div class="chartbox"><h3>Peso y % grasa</h3><canvas id="c1"></canvas></div>
+      <div class="chartbox"><h3>Masa grasa vs. masa libre de grasa</h3><canvas id="c2"></canvas></div></div></div>
+    ${foot}</div>
+  <div class="page pb">${hdr}
+    <div class="sec"><h2>Tabla de datos</h2>${tbl}</div>
+    <div class="sec charts"><div class="chartbox"><h3>Perímetros</h3><canvas id="c3"></canvas></div><div class="chartbox"><h3>Pliegues y metabolismo basal</h3><canvas id="c4"></canvas></div></div>
+    <div class="sec"><h2>Observaciones de la última consulta</h2><div class="notes">${(last&&last.notes)||"—"}</div></div>
+    <div class="sign"><b>Román Illescas Quiroga</b><br>Dietista-Nutricionista · Col. MAD00274<br>ANyD Nutricionistas</div>
+    ${foot}</div>`;
+  chart("c1",ev,["weight","fat_percent"],["#0086cd","#f59e0b"]);
+  chart("c2",ev,["fat_mass","ffm"],["#ef4444","#059669"]);
+  if(!chart("c3",ev,["per_waist","per_hip","per_thigh","per_arm_flexed"],["#8b5cf6","#0086cd","#059669","#f59e0b"],true)) document.getElementById("c3").parentElement.style.display="none";
+  if(!chart("c4",ev,["sum6","bmr_cunningham"],["#ef4444","#0086cd"])) document.getElementById("c4").parentElement.style.display="none";
+  if(new URLSearchParams(location.search).get("print")==="1") setTimeout(()=>window.print(),700);
+})();
+</script>
+</body>
+</html>

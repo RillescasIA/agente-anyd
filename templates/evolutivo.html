@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta & Evolutivo | ANyD Nutricionistas</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--blue:#0086cd;--blue-d:#0369a1;--blue-l:#e0f2fe;--dark:#0f172a;--text:#475569;--bg:#f1f5f9;--white:#fff;--border:#e2e8f0;
+--green:#059669;--green-l:#d1fae5;--amber:#f59e0b;--amber-l:#fef3c7;--red:#ef4444;--red-l:#fee2e2;--purple:#8b5cf6;--radius:12px;
+--shadow:0 1px 3px rgba(15,23,42,.06),0 4px 12px rgba(15,23,42,.04)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Lato,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+h1,h2,h3,.mont{font-family:Montserrat,sans-serif;color:var(--dark)}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px}
+
+/* Topbar */
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:50}
+.topbar img{height:34px}
+.topbar nav{display:flex;gap:4px;flex:1}
+.topbar nav a{text-decoration:none;color:var(--text);font-size:12.5px;font-weight:700;padding:7px 11px;border-radius:8px}
+.topbar nav a:hover{background:var(--bg);color:var(--blue)}
+.topbar nav a.active{background:var(--blue);color:#fff}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:270px 1fr;gap:16px;padding:16px;max-width:1600px;margin:0 auto}
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.side{padding:14px;height:calc(100vh - 82px);position:sticky;top:66px;display:flex;flex-direction:column;gap:10px}
+.side input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg)}
+.side h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-top:6px}
+.plist{overflow:auto;flex:1;display:flex;flex-direction:column;gap:3px}
+.pitem{padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.pitem:hover{background:var(--bg)}
+.pitem.sel{background:var(--blue-l);color:var(--blue-d)}
+.pitem b{font-size:13px;color:var(--dark)}
+.pitem small{font-size:11px;color:#94a3b8;white-space:nowrap}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--blue-l);color:var(--blue-d)}
+
+.main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.empty{padding:70px 20px;text-align:center}
+.empty .big{font-size:46px}
+
+/* Header paciente */
+.phead{padding:16px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.avatar{width:54px;height:54px;border-radius:50%;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font:800 20px Montserrat;color:var(--blue);overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.phead h2{font-size:19px}
+.basics{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:5px}
+.basics label{font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase}
+.basics input,.basics select{padding:4px 7px;border:1px solid var(--border);border-radius:7px;width:auto}
+.warn{background:var(--amber-l);color:#92400e;font-size:12px;padding:5px 10px;border-radius:8px;font-weight:700}
+.actions{margin-left:auto;display:flex;gap:8px}
+.btn{border:none;border-radius:9px;padding:9px 15px;font-weight:700;font-size:13px;background:var(--blue);color:#fff;display:inline-flex;gap:6px;align-items:center}
+.btn:hover{background:var(--blue-d)}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--border)}
+.btn.ghost:hover{background:var(--blue-l)}
+.btn.green{background:var(--green)}
+.btn.red{background:#fff;color:var(--red);border:1px solid #fecaca}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{padding:14px 16px;border-left:4px solid var(--blue)}
+.kpi .l{font-size:11px;font-weight:700;text-transform:uppercase;color:#94a3b8;letter-spacing:.04em}
+.kpi .v{font:800 26px Montserrat;color:var(--dark);margin:2px 0}
+.kpi .v small{font-size:13px;color:#94a3b8;font-weight:600}
+.kpi.green{border-color:var(--green)}.kpi.amber{border-color:var(--amber)}.kpi.purple{border-color:var(--purple)}
+.d{font-size:12px;font-weight:700;padding:2px 7px;border-radius:20px;display:inline-block}
+.d.good{background:var(--green-l);color:var(--green)}.d.bad{background:var(--red-l);color:#b91c1c}.d.neu{background:var(--bg);color:var(--text)}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;padding:6px;border-bottom:1px solid var(--border)}
+.tab{border:none;background:none;padding:9px 16px;border-radius:8px;font-weight:700;color:var(--text);font-size:13.5px}
+.tab.active{background:var(--blue-l);color:var(--blue-d)}
+.pane{display:none;padding:18px}.pane.active{display:block}
+
+/* Formulario consulta */
+.fgrid{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px}
+.fbox{border:1px solid var(--border);border-radius:10px;padding:14px}
+.fbox h3{font-size:13.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.f label{display:block;font-size:11.5px;font-weight:700;color:#64748b;margin-bottom:2px}
+.f input{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;text-align:right}
+.f input:focus{outline:2px solid var(--blue-l);border-color:var(--blue)}
+.f input.auto{background:#f8fafc;color:var(--blue-d);font-weight:700}
+.derived{margin-top:14px;display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.dv{background:var(--bg);border-radius:9px;padding:9px;text-align:center}
+.dv .l{font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase}
+.dv .v{font:800 17px Montserrat;color:var(--dark)}
+.frow{display:flex;gap:12px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap}
+.frow .f input{text-align:left}
+textarea{width:100%;border:1px solid var(--border);border-radius:9px;padding:9px;min-height:60px;margin-top:12px}
+.savebar{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;align-items:center}
+.editing{background:var(--amber-l);color:#92400e;padding:6px 11px;border-radius:8px;font-weight:700;font-size:12.5px;margin-right:auto}
+.mini{font-size:11.5px;padding:5px 9px}
+
+/* Evolutivo */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--border);background:#fff;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--text)}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.chartbox{height:300px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:11px;text-transform:uppercase;color:#94a3b8;background:#f8fafc;position:sticky;top:0}
+tr.grp td{background:var(--blue-l);color:var(--blue-d);font-weight:800;font-family:Montserrat;font-size:12px;text-align:left}
+td.cur{font-weight:800;color:var(--dark)}
+.tablewrap{overflow:auto;max-height:520px;border:1px solid var(--border);border-radius:10px}
+tbody tr.hist:hover{background:#f8fafc;cursor:pointer}
+
+.toast{position:fixed;bottom:22px;right:22px;background:var(--dark);color:#fff;padding:12px 18px;border-radius:10px;font-weight:700;opacity:0;transform:translateY(10px);transition:.25s;z-index:99}
+.toast.show{opacity:1;transform:none}.toast.err{background:var(--red)}
+@media(max-width:1200px){.fgrid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.derived{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.side{position:static;height:auto;max-height:300px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/"><img src="/static/logo_oficial.png" alt="ANyD"></a>
+  <nav>
+    <a href="/admin">📅 Agenda</a>
+    <a href="/consulta">🩺 Consulta 360°</a>
+    <a href="/evolutivo" class="active">📈 Consulta & Evolutivo</a>
+    <a href="/patrones-nutricionales">🥗 Patrones nutricionales</a>
+    <a href="/tanita" target="_blank">⚖️ Tanita</a>
+  </nav>
+  <a href="/logout" class="btn red mini">Salir</a>
+</div>
+
+<div class="layout">
+  <aside class="card side">
+    <input id="search" placeholder="🔍 Buscar paciente…  ( / )" autocomplete="off">
+    <h3 id="todayTitle" style="display:none">Citas de hoy</h3>
+    <div id="today" class="plist" style="flex:0 0 auto;max-height:200px"></div>
+    <h3>Pacientes</h3>
+    <div id="plist" class="plist"></div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="card empty" id="emptyState">
+      <div class="big">📈</div>
+      <h2 style="margin:10px 0 6px">Selecciona un paciente</h2>
+      <p>Busca a la izquierda o elige una cita de hoy para registrar la consulta y ver su evolución.</p>
+    </div>
+
+    <div id="patientView" style="display:none;flex-direction:column;gap:14px">
+      <div class="card phead">
+        <div class="avatar" id="avatar"></div>
+        <div>
+          <h2 id="pname"></h2>
+          <div class="basics">
+            <label>Sexo</label>
+            <select id="b-gender"><option value="">—</option><option value="M">Hombre</option><option value="F">Mujer</option></select>
+            <label>Nacimiento</label><input type="date" id="b-birth">
+            <span id="b-age" class="tag"></span>
+            <label>Altura</label><input type="number" id="b-height" step="0.5" style="width:75px"> cm
+            <span id="basicsWarn" class="warn" style="display:none">⚠️ Completa sexo, nacimiento y altura para cálculos exactos</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn ghost" id="lnkPatron" href="#">🥗 Patrón nutricional</a>
+          <button class="btn" id="btnReport">🖨️ Informe evolutivo</button>
+        </div>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card">
+        <div class="tabs">
+          <button class="tab active" data-pane="pNew">➕ Nueva consulta</button>
+          <button class="tab" data-pane="pEvo">📈 Evolutivo</button>
+          <button class="tab" data-pane="pHist">🗂️ Historial</button>
+        </div>
+
+        <!-- NUEVA CONSULTA -->
+        <div class="pane active" id="pNew">
+          <div class="frow">
+            <div class="f"><label>Fecha de la consulta</label><input type="date" id="c-date"></div>
+            <span id="editingBadge" class="editing" style="display:none"></span>
+          </div>
+          <div class="fgrid">
+            <div class="fbox">
+              <h3>⚖️ Bioimpedancia Tanita MC-580 <button class="btn ghost mini" id="btnTanita" title="Importar la última lectura recibida por el receptor USB">📡 Leer Tanita</button></h3>
+              <div class="fields" id="fTanita"></div>
+            </div>
+            <div class="fbox"><h3>📏 Perímetros (cm)</h3><div class="fields" id="fPer"></div></div>
+            <div class="fbox"><h3>📐 Pliegues cutáneos (mm)</h3><div class="fields" id="fSk"></div></div>
+          </div>
+          <div class="derived" id="derived"></div>
+          <textarea id="c-notes" placeholder="Observaciones de la consulta (sensaciones, adherencia, entrenamientos, digestiones…)"></textarea>
+          <div class="savebar">
+            <button class="btn ghost" id="btnClear">Limpiar</button>
+            <button class="btn green" id="btnSave">💾 Guardar consulta <small style="opacity:.7">(Ctrl+S)</small></button>
+          </div>
+        </div>
+
+        <!-- EVOLUTIVO -->
+        <div class="pane" id="pEvo">
+          <div class="chips" id="chips"></div>
+          <div class="chartbox"><canvas id="chart"></canvas></div>
+          <div class="tablewrap"><table id="evoTable"></table></div>
+        </div>
+
+        <!-- HISTORIAL -->
+        <div class="pane" id="pHist">
+          <p style="margin-bottom:10px;font-size:12.5px">Haz clic en una consulta para editarla.</p>
+          <div class="tablewrap"><table id="histTable"></table></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const INITIAL_ID = {{ initial_client_id if initial_client_id else 'null' }};
+const TANITA = [
+  ["weight","Peso","kg"],["fat_percent","% Grasa","%"],["fat_mass","Masa grasa","kg"],["ffm","Masa libre grasa","kg"],
+  ["muscle_mass","Masa muscular","kg"],["water_percent","% Agua","%"],["bone_mass","Masa ósea","kg"],["visceral_fat","Grasa visceral",""],
+  ["bmr_tanita","BMR Tanita","kcal"],["metabolic_age","Edad metabólica","años"],["physical_rating","Complexión (1-9)",""]];
+const PER = [["waist","Cintura"],["hip","Cadera"],["arm_relaxed","Brazo relajado"],["arm_flexed","Brazo contraído"],["chest","Tórax"],["thigh","Muslo medio"],["calf","Gemelo"]];
+const SK = [["triceps","Tríceps"],["subscapular","Subescapular"],["biceps","Bíceps"],["iliac_crest","Cresta ilíaca"],["supraspinale","Supraespinal"],["abdominal","Abdominal"],["thigh","Muslo"],["calf","Pierna"]];
+
+let state = {patient:null, evo:null, editingId:null, chart:null, selMetrics:["weight","fat_mass","ffm"]};
+const $ = s => document.querySelector(s);
+const fmt = (v,d=1) => v==null||isNaN(v) ? "—" : Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+const num = id => { const v = parseFloat(($("#"+id)?.value||"").replace(",", ".")); return isNaN(v)||v===0 ? null : v; };
+function toast(msg, err=false){ const t=$("#toast"); t.textContent=msg; t.className="toast show"+(err?" err":""); setTimeout(()=>t.className="toast",2600); }
+async function api(url, opts={}){ const r = await fetch(url,{headers:{"Content-Type":"application/json"},...opts}); const j = await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||"Error "+r.status); return j; }
+
+/* ---------- Construcción formulario ---------- */
+function field(id,label,unit){ return `<div class="f"><label>${label}${unit?` <small>(${unit})</small>`:""}</label><input id="${id}" inputmode="decimal" autocomplete="off"></div>`; }
+$("#fTanita").innerHTML = TANITA.map(([k,l,u])=>field("t-"+k,l,u)).join("");
+$("#fPer").innerHTML = PER.map(([k,l])=>field("p-"+k,l)).join("");
+$("#fSk").innerHTML = SK.map(([k,l])=>field("s-"+k,l)).join("");
+document.querySelectorAll(".fgrid input").forEach(i=>i.addEventListener("input",()=>{ if(["t-weight","t-fat_percent"].includes(i.id)) autoBia(); recalc(); }));
+
+function autoBia(){ // masa grasa y FFM derivadas del % si no se han tecleado
+  const w=num("t-weight"), p=num("t-fat_percent");
+  ["t-fat_mass","t-ffm"].forEach(id=>{ const el=$("#"+id); if(el.dataset.manual!=="1"){ el.value=""; el.classList.remove("auto"); }});
+  if(w&&p){ const fm=w*p/100;
+    if($("#t-fat_mass").dataset.manual!=="1"){ $("#t-fat_mass").value=fm.toFixed(1); $("#t-fat_mass").classList.add("auto"); }
+    if($("#t-ffm").dataset.manual!=="1"){ $("#t-ffm").value=(w-fm).toFixed(1); $("#t-ffm").classList.add("auto"); } }
+}
+["t-fat_mass","t-ffm"].forEach(id=>$("#"+id).addEventListener("input",e=>{ e.target.dataset.manual = e.target.value? "1":""; e.target.classList.remove("auto"); }));
+
+/* ---------- Cálculos en vivo (idénticos al servidor) ---------- */
+function isFemale(){ return ($("#b-gender").value||"").toUpperCase().startsWith("F"); }
+function ageAt(dateStr){ const b=$("#b-birth").value; if(!b) return null; const d=new Date(dateStr||Date.now()), bb=new Date(b); let a=d.getFullYear()-bb.getFullYear(); if(d.getMonth()<bb.getMonth()||(d.getMonth()==bb.getMonth()&&d.getDate()<bb.getDate())) a--; return a; }
+function recalc(){
+  const w=num("t-weight"), h=parseFloat($("#b-height").value)||null, ffm=num("t-ffm"), f=isFemale(), age=ageAt($("#c-date").value);
+  const s=k=>num("s-"+k), p=k=>num("p-"+k);
+  const six=["triceps","subscapular","supraspinale","abdominal","thigh","calf"];
+  const sum6 = six.every(s) ? six.reduce((a,k)=>a+s(k),0) : null;
+  const f4=["triceps","subscapular","supraspinale","abdominal"], d4=["biceps","triceps","subscapular","iliac_crest"];
+  let durnin=null;
+  if(d4.every(s)&&age){ const t=f?[[19,1.1549,.0678],[29,1.1599,.0717],[39,1.1423,.0632],[49,1.1333,.0612],[200,1.1339,.0645]]:[[19,1.1620,.0630],[29,1.1631,.0632],[39,1.1422,.0544],[49,1.1620,.0700],[200,1.1715,.0779]];
+    const [_,c,m]=t.find(r=>age<=r[0]); const dens=c-m*Math.log10(d4.reduce((a,k)=>a+s(k),0)); durnin=495/dens-450; }
+  const D=[
+    ["IMC", w&&h? w/((h/100)**2):null,1],
+    ["BMR Cunningham", ffm? 500+22*ffm:null,0,"kcal"],
+    ["Cintura/Cadera", p("waist")&&p("hip")? p("waist")/p("hip"):null,2],
+    ["Cintura/Altura", p("waist")&&h? p("waist")/h:null,2],
+    ["Σ 6 pliegues", sum6,1,"mm"],
+    ["% Yuhasz", sum6? (f?0.1548*sum6+3.580:0.1051*sum6+2.585):null,1],
+    ["% Durnin-W.", durnin,1]];
+  const fk = f4.every(s)? 0.153*f4.reduce((a,k)=>a+s(k),0)+5.783:null;
+  if(fk) D.splice(6,0,["% Faulkner",fk,1]);
+  $("#derived").innerHTML = D.slice(0,7).map(([l,v,d,u])=>`<div class="dv"><div class="l">${l}</div><div class="v">${fmt(v,d)}${v!=null&&u?` <small style="font-size:11px;color:#94a3b8">${u}</small>`:""}</div></div>`).join("");
+}
+
+/* ---------- Pacientes ---------- */
+let searchTimer;
+async function loadPatients(q=""){
+  const {athletes} = await api(`/api/clinica/athletes?q=${encodeURIComponent(q)}&limit=80`);
+  $("#plist").innerHTML = athletes.map(a=>`<div class="pitem ${state.patient?.id==a.id?"sel":""}" data-id="${a.id}"><b>${a.fullname}</b>${a.last_weight?`<small>${fmt(a.last_weight)} kg</small>`:""}</div>`).join("") || "<p style='padding:8px'>Sin resultados</p>";
+}
+async function loadToday(){
+  try{ const {today} = await api("/api/clinica/today-appointments");
+    if(today.length){ $("#todayTitle").style.display="block";
+      $("#today").innerHTML = today.filter(t=>t.client_id).map(t=>`<div class="pitem" data-id="${t.client_id}"><b>${t.client_name}</b><span class="tag">${(t.appointment_time||"").slice(0,5)}</span></div>`).join(""); } }catch(e){}
+}
+$("#search").addEventListener("input",e=>{ clearTimeout(searchTimer); searchTimer=setTimeout(()=>loadPatients(e.target.value),220); });
+document.addEventListener("click",e=>{ const it=e.target.closest(".pitem"); if(it) selectPatient(+it.dataset.id); });
+
+async function selectPatient(id){
+  try{ state.evo = await api(`/api/evolutivo/${id}`); }catch(e){ return toast(e.message,true); }
+  state.patient = state.evo.patient;
+  history.replaceState(null,"",`/evolutivo?client_id=${id}`);
+  document.querySelectorAll(".pitem").forEach(p=>p.classList.toggle("sel",+p.dataset.id===id));
+  $("#emptyState").style.display="none"; $("#patientView").style.display="flex";
+  renderHeader(); renderKpis(); renderEvo(); renderHist(); clearForm();
+}
+
+function renderHeader(){
+  const p=state.patient;
+  $("#pname").textContent=p.fullname;
+  $("#avatar").innerHTML = p.photo_url? `<img src="${p.photo_url}">` : (p.fullname||"?").split(" ").map(x=>x[0]).slice(0,2).join("");
+  $("#b-gender").value = (p.gender||"").toUpperCase().startsWith("F")?"F":(p.gender?"M":"");
+  $("#b-birth").value = p.birth_date||""; $("#b-height").value = p.height_cm||"";
+  $("#b-age").textContent = p.age!=null? p.age+" años":"edad ?";
+  $("#basicsWarn").style.display = (!p.has_profile||!p.birth_date||!p.height_cm)? "inline-block":"none";
+  $("#lnkPatron").href = `/patrones-nutricionales?client=${encodeURIComponent(p.fullname)}`;
+}
+["b-gender","b-birth","b-height"].forEach(id=>$("#"+id).addEventListener("change",async()=>{
+  try{ const r = await api(`/api/evolutivo/${state.patient.id}/datos-basicos`,{method:"POST",body:JSON.stringify({gender:$("#b-gender").value,birth_date:$("#b-birth").value,height_cm:parseFloat($("#b-height").value)||null})});
+    state.patient = {...state.patient,...r.patient}; renderHeader(); recalc(); toast("Datos básicos guardados");
+    state.evo = await api(`/api/evolutivo/${state.patient.id}`); renderKpis(); renderEvo(); renderHist(); }catch(e){ toast(e.message,true); }
+}));
+
+function deltaBadge(d, better, dec=1, unit=""){
+  if(d==null) return "";
+  const cls = d===0||!better? "neu" : ((d<0)===(better==="down")? "good":"bad");
+  return `<span class="d ${cls}">${d>0?"+":""}${fmt(d,dec)}${unit?" "+unit:""}</span>`;
+}
+function renderKpis(){
+  const M = Object.fromEntries(state.evo.metrics.map(m=>[m.key,m]));
+  const K=[["weight","Peso","kg",""],["fat_percent","% Grasa","%","amber"],["ffm","Masa libre de grasa","kg","green"],["bmr_cunningham","BMR Cunningham","kcal",""],["per_waist","Cintura","cm","purple"]];
+  const n=state.evo.count, dp=state.evo.days_since_prev;
+  $("#kpis").innerHTML = K.map(([k,l,u,c])=>{ const m=M[k];
+    return `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${m?fmt(m.last,m.dec):"—"} <small>${u}</small></div>
+      ${m&&m.delta_prev!=null?deltaBadge(m.delta_prev,m.better,m.dec)+` <small style="color:#94a3b8">vs anterior${dp?` (${dp} d)`:""}</small>`:`<small style="color:#94a3b8">${n?"1ª consulta":"Sin datos"}</small>`}</div>`; }).join("");
+}
+
+/* ---------- Evolutivo ---------- */
+function renderEvo(){
+  const ev=state.evo, cons=[...ev.consultations].reverse();
+  const avail = ev.metrics.filter(m=>m.series.filter(s=>s.value!=null).length>=1);
+  state.selMetrics = state.selMetrics.filter(k=>avail.some(m=>m.key===k)); if(!state.selMetrics.length&&avail[0]) state.selMetrics=[avail[0].key];
+  $("#chips").innerHTML = avail.map(m=>`<button class="chip ${state.selMetrics.includes(m.key)?"on":""}" data-k="${m.key}">${m.label}</button>`).join("");
+  document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{ const k=c.dataset.k; state.selMetrics = state.selMetrics.includes(k)? state.selMetrics.filter(x=>x!==k):[...state.selMetrics,k]; renderEvo(); });
+  drawChart();
+  if(!cons.length){ $("#evoTable").innerHTML="<tr><td style='padding:30px;text-align:center'>Todavía no hay consultas registradas.</td></tr>"; return; }
+  let html=`<thead><tr><th>Parámetro</th><th>Actual</th><th>Δ anterior</th><th>Δ inicio</th>${cons.slice(1).map(c=>`<th>${new Date(c.date).toLocaleDateString("es-ES")}</th>`).join("")}</tr></thead><tbody>`;
+  let g="";
+  ev.metrics.forEach(m=>{ if(m.group!==g){ g=m.group; html+=`<tr class="grp"><td colspan="${4+cons.length-1}">${g}</td></tr>`; }
+    html+=`<tr><td>${m.label}${m.unit?` <small style="color:#94a3b8">(${m.unit})</small>`:""}</td><td class="cur">${fmt(m.last,m.dec)}</td><td>${deltaBadge(m.delta_prev,m.better,m.dec)}</td><td>${deltaBadge(m.delta_first,m.better,m.dec)}</td>${cons.slice(1).map(c=>`<td>${fmt(c[m.key],m.dec)}</td>`).join("")}</tr>`; });
+  $("#evoTable").innerHTML = html+"</tbody>";
+}
+const COLORS=["#0086cd","#059669","#f59e0b","#8b5cf6","#ef4444","#0f172a","#14b8a6","#ec4899"];
+function drawChart(){
+  const ev=state.evo; if(state.chart) state.chart.destroy();
+  const labels=ev.consultations.map(c=>new Date(c.date).toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"2-digit"}));
+  const ds=state.selMetrics.map((k,i)=>{ const m=ev.metrics.find(x=>x.key===k);
+    return {label:`${m.label}${m.unit?" ("+m.unit+")":""}`,data:m.series.map(s=>s.value),borderColor:COLORS[i%8],backgroundColor:COLORS[i%8],tension:.3,spanGaps:true,yAxisID:"y"+i,pointRadius:4}; });
+  const scales={}; ds.forEach((d,i)=>scales["y"+i]={display:i<2,position:i?"right":"left",grid:{drawOnChartArea:i===0}});
+  state.chart = new Chart($("#chart"),{type:"line",data:{labels,datasets:ds},options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales,plugins:{legend:{position:"bottom"}}}});
+}
+
+/* ---------- Historial / edición ---------- */
+function renderHist(){
+  const cons=[...state.evo.consultations].reverse();
+  $("#histTable").innerHTML = `<thead><tr><th>Fecha</th><th>Peso</th><th>% Grasa</th><th>FFM</th><th>Músculo</th><th>Cintura</th><th>Σ6</th><th>Notas</th><th></th></tr></thead><tbody>`+
+   (cons.map(c=>`<tr class="hist" data-id="${c.id}"><td>${new Date(c.date).toLocaleDateString("es-ES")}</td><td>${fmt(c.weight)}</td><td>${fmt(c.fat_percent)}</td><td>${fmt(c.ffm)}</td><td>${fmt(c.muscle_mass)}</td><td>${fmt(c.per_waist)}</td><td>${fmt(c.sum6)}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;text-align:left">${c.notes||""}</td><td><button class="btn red mini" data-del="${c.id}">🗑</button></td></tr>`).join("")
+    || "<tr><td colspan='9' style='padding:30px;text-align:center'>Sin consultas</td></tr>")+"</tbody>";
+  document.querySelectorAll("#histTable tr.hist").forEach(tr=>tr.onclick=e=>{ if(e.target.dataset.del) return; editConsultation(+tr.dataset.id); });
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{ e.stopPropagation(); if(!confirm("¿Eliminar esta consulta? No se puede deshacer.")) return;
+    try{ await api(`/api/evolutivo/${state.patient.id}/consulta/${b.dataset.del}`,{method:"DELETE"}); toast("Consulta eliminada"); await selectPatient(state.patient.id); }catch(err){ toast(err.message,true); } });
+}
+function clearForm(){
+  state.editingId=null; document.querySelectorAll(".fgrid input").forEach(i=>{ i.value=""; i.dataset.manual=""; i.classList.remove("auto"); });
+  $("#c-notes").value=""; $("#c-date").value=new Date().toISOString().slice(0,10); $("#editingBadge").style.display="none"; recalc();
+}
+function editConsultation(id){
+  const c=state.evo.consultations.find(x=>x.id===id); if(!c) return; clearForm(); state.editingId=id;
+  $("#c-date").value=c.date; $("#c-notes").value=c.notes||"";
+  TANITA.forEach(([k])=>{ if(c[k]!=null){ $("#t-"+k).value=c[k]; }});
+  PER.forEach(([k])=>{ if(c.perimeters[k]!=null) $("#p-"+k).value=c.perimeters[k]; });
+  SK.forEach(([k])=>{ if(c.skinfolds[k]!=null) $("#s-"+k).value=c.skinfolds[k]; });
+  $("#editingBadge").textContent=`✏️ Editando consulta del ${new Date(c.date).toLocaleDateString("es-ES")}`; $("#editingBadge").style.display="inline-block";
+  switchTab("pNew"); recalc();
+}
+$("#btnClear").onclick=clearForm;
+
+async function save(){
+  if(!state.patient) return;
+  const body={date:$("#c-date").value,notes:$("#c-notes").value,height_cm:parseFloat($("#b-height").value)||null,perimeters:{},skinfolds:{}};
+  TANITA.forEach(([k])=>body[k]=num("t-"+k)); PER.forEach(([k])=>body.perimeters[k]=num("p-"+k)); SK.forEach(([k])=>body.skinfolds[k]=num("s-"+k));
+  $("#btnSave").disabled=true;
+  try{
+    const url=`/api/evolutivo/${state.patient.id}/consulta`+(state.editingId?`/${state.editingId}`:"");
+    await api(url,{method:state.editingId?"PUT":"POST",body:JSON.stringify(body)});
+    toast(state.editingId?"Consulta actualizada ✔":"Consulta guardada ✔");
+    await selectPatient(state.patient.id); switchTab("pEvo");
+  }catch(e){ toast(e.message,true); } finally{ $("#btnSave").disabled=false; }
+}
+$("#btnSave").onclick=save;
+$("#c-date").addEventListener("change",recalc);
+
+$("#btnTanita").onclick=async()=>{
+  try{ const r=await api("/api/tanita/live"); const m=r.latest_measurement;
+    if(!m) return toast(r.connected?"Tanita conectada, pero sin lecturas todavía":"No hay lectura: abre el receptor Tanita (menú ⚖️)",true);
+    const map={weight:"weight",fat_percent:"fat_percent",fat_mass:"fat_mass",ffm:"ffm",muscle_mass:"muscle_mass",water_percent:"water_percent",bone_mass:"bone_mass",visceral_fat:"visceral_fat",bmr_tanita:"bmr",metabolic_age:"metabolic_age",physical_rating:"physical_rating"};
+    let n=0; for(const [k,src] of Object.entries(map)){ const v=m[src]??m[k]; if(v!=null&&v!==""){ $("#t-"+k).value=v; n++; } }
+    recalc(); toast(`Lectura Tanita importada (${n} valores)`);
+  }catch(e){ toast(e.message,true); }
+};
+
+/* ---------- Tabs, atajos, informe ---------- */
+function switchTab(id){ document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.pane===id)); document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("active",p.id===id)); if(id==="pEvo"&&state.evo) drawChart(); }
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchTab(t.dataset.pane));
+$("#btnReport").onclick=()=>window.open(`/evolutivo/informe/${state.patient.id}`,"_blank");
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){ e.preventDefault(); save(); }
+  if(e.key==="/"&&!["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName)){ e.preventDefault(); $("#search").focus(); }
+});
+
+loadPatients(); loadToday(); recalc();
+if(INITIAL_ID) selectPatient(INITIAL_ID);
+</script>
+</body>
+</html>

@@ -208,3 +208,125 @@ Estimación de Gasto Energético Total (TDEE) Periodizado (Criterio Conservador 
         }
     except Exception as e:
         return {"success": False, "message": f"Error escribiendo en Drive: {e}"}
+
+def upload_document_to_athlete_folder(
+    client_name: str,
+    file_bytes: bytes,
+    original_filename: str,
+    doc_category: str = "General"
+) -> Dict[str, Any]:
+    """
+    Sube y almacena un documento clínico, analítica o prueba médica directamente
+    en la carpeta de Google Drive del deportista (G:\\Mi unidad\\1.- ANyD\\1.- Deportistas\\<Nombre>).
+    """
+    if not client_name or not client_name.strip():
+        return {"success": False, "message": "Nombre de deportista no válido"}
+
+    folder_path = find_athlete_folder(client_name)
+    if not folder_path:
+        clean_name = client_name.strip().title()
+        folder_path = os.path.join(DRIVE_ATHLETES_DIR, clean_name)
+        try:
+            os.makedirs(folder_path, exist_ok=True)
+        except Exception as e:
+            return {"success": False, "message": f"No se pudo crear la carpeta del deportista: {e}"}
+
+    # Limpieza de nombre de archivo
+    base_name, ext = os.path.splitext(original_filename)
+    clean_base = re.sub(r'[^a-zA-Z0-9_\-\s]', '', base_name).strip()
+    clean_category = re.sub(r'[^a-zA-Z0-9_\-]', '', doc_category).strip() or "Doc"
+    date_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    clean_filename = f"{date_stamp}_{clean_category}_{clean_base}{ext}" if clean_category != "General" else f"{date_stamp}_{clean_base}{ext}"
+    if not clean_base:
+        clean_filename = f"{date_stamp}_{clean_category}{ext}"
+
+    dest_path = os.path.join(folder_path, clean_filename)
+
+    try:
+        with open(dest_path, "wb") as f:
+            f.write(file_bytes)
+            
+        file_size_kb = round(len(file_bytes) / 1024, 1)
+        return {
+            "success": True,
+            "filename": clean_filename,
+            "original_filename": original_filename,
+            "category": doc_category,
+            "size_kb": file_size_kb,
+            "folder": os.path.basename(folder_path),
+            "full_path": dest_path,
+            "message": f"Documento '{clean_filename}' ({file_size_kb} KB) guardado correctamente en Drive."
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error guardando archivo en Drive: {str(e)}"}
+
+def list_athlete_documents(client_name: str) -> Dict[str, Any]:
+    """
+    Lista todos los documentos almacenados en la carpeta de Drive del deportista,
+    ordenados cronológicamente con metadatos (tamaño, tipo, fecha de modificación).
+    """
+    folder_path = find_athlete_folder(client_name)
+    if not folder_path or not os.path.exists(folder_path):
+        return {
+            "exists": False,
+            "folder_name": None,
+            "path": None,
+            "documents": []
+        }
+
+    docs = []
+    try:
+        for entry in os.scandir(folder_path):
+            if entry.is_file():
+                fname = entry.name
+                if fname.startswith("~$") or fname.startswith("."):
+                    continue
+                stat = entry.stat()
+                mtime_str = datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M")
+                size_kb = round(stat.st_size / 1024, 1)
+                ext = os.path.splitext(fname)[1].lower()
+                
+                # Clasificación heurística
+                cat = "General"
+                lower_f = fname.lower()
+                if any(k in lower_f for k in ["analitica", "sangre", "laboratorio", "hemograma", "bioquimica"]):
+                    cat = "Analítica Sanguínea"
+                elif any(k in lower_f for k in ["tanita", "bioimpedancia", "bia", "composicion"]):
+                    cat = "Composición Tanita"
+                elif any(k in lower_f for k in ["entreno", "entrenamiento", "cuadrante", "microciclo"]):
+                    cat = "Entrenamiento"
+                elif any(k in lower_f for k in ["esfuerzo", "lactato", "vo2", "prueba"]):
+                    cat = "Prueba de Esfuerzo"
+                elif any(k in lower_f for k in ["dossier", "patron", "plan"]):
+                    cat = "Patrón / Dossier"
+                elif ext in [".pdf"]:
+                    cat = "Documento PDF"
+                elif ext in [".jpg", ".jpeg", ".png", ".webp"]:
+                    cat = "Imagen / Fotografía"
+
+                docs.append({
+                    "name": fname,
+                    "extension": ext,
+                    "category": cat,
+                    "size_kb": size_kb,
+                    "modified": mtime_str,
+                    "timestamp": stat.st_mtime
+                })
+        docs.sort(key=lambda x: x["timestamp"], reverse=True)
+        return {
+            "exists": True,
+            "folder_name": os.path.basename(folder_path),
+            "path": folder_path,
+            "total_documents": len(docs),
+            "documents": docs
+        }
+    except Exception as e:
+        return {
+            "exists": True,
+            "folder_name": os.path.basename(folder_path),
+            "path": folder_path,
+            "error": str(e),
+            "documents": []
+        }
+

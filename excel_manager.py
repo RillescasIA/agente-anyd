@@ -10,17 +10,45 @@ BACKUP_DIR = os.environ.get("BACKUP_DIR", r"g:\Mi unidad\1.- IA\IA Gemini\Agente
 excel_lock = threading.Lock()
 
 def determine_num_sessions(tipo_bono):
-    """Calcula las sesiones de consulta según el tipo de bono."""
+    """Calcula las sesiones de consulta según el tipo de bono. Nutrición y Competición = 4 sesiones."""
     tipo = str(tipo_bono or "").upper()
-    if "6" in tipo:
+    if "COMPET" in tipo or "COMPETIC" in tipo:
+        return 4
+    elif "6" in tipo:
         return 6
-    elif "5" in tipo or "COMPET" in tipo:
+    elif "5" in tipo:
         return 5
-    elif "3" in tipo:
+    elif "4" in tipo:
+        return 4
+    elif "3" in tipo or "TRIMESTR" in tipo:
         return 3
-    elif "SUELTA" in tipo or "INDIVIDUAL" in tipo or "REVISION" in tipo or "1" in tipo:
+    elif "SUELTA" in tipo or "INDIVIDUAL" in tipo or "REVISION" in tipo or "1" in tipo or "MENSUAL" in tipo or "SEGUIMIENTO" in tipo:
         return 1
     return 3
+
+def delete_purchase_from_excel(n_pedido):
+    """
+    Elimina la fila del pedido indicado en la hoja 'Bonos activos' (con copia de seguridad previa).
+    Retorna True si se borró, False si no se encontró o el archivo no está disponible.
+    """
+    if not n_pedido or not os.path.exists(EXCEL_PATH):
+        return False
+    with excel_lock:
+        make_backup()
+        wb = openpyxl.load_workbook(EXCEL_PATH)
+        deleted = False
+        for sheet_name in ["Bonos activos", "Bonos agotados"]:
+            if sheet_name not in wb.sheetnames:
+                continue
+            sh = wb[sheet_name]
+            for r in range(sh.max_row, 1, -1):
+                if str(sh.cell(row=r, column=5).value or "").strip() == str(n_pedido).strip():
+                    sh.delete_rows(r)
+                    deleted = True
+        if deleted:
+            wb.save(EXCEL_PATH)
+        wb.close()
+        return deleted
 
 def make_backup():
     try:
