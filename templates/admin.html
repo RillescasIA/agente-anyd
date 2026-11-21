@@ -32,7 +32,7 @@
                     if (typeof checkNewOrderNotifications === 'function') checkNewOrderNotifications();
                     if (newCount > 0) {
                         if (typeof calendar !== 'undefined' && calendar) {
-                            calendar.refetchEvents();
+                            if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                         } else {
                             setTimeout(() => window.location.reload(), 900);
                         }
@@ -328,7 +328,7 @@
                     if (data.success) {
                         showToast(data.message || 'Bloqueo actualizado con éxito.', 'success');
                         closeBlockDayModal();
-                        if (typeof calendar !== 'undefined') calendar.refetchEvents();
+                        if (typeof calendar !== 'undefined') if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     } else {
                         alert('Error al actualizar bloqueo: ' + (data.detail || 'Operación no completada'));
                     }
@@ -352,7 +352,7 @@
                         document.getElementById('blk-name').value = '';
                         document.getElementById('blk-end-date').value = '';
                         loadBlockedDaysList();
-                        if (typeof calendar !== 'undefined') calendar.refetchEvents();
+                        if (typeof calendar !== 'undefined') if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     } else {
                         alert('Error al bloquear: ' + (data.detail || 'Operación no completada'));
                     }
@@ -419,7 +419,7 @@
                 if (data.success) {
                     showToast(`Día ${dateStr} desbloqueado.`, 'info');
                     loadBlockedDaysList();
-                    if (typeof calendar !== 'undefined') calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined') if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     alert('Error al desbloquear el día.');
                 }
@@ -702,6 +702,7 @@
         .toast-msg.success { background: #10B981; }
         .toast-msg.error { background: #EF4444; }
         .toast-msg.info { background: #2563EB; }
+        .toast-msg.warning { background: #D97706; }
 
         @keyframes slideInToast {
             from { transform: translateX(100%); opacity: 0; }
@@ -1035,6 +1036,7 @@
 </head>
 <body>
     <!-- BANNER DE NOTIFICACIONES DE NUEVOS PEDIDOS (REACTIVO ANYD) -->
+    <div id="toast-container" class="toast-container"></div>
     <div id="anyd-new-order-banner-container" style="position:fixed; top:12px; left:50%; transform:translateX(-50%); width:92%; max-width:980px; z-index:999999; display:none; flex-direction:column; gap:8px; pointer-events:none;"></div>
 
 
@@ -1438,9 +1440,12 @@
                     <h1>
                         <span>🎟️</span> Estación de Control de Bonos
                     </h1>
-                    <div class="bw-subtitle">
+                                        <div class="bw-subtitle">
                         <span>Sincronización bidireccional con Excel:</span>
-                        <code style="background:#F1F5F9; border:1px solid #E2E8F0; padding:2px 7px; border-radius:5px; font-size:11px; color:#0F172A; font-weight:700;">G:\Mi unidad.- ANyD\Bonos activos_claude.xlsx</code>
+                        <code style="background:#F1F5F9; border:1px solid #E2E8F0; padding:2px 7px; border-radius:5px; font-size:11px; color:#0F172A; font-weight:700;">G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx</code>
+                        <span id="excel-sync-status-badge" style="background:#DCFCE7; color:#166534; border:1px solid #86EFAC; font-size:11px; font-weight:800; padding:2px 9px; border-radius:12px; display:inline-flex; align-items:center; gap:5px;">
+                            🟢 Excel Sincronizado
+                        </span>
                     </div>
                 </div>
 
@@ -1863,6 +1868,24 @@
                                 </td>
                             </tr>
                             {% endfor %}
+                            <tr id="bonos-empty-state-row" style="display:none;">
+                                <td colspan="6" style="padding:36px 20px; text-align:center; background:#F8FAFC;">
+                                    <div style="max-width:460px; margin:0 auto; background:white; border:1.5px dashed #CBD5E1; border-radius:12px; padding:24px;">
+                                        <div id="bonos-empty-icon" style="font-size:32px; margin-bottom:8px;">🎉</div>
+                                        <div id="bonos-empty-title" style="font-family:'Montserrat',sans-serif; font-size:14.5px; font-weight:800; color:#0F172A; margin-bottom:4px;">
+                                            No hay bonos en esta vista
+                                        </div>
+                                        <div id="bonos-empty-desc" style="font-size:12.5px; color:#64748B; margin-bottom:14px;">
+                                            Prueba con otro término de búsqueda o cambia de pestaña de filtro.
+                                        </div>
+                                        <div id="bonos-empty-actions" style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+                                            <button type="button" onclick="clearBonosSearch(); setBonoStateFilter('activos');" class="btn-anyd" style="background:#0086cd; font-size:12px; padding:7px 14px; font-weight:700;">
+                                                🟢 Ver Todos los Bonos Activos
+                                            </button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -3090,7 +3113,7 @@
                 const data = await res.json();
                 if (data.success) {
                     showToast(`✓ Cita de ${info.event.title} guardada: ${dateStr} ${timeStr} (${duration} min)`, 'success');
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     info.revert();
                     showToast(`Error al mover: ${data.message || 'No se pudo guardar'}`, 'error');
@@ -3147,7 +3170,7 @@
                 if (data.success) {
                     updateDurationChipsUI(dur);
                     showToast(`✓ Duración cambiada a ${dur} minutos`, 'success');
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     alert("Error: " + data.message);
                 }
@@ -3179,7 +3202,7 @@
                 const data = await res.json();
                 if (data.success) {
                     showToast(`✓ ¡Listo! ${data.affected} citas ajustadas a 30 minutos`, "success");
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     alert("Error al ajustar duraciones.");
                 }
@@ -3317,7 +3340,7 @@
                 if (data.success) {
                     showToast(`✓ Cita actualizada: ${service || ''} (${date} ${time})`, 'success');
                     closeEventModal();
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     alert("Error: " + data.message);
                 }
@@ -3348,7 +3371,7 @@
                     if (data.success) {
                         showToast(`¡Consulta completada! ${data.message}`, 'success');
                         closeEventModal();
-                        calendar.refetchEvents();
+                        if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     } else {
                         alert("Error: " + data.message);
                     }
@@ -3364,7 +3387,7 @@
                     if (data.success) {
                         showToast(`¡Consulta completada!`, 'success');
                         closeEventModal();
-                        calendar.refetchEvents();
+                        if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     }
                 }
             }
@@ -3420,7 +3443,7 @@
                     showToast(data.message, 'success');
                     closeNoBonoModal();
                     closeEventModal();
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     loadPendingBonosCount();
                 } else {
                     alert("Error: " + data.message);
@@ -3444,7 +3467,7 @@
                     showToast(data.message, 'success');
                     closeNoBonoModal();
                     closeEventModal();
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     
                     // Abrir de inmediato el chat de bonos pendientes en la hoja de reservas
                     openPendingBonosDrawer();
@@ -3619,7 +3642,7 @@
                 if (data.success) {
                     showToast(data.message, 'success');
                     loadPendingBonosList();
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     alert("Error: " + data.message);
                 }
@@ -3642,7 +3665,7 @@
                 if (data.success) {
                     showToast(data.message, 'success');
                     loadPendingBonosList();
-                    calendar.refetchEvents();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                 } else {
                     alert("Error: " + data.message);
                 }
@@ -3990,7 +4013,7 @@
                 if (data.success) {
                     showToast(data.message, 'success');
                     if (typeof calendar !== 'undefined' && calendar) {
-                        calendar.refetchEvents();
+                        if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
                     } else {
                         setTimeout(() => window.location.reload(), 1200);
                     }
@@ -4351,6 +4374,56 @@
             const cntDisplay = document.getElementById('bonos-count-display');
             if (cntDisplay) cntDisplay.innerText = visibleBonos;
 
+            // Mostrar u ocultar Empty State contextual si hay 0 resultados visibles
+            const emptyRow = document.getElementById('bonos-empty-state-row');
+            if (emptyRow) {
+                if (visibleBonos === 0) {
+                    emptyRow.style.display = '';
+                    const emptyTitle = document.getElementById('bonos-empty-title');
+                    const emptyDesc = document.getElementById('bonos-empty-desc');
+                    const emptyActions = document.getElementById('bonos-empty-actions');
+
+                    // Comprobar si la búsqueda coincide con bonos en la pestaña de Completados o Activos
+                    let completedMatches = 0;
+                    let activeMatches = 0;
+                    if (query || tipoFilter || centroFilter) {
+                        bonoRows.forEach(r => {
+                            const txt = r.getAttribute('data-search') || '';
+                            const rTipo = r.getAttribute('data-tipo') || '';
+                            const rCentro = r.getAttribute('data-centro') || '';
+                            if ((!query || txt.includes(query)) && (!tipoFilter || rTipo.includes(tipoFilter)) && (!centroFilter || rCentro.includes(centroFilter))) {
+                                if (r.getAttribute('data-state') === 'completado') completedMatches++;
+                                else activeMatches++;
+                            }
+                        });
+                    }
+
+                    if (completedMatches > 0 && currentBonoStateFilter !== 'completados') {
+                        if (emptyTitle) emptyTitle.innerText = `Se encontraron ${completedMatches} bono(s) en Agotados / Completados`;
+                        if (emptyDesc) emptyDesc.innerText = `No hay coincidencias en la pestaña actual, pero existen en el histórico de bonos completados.`;
+                        if (emptyActions) emptyActions.innerHTML = `<button type="button" onclick="setBonoStateFilter('completados')" class="btn-anyd" style="background:#059669; font-size:12px; padding:7px 14px; font-weight:700;">✅ Ver ${completedMatches} en Completados</button>`;
+                    } else if (activeMatches > 0 && currentBonoStateFilter !== 'activos') {
+                        if (emptyTitle) emptyTitle.innerText = `Se encontraron ${activeMatches} bono(s) en Bonos Activos`;
+                        if (emptyDesc) emptyDesc.innerText = `Pulsa el botón inferior para verlos en la lista general de bonos activos.`;
+                        if (emptyActions) emptyActions.innerHTML = `<button type="button" onclick="setBonoStateFilter('activos')" class="btn-anyd" style="background:#0086cd; font-size:12px; padding:7px 14px; font-weight:700;">🟢 Ver ${activeMatches} en Activos</button>`;
+                    } else {
+                        const emptyMsgs = {
+                            'ultima': ['🎉 ¡Ningún deportista en última sesión!', 'No hay bonos activos con solo 1 sesión restante en este momento.'],
+                            'nuevo': ['✨ Todos los bonos han sido estrenados', 'No hay bonos con 0 sesiones consumidas pendientes de primera cita.'],
+                            'ficticios': ['✅ Cero bonos provisionales (FIC)', 'Todos los bonos en curso corresponden a pedidos reales confirmados.'],
+                            'completados': ['📭 Sin bonos completados que coincidan', 'No se encontraron bonos agotados con los filtros actuales.'],
+                            'activos': ['🔍 Sin resultados para tu búsqueda', 'No hay ningún bono activo que coincida con los filtros seleccionados.']
+                        };
+                        const pair = emptyMsgs[currentBonoStateFilter] || emptyMsgs['activos'];
+                        if (emptyTitle) emptyTitle.innerText = pair[0];
+                        if (emptyDesc) emptyDesc.innerText = pair[1];
+                        if (emptyActions) emptyActions.innerHTML = `<button type="button" onclick="clearBonosSearch(); setBonoStateFilter('activos');" class="btn-anyd" style="background:#0086cd; font-size:12px; padding:7px 14px; font-weight:700;">🔄 Ver Todos los Bonos Activos</button>`;
+                    }
+                } else {
+                    emptyRow.style.display = 'none';
+                }
+            }
+
             const apptRows = document.querySelectorAll('.appt-row');
             let visibleAppts = 0;
             apptRows.forEach(row => {
@@ -4510,6 +4583,156 @@
             }
         }
 
+        // --- SEMÁFORO DE ESTADO DE EXCEL ---
+        function setExcelSyncBadgeState(isSynced) {
+            const badge = document.getElementById('excel-sync-status-badge');
+            if (!badge) return;
+            if (isSynced) {
+                badge.style.background = '#DCFCE7';
+                badge.style.color = '#166534';
+                badge.style.borderColor = '#86EFAC';
+                badge.innerHTML = '🟢 Excel Sincronizado';
+            } else {
+                badge.style.background = '#FEF3C7';
+                badge.style.color = '#92400E';
+                badge.style.borderColor = '#F59E0B';
+                badge.innerHTML = '🟠 Excel Abierto en Windows · Guardado en BD (Cierra Excel y pulsa 🔄 Excel)';
+            }
+        }
+
+        // --- ACTUALIZACIÓN REACTIVA DEL DOM (0ms · SIN RECARGAR PÁGINA) ---
+        function updateBonoRowInDOM(bonoId, data) {
+            const row = document.getElementById(`bono-row-${bonoId}`);
+            if (!row) return;
+
+            const used = data.used_sessions !== undefined ? data.used_sessions : parseInt(row.getAttribute('data-used') || '0', 10);
+            const tot = data.total_sessions !== undefined ? data.total_sessions : parseInt(row.getAttribute('data-total') || '3', 10);
+            const rem = Math.max(0, tot - used);
+            const status = (rem === 0 || data.status === 'Completado') ? 'Completado' : 'Activo';
+
+            let computedState = 'en_curso';
+            if (status !== 'Activo' || rem === 0) computedState = 'completado';
+            else if (rem === 1) computedState = 'ultima';
+            else if (used === 0) computedState = 'nuevo';
+
+            row.setAttribute('data-used', used);
+            row.setAttribute('data-total', tot);
+            row.setAttribute('data-remaining', rem);
+            row.setAttribute('data-status', status);
+            row.setAttribute('data-state', computedState);
+
+            if (data.order_id) {
+                row.setAttribute('data-order-id', data.order_id);
+                const isFic = String(data.order_id).toUpperCase().startsWith('FIC-') || String(data.forma_pago || '').toLowerCase().includes('ficticio');
+                row.setAttribute('data-ficticio', isFic ? '1' : '0');
+                const orderSpan = row.querySelector('td:nth-child(1) span[style*="Montserrat"]');
+                if (orderSpan) orderSpan.innerText = `#${data.order_id}`;
+            }
+            if (data.client_name) {
+                row.setAttribute('data-fullname', data.client_name);
+                const nameDiv = row.querySelector('td:nth-child(2) div[style*="font-weight:800"]');
+                if (nameDiv) nameDiv.innerText = data.client_name;
+            }
+            if (data.tipo_bono) {
+                row.setAttribute('data-tipo', data.tipo_bono.toLowerCase());
+            }
+            if (data.price !== undefined) {
+                row.setAttribute('data-price', data.price);
+            }
+            if (data.forma_pago) {
+                row.setAttribute('data-pago', data.forma_pago);
+            }
+            if (data.centro) {
+                row.setAttribute('data-centro', data.centro.toLowerCase());
+            }
+
+            // Actualizar celda de progreso y píldoras del stepper (Columna 4)
+            const col4 = row.querySelector('td:nth-child(4)');
+            const safeClient = (row.getAttribute('data-fullname') || 'Deportista').replace(/'/g, "\'");
+            const orderId = row.getAttribute('data-order-id') || '';
+            const todayShort = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+
+            if (col4) {
+                let badgeHtml = '';
+                if (rem === 0) {
+                    badgeHtml = '<span style="background:#E2E8F0; color:#475569; font-size:10.5px; font-weight:800; padding:1px 8px; border-radius:10px;">✅ AGOTADO</span>';
+                } else if (rem === 1) {
+                    badgeHtml = '<span style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:10.5px; font-weight:800; padding:1px 8px; border-radius:10px;">⚠️ Queda 1 (Última)</span>';
+                } else {
+                    badgeHtml = `<span style="background:#DCFCE7; color:#15803D; font-size:10.5px; font-weight:800; padding:1px 8px; border-radius:10px;">🟢 Quedan ${rem}</span>`;
+                }
+
+                // Recoger fechas previas de píldoras ya hechas
+                const existingDonePills = Array.from(col4.querySelectorAll('.session-slot-pill.done')).map(el => el.innerText.replace('✅', '').trim());
+                let pillsHtml = '';
+                let nextFound = false;
+                for (let i = 1; i <= tot; i++) {
+                    if (i <= used) {
+                        const lbl = existingDonePills[i - 1] || todayShort;
+                        pillsHtml += `<span class="session-slot-pill done" onclick="toggleBonoConsultations('${bonoId}', event)" title="Consulta ${i} realizada">✅ ${lbl}</span>`;
+                    } else if (!nextFound) {
+                        nextFound = true;
+                        pillsHtml += `<button type="button" class="session-slot-pill next-avail" onclick="openConsumeSessionModal(${bonoId}, '${orderId}', '${safeClient}', ${i}, ${tot})" title="Clic para firmar e imputar la ${i}ª consulta en 1 clic">✍️ Firmar ${i}ª</button>`;
+                    } else {
+                        pillsHtml += `<span class="session-slot-pill future-avail" title="Consulta ${i} disponible">⚪ ${i}ª libre</span>`;
+                    }
+                }
+
+                col4.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; font-size:11.5px;">
+                        <span style="color:#334155; font-weight:700;"><b>${used}</b> de ${tot} realizadas</span>
+                        ${badgeHtml}
+                    </div>
+                    <div class="session-stepper">${pillsHtml}</div>
+                `;
+            }
+
+            // Destello verde suave de confirmación en la fila
+            row.style.transition = 'background-color 0.4s ease';
+            row.style.backgroundColor = '#DCFCE7';
+            setTimeout(() => {
+                row.style.backgroundColor = '';
+                recalcBonoKpisFromDOM();
+                filterBonosAndAppts();
+            }, 650);
+        }
+
+        function recalcBonoKpisFromDOM() {
+            const rows = document.querySelectorAll('tr.bono-row');
+            let activos = 0, ultima = 0, nuevo = 0, ficticios = 0, completados = 0, totalAvail = 0;
+
+            rows.forEach(r => {
+                const st = r.getAttribute('data-state');
+                const rem = parseInt(r.getAttribute('data-remaining') || '0', 10);
+                const isFic = r.getAttribute('data-ficticio') === '1';
+
+                if (st === 'completado') {
+                    completados++;
+                } else {
+                    activos++;
+                    totalAvail += rem;
+                    if (st === 'ultima') ultima++;
+                    else if (st === 'nuevo') nuevo++;
+                    if (isFic) ficticios++;
+                }
+            });
+
+            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+            setTxt('kpi-val-activos', activos);
+            setTxt('kpi-val-ultima', ultima);
+            setTxt('kpi-val-nuevo', nuevo);
+
+            const setPillBadge = (pillId, val) => {
+                const badge = document.querySelector(`#${pillId} .bw-pill-badge`);
+                if (badge) badge.innerText = val;
+            };
+            setPillBadge('pill-state-activos', activos);
+            setPillBadge('pill-state-ultima', ultima);
+            setPillBadge('pill-state-nuevo', nuevo);
+            setPillBadge('pill-state-ficticios', ficticios);
+            setPillBadge('pill-state-completados', completados);
+        }
+
         // --- MODAL 2: FIRMAR / IMPUTAR SESIÓN EN 1-CLIC ---
         function openConsumeSessionModal(bonoId, orderId, clientName, slotNum, totalSlots) {
             const modal = document.getElementById('consume-session-modal');
@@ -4548,9 +4771,14 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(`✓ ${data.message}`, 'success');
                     closeConsumeSessionModal();
-                    setTimeout(() => window.location.reload(), 650);
+                    updateBonoRowInDOM(bonoId, data);
+                    setExcelSyncBadgeState(data.excel_synced !== false);
+                    if (data.excel_synced === false) {
+                        showToast(`⚠️ ${data.message} (Excel abierto en Windows: guardado en BD, pulsa 🔄 Excel al cerrarlo)`, 'warning');
+                    } else {
+                        showToast(`✓ ${data.message}`, 'success');
+                    }
                 } else {
                     alert("Aviso: " + data.message);
                 }
@@ -4625,9 +4853,14 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(`✓ ${data.message}`, 'success');
                     closeEditBonoModal();
-                    setTimeout(() => window.location.reload(), 600);
+                    updateBonoRowInDOM(bonoId, data);
+                    setExcelSyncBadgeState(data.excel_synced !== false);
+                    if (data.excel_synced === false) {
+                        showToast(`⚠️ ${data.message} (Excel abierto en Windows: guardado en BD)`, 'warning');
+                    } else {
+                        showToast(`✓ ${data.message}`, 'success');
+                    }
                 } else {
                     alert("Error: " + data.message);
                 }
@@ -4646,14 +4879,231 @@
                     const det = document.getElementById(`bono-consultas-row-${bonoId}`);
                     if (row) row.remove();
                     if (det) det.remove();
+                    recalcBonoKpisFromDOM();
                     filterBonosAndAppts();
-                    if (typeof showToast === 'function') showToast(data.message, 'success'); else alert(data.message);
+                    showToast(data.message, 'success');
                 } else {
                     alert('Error: ' + data.message);
                 }
             } catch (e) {
                 alert('Error de red borrando el pedido.');
             }
+        }
+
+        // =========================================================================
+        // SISTEMA DE TOASTS Y FLUJO DE AGENDAR NUEVA CONSULTA (CALENDARIO Y /BONOS)
+        // =========================================================================
+        function showToast(message, type = 'info') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast-msg ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            const duration = type === 'warning' ? 5500 : 3500;
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function openNewBookingModal() {
+            const modal = document.getElementById('booking-modal');
+            if (!modal) return;
+            const todayStr = new Date().toISOString().substring(0, 10);
+            const dateInp = document.getElementById('m-date');
+            if (dateInp && !dateInp.value) dateInp.value = todayStr;
+            document.getElementById('m-client-name').value = '';
+            document.getElementById('m-client-email').value = '';
+            document.getElementById('m-client-phone').value = '';
+            document.getElementById('m-notes').value = '';
+            document.getElementById('m-selected-bono-id').value = '';
+            const infoBox = document.getElementById('m-client-info-box');
+            if (infoBox) infoBox.style.display = 'none';
+            modal.classList.remove('hidden');
+        }
+
+        function openNewBookingModalWithSlot(dateStr) {
+            openNewBookingModal();
+            if (!dateStr) return;
+            if (dateStr.includes('T')) {
+                const parts = dateStr.split('T');
+                document.getElementById('m-date').value = parts[0];
+                const hhmm = parts[1].substring(0, 5);
+                const timeSel = document.getElementById('m-time');
+                if (timeSel) {
+                    let exists = Array.from(timeSel.options).some(o => o.value === hhmm);
+                    if (!exists) {
+                        timeSel.add(new Option(hhmm, hhmm, true, true));
+                    }
+                    timeSel.value = hhmm;
+                }
+            } else {
+                document.getElementById('m-date').value = dateStr.substring(0, 10);
+            }
+        }
+
+        function closeBookingModal() {
+            document.getElementById('booking-modal')?.classList.add('hidden');
+        }
+
+        let bookingClientTimer = null;
+        function onBookingClientInput() {
+            clearTimeout(bookingClientTimer);
+            bookingClientTimer = setTimeout(onBookingClientChange, 280);
+        }
+
+        async function onBookingClientChange() {
+            const name = (document.getElementById('m-client-name')?.value || '').trim();
+            const infoBox = document.getElementById('m-client-info-box');
+            if (name.length < 2) {
+                if (infoBox) infoBox.style.display = 'none';
+                return;
+            }
+            try {
+                const res = await fetch(`/api/client-details?name=${encodeURIComponent(name)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.found) {
+                    if (infoBox) infoBox.style.display = 'none';
+                    return;
+                }
+                if (data.email) document.getElementById('m-client-email').value = data.email;
+                if (data.phone) document.getElementById('m-client-phone').value = data.phone;
+
+                if (infoBox) {
+                    infoBox.style.display = 'block';
+                    document.getElementById('m-info-name').innerText = data.fullname || name;
+                    const badge = document.getElementById('m-info-badge');
+                    const orderEl = document.getElementById('m-info-bono-order');
+                    const titleEl = document.getElementById('m-info-bono-title');
+                    const sessEl = document.getElementById('m-info-bono-sessions');
+                    const bonoIdInp = document.getElementById('m-selected-bono-id');
+
+                    if (data.bono && data.bono.status === 'Activo' && (data.bono.total_sessions - data.bono.used_sessions) > 0) {
+                        const rem = data.bono.total_sessions - data.bono.used_sessions;
+                        badge.innerText = '🟢 Bono Activo';
+                        badge.style.background = '#DCFCE7';
+                        badge.style.color = '#166534';
+                        orderEl.innerText = `#${data.bono.order_id}`;
+                        titleEl.innerText = data.bono.tipo_bono;
+                        sessEl.innerText = `${data.bono.used_sessions}/${data.bono.total_sessions} (${rem} disp.)`;
+                        sessEl.style.color = '#059669';
+                        if (bonoIdInp) bonoIdInp.value = data.bono.id;
+                    } else {
+                        badge.innerText = '⚠️ Sin Bono Activo';
+                        badge.style.background = '#FEF3C7';
+                        badge.style.color = '#92400E';
+                        orderEl.innerText = '';
+                        titleEl.innerText = 'Pendiente de adquirir bono';
+                        sessEl.innerText = '0 disponibles';
+                        sessEl.style.color = '#D97706';
+                        if (bonoIdInp) bonoIdInp.value = '';
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function onServiceChange() {
+            const serv = (document.getElementById('m-service')?.value || '').toLowerCase();
+            const durSel = document.getElementById('m-duration');
+            if (serv.includes('informativa') && durSel) {
+                durSel.value = '15';
+            }
+        }
+
+        async function submitNewBooking() {
+            const clientName = (document.getElementById('m-client-name')?.value || '').trim();
+            const date = document.getElementById('m-date')?.value;
+            const time = document.getElementById('m-time')?.value;
+            const service = document.getElementById('m-service')?.value || 'Anyd Nutrición Deportiva';
+            const duration = parseInt(document.getElementById('m-duration')?.value) || 30;
+            const email = document.getElementById('m-client-email')?.value || '';
+            const phone = document.getElementById('m-client-phone')?.value || '';
+            const notes = document.getElementById('m-notes')?.value || '';
+            const bonoIdRaw = document.getElementById('m-selected-bono-id')?.value;
+
+            if (!clientName || !date || !time) {
+                alert("Por favor completa el nombre del deportista, la fecha y la hora.");
+                return;
+            }
+
+            const modality = service.toLowerCase().includes('online') ? 'Online' : 'Presencial';
+            try {
+                const res = await fetch('/api/manual-booking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_name: clientName,
+                        client_email: email,
+                        client_phone: phone,
+                        date: date,
+                        time: time,
+                        modality: modality,
+                        service: service,
+                        duration_minutes: duration,
+                        notes: notes,
+                        bono_id: bonoIdRaw ? parseInt(bonoIdRaw) : null
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✓ ${data.message}`, 'success');
+                    closeBookingModal();
+                    if (typeof calendar !== 'undefined' && calendar) {
+                        calendar.refetchEvents();
+                    }
+                } else {
+                    alert("Error agendando cita: " + (data.message || 'Error'));
+                }
+            } catch (e) {
+                alert("Error de conexión al guardar la cita.");
+            }
+        }
+
+        async function actionCancel() {
+            const id = document.getElementById('d-appt-id')?.value;
+            const name = document.getElementById('d-client-name')?.innerText || 'el deportista';
+            if (!id) return;
+            if (!confirm(`¿Seguro que deseas cancelar la cita de ${name}?\n\nSi tenía una sesión de bono asignada, se devolverá automáticamente a su saldo.`)) return;
+            try {
+                const res = await fetch('/api/cancel-appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: parseInt(id) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'info');
+                    closeEventModal();
+                    if (typeof calendar !== 'undefined' && calendar) calendar.refetchEvents();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (e) {
+                alert("Error de red al cancelar la cita.");
+            }
+        }
+
+        function actionConsulta() {
+            const name = document.getElementById('d-client-name')?.innerText || '';
+            window.location.href = `/consulta?client=${encodeURIComponent(name)}`;
+        }
+
+        function actionDietowin() {
+            const name = document.getElementById('d-client-name')?.innerText || '';
+            window.location.href = `/patrones-nutricionales?client=${encodeURIComponent(name)}`;
+        }
+
+        function actionTanita() {
+            const name = document.getElementById('d-client-name')?.innerText || '';
+            window.location.href = `/tanita?client=${encodeURIComponent(name)}`;
         }
 
         // =========================================================================
@@ -4732,16 +5182,22 @@
         function goToBono(orderId, notifId) {
             if (notifId) dismissOrderBanner(notifId);
             const url = new URL(window.location.href);
-            if (url.pathname === '/admin' && (url.searchParams.get('tab') === 'past' || url.searchParams.get('tab') === 'bonos')) {
+            if (url.pathname === '/bonos' || (url.pathname === '/admin' && (url.searchParams.get('tab') === 'past' || url.searchParams.get('tab') === 'bonos'))) {
                 highlightBonoRow(orderId);
                 return;
             }
-            window.location.href = `/admin?tab=past&highlight=${orderId}`;
+            window.location.href = `/bonos?highlight=${orderId}`;
         }
 
         function highlightBonoRow(orderId) {
             const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
             if (row) {
+                const rowState = row.getAttribute('data-state');
+                if (rowState === 'completado' && currentBonoStateFilter !== 'completados') {
+                    setBonoStateFilter('completados');
+                } else if (rowState !== 'completado' && currentBonoStateFilter !== 'activos') {
+                    setBonoStateFilter('activos');
+                }
                 row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 row.style.transition = 'all 0.3s ease';
                 row.style.outline = '3px solid #0086cd';
@@ -4761,12 +5217,10 @@
 
         // Ejecutar ordenación y comprobación de parámetros al cargar
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Iniciar sondeo de nuevos pedidos
             checkNewOrderNotifications();
             loadPendingBonosCount();
             setInterval(checkNewOrderNotifications, 30000);
 
-            // 2. Si hay tabla de bonos, aplicar orden guardado y revisar highlight
             const tbody = document.getElementById('bonos-table-tbody');
             if (tbody) {
                 const savedKey = localStorage.getItem('admin_bonos_sort_key') || 'pedido';
@@ -4774,11 +5228,12 @@
                 currentBonoSortKey = savedKey;
                 currentBonoSortDir = savedDir === 'asc' ? 'desc' : 'asc';
                 sortBonosTable(savedKey);
+                filterBonosAndAppts();
 
                 const params = new URLSearchParams(window.location.search);
                 const highlightOrder = params.get('highlight');
                 if (highlightOrder) {
-                    setTimeout(() => highlightBonoRow(highlightOrder), 400);
+                    setTimeout(() => highlightBonoRow(highlightOrder), 350);
                 }
             }
         });

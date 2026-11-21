@@ -1,8 +1,12 @@
+# -*- coding: utf-8 -*-
 import os
 import openpyxl
 import sqlite3
 import re
 from datetime import datetime
+
+import crm_manager
+import excel_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_EXCEL = r"G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx"
@@ -10,122 +14,118 @@ EXCEL_PATH = os.environ.get("EXCEL_PATH", DEFAULT_EXCEL)
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "anyd_booking.db"))
 
 def determine_total_sessions(tipo_bono):
-    tipo = str(tipo_bono or "").upper()
-    if "COMPET" in tipo or "COMPETIC" in tipo:
-        return 4
-    elif "6" in tipo:
-        return 6
-    elif "5" in tipo:
-        return 5
-    elif "4" in tipo:
-        return 4
-    elif "3" in tipo or "TRIMESTR" in tipo:
-        return 3
-    elif "SUELTA" in tipo or "INDIVIDUAL" in tipo or "CONSULTA" in tipo or "1" in tipo or "MENSUAL" in tipo or "SEGUIMIENTO" in tipo:
-        return 1
-    return 3 # default fallback
+    return excel_manager.determine_num_sessions(tipo_bono)
 
 def sync_active_bonos(file_path=None):
     target_file = file_path or EXCEL_PATH
     if not os.path.exists(target_file):
-        raise FileNotFoundError(f"No se encontró el archivo '{target_file}'. Si estás en la nube (Render), utiliza el botón para subir el archivo 'Bonos activos_claude.xlsx' o sincroniza desde tu ordenador local (http://localhost:8000).")
+        raise FileNotFoundError(
+            f"No se encontró el archivo '{target_file}'. Si estás en la nube (Render), utiliza el botón para subir el archivo 'Bonos activos_claude.xlsx' o sincroniza desde tu ordenador local (http://localhost:8080)."
+        )
 
-    wb = openpyxl.load_workbook(target_file, data_only=True)
+    wb = openpyxl.load_workbook(target_file, data_only=True, read_only=True)
     sheet = wb["Bonos activos"]
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
 
-    # Get all clients for fuzzy matching
-    cursor.execute("SELECT id, fullname, email, phone FROM clients")
-    clients = cursor.fetchall()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
     synced = 0
     for r_idx, row in enumerate(sheet.iter_rows(values_only=True)):
-        if r_idx == 0:
+        if r_idx == 0 or not row or len(row) < 7:
             continue
-        
+
         centro = row[0]
         nombre = row[1]
         tipo_bono = row[2]
         fecha_compra = row[3]
         n_pedido = str(row[4]).strip() if row[4] is not None else ""
         importe = row[5]
-        activo = row[6]
-        forma_pago = row[7]
-        nutri = row[8] or "Román"
+        activo = str(row[6] or "").strip()
+        forma_pago = row[7] if len(row) > 7 else ""
+        nutri = (row[8] if len(row) > 8 else None) or "Román"
 
-        if not nombre or activo != "Activo":
+        if not nombre or activo not in ["Activo", "p", "P"]:
             continue
 
-        # Count consultations done vs empty
         total_sessions = determine_total_sessions(tipo_bono)
         used_sessions = 0
-        consultations = []
-        
-        # Consultations start at column index 9 (Consulta 1, 2, 3...)
-        for c_idx in range(9, len(row)):
+
+        for c_idx in range(9, min(16, len(row))):
             val = row[c_idx]
             if val and str(val).strip():
                 used_sessions += 1
-                consultations.append(str(val).strip())
 
-        # Format purchase date
         p_date_str = ""
         if isinstance(fecha_compra, datetime):
             p_date_str = fecha_compra.strftime("%Y-%m-%d")
-        elif fecha_compra:
-            p_date_str = str(fecha_compra)[:10]
+        elif fecha_compra and str(fecha_compra).strip():
+            p_date_str = str(fecha_compra).strip()[:10]
 
-        # Match client in database
-        client_id = None
-        client_email = None
-        
-        # Clean nombre
-        nombre_clean = re.sub(r"\s*-\s*.*$", "", str(nombre)).strip().lower()
-        for cid, cname, cemail, cphone in clients:
-            if cname:
-                cname_clean = cname.lower()
-                if nombre_clean in cname_clean or cname_clean in nombre_clean:
-                    client_id = cid
-                    client_email = cemail
-                    break
+        order_key = n_pedido if (n_pedido and n_pedido != "--") else f"MANUAL_{r_idx}"
 
-        # If not found in clients, create a new client
-        if not client_id:
-            cursor.execute("""
-            INSERT INTO clients (fullname) VALUES (?)
-            """, (str(nombre),))
-            client_id = cursor.lastrowid
+        client_id, _, _ = crm_manager.find_or_create_client_for_bono(
+            conn=conn,
+            client_name=str(nombre).strip(),
+            order_id=order_key,
+            tipo_bono=str(tipo_bono or "Deportiva 3")
+        )
 
-        # Insert or update bono
+        try:
+            price_val = float(str(importe).replace(",", ".")) if importe is not None and str(importe).strip() != "" else 0.0
+        except Exception:
+            price_val = 0.0
+
+        status_val = "Completado" if used_sessions >= total_sessions else "Activo"
+
         cursor.execute("""
-        INSERT INTO bonos (order_id, client_id, client_name, client_email, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Activo', ?, ?, ?)
+        INSERT INTO bonos (order_id, client_id, client_name, tipo_bono, total_sessions, used_sessions, purchase_date, price, status, centro, forma_pago, nutri)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(order_id) DO UPDATE SET
-            used_sessions = excluded.used_sessions,
+            client_id = COALESCE(bonos.client_id, excluded.client_id),
+            client_name = excluded.client_name,
+            tipo_bono = excluded.tipo_bono,
             total_sessions = excluded.total_sessions,
-            status = excluded.status,
-            client_email = COALESCE(excluded.client_email, bonos.client_email)
+            used_sessions = MAX(bonos.used_sessions, excluded.used_sessions),
+            purchase_date = CASE WHEN excluded.purchase_date != '' THEN excluded.purchase_date ELSE bonos.purchase_date END,
+            price = CASE WHEN excluded.price > 0 THEN excluded.price ELSE bonos.price END,
+            centro = excluded.centro,
+            forma_pago = CASE WHEN excluded.forma_pago != '' THEN excluded.forma_pago ELSE bonos.forma_pago END,
+            status = CASE WHEN MAX(bonos.used_sessions, excluded.used_sessions) >= excluded.total_sessions THEN 'Completado' ELSE bonos.status END
         """, (
-            n_pedido if n_pedido and n_pedido != "--" else f"MANUAL_{r_idx}",
+            order_key,
             client_id,
-            str(nombre),
-            client_email,
-            str(tipo_bono),
+            str(nombre).strip(),
+            str(tipo_bono or "Deportiva 3").strip(),
             total_sessions,
             used_sessions,
             p_date_str,
-            float(importe) if importe and str(importe).replace(".", "").isdigit() else 0.0,
-            str(centro) if centro else "ANYD",
-            str(forma_pago) if forma_pago else "",
-            str(nutri)
+            price_val,
+            status_val,
+            str(centro).strip() if centro else "ANYD",
+            str(forma_pago).strip() if forma_pago else "Online",
+            str(nutri).strip()
         ))
         synced += 1
 
+    # Sincronizar bonos que pasaron a 'Bonos agotados' en Excel para marcarlos como Completado en SQLite
+    if "Bonos agotados" in wb.sheetnames:
+        sh_agotados = wb["Bonos agotados"]
+        for r_idx, row in enumerate(sh_agotados.iter_rows(min_row=2, max_row=80, max_col=8, values_only=True)):
+            if not row or len(row) < 5:
+                continue
+            ped_agotado = str(row[4] or "").strip()
+            if ped_agotado and ped_agotado != "--":
+                cursor.execute("""
+                    UPDATE bonos
+                    SET status = 'Completado', used_sessions = total_sessions
+                    WHERE order_id = ? AND status = 'Activo'
+                """, (ped_agotado,))
+
+    wb.close()
     conn.commit()
     conn.close()
-    print(f"Sincronizados {synced} bonos activos de '{EXCEL_PATH}' con la base de datos.")
+    print(f"Sincronizados {synced} bonos activos de '{target_file}' con la base de datos.")
     return synced
 
 if __name__ == "__main__":

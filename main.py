@@ -14,7 +14,7 @@ def load_excel_consultations_cache():
         if "Bonos activos" in wb.sheetnames:
             ws = wb["Bonos activos"]
             headers = []
-            for r_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=150, max_col=16, values_only=True), start=1):
+            for r_idx, row in enumerate(ws.iter_rows(min_row=1, max_col=16, values_only=True), start=1):
                 if r_idx == 1:
                     headers = [str(h or f"Consulta {idx-8}") for idx, h in enumerate(row)]
                     continue
@@ -731,7 +731,7 @@ def page_admin(
             
         tot = item.get("total_sessions") or 3
         used = item.get("used_sessions") or 0
-        num_done = min(tot, max(used, len(ex_consultas), len(b_appts)))
+        num_done = min(tot, max(used, len(ex_consultas), len(appts_by_bono_id.get(b_id, []))))
         item["used_sessions"] = num_done
         rem_sessions = max(0, tot - num_done)
         item["remaining_sessions"] = rem_sessions
@@ -1760,18 +1760,35 @@ def resolve_pending_bono(
         return {"success": False, "message": "Cita no encontrada."}
 
     matched_bono_id = None
+    bono_order_for_excel = None
     if order_id:
         cursor.execute("SELECT * FROM bonos WHERE order_id = ?", (order_id.strip(),))
         b = cursor.fetchone()
         if b:
             matched_bono_id = b["id"]
-            new_used = b["used_sessions"] + 1
+            bono_order_for_excel = b["order_id"]
+            new_used = min(b["total_sessions"], (b["used_sessions"] or 0) + 1)
             new_status = "Completado" if new_used >= b["total_sessions"] else "Activo"
             cursor.execute("UPDATE bonos SET used_sessions = ?, status = ? WHERE id = ?", (new_used, new_status, b["id"]))
 
     cursor.execute("UPDATE appointments SET status = 'Completada', bono_id = COALESCE(?, bono_id) WHERE id = ?", (matched_bono_id, id))
     conn.commit()
     conn.close()
+
+    if bono_order_for_excel:
+        try:
+            dt_fmt = datetime.strptime(str(appt["appointment_date"])[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            dt_fmt = datetime.now().strftime("%d/%m/%Y")
+        try:
+            excel_manager.record_consultation_in_excel(
+                n_pedido=bono_order_for_excel,
+                nombre=appt["client_name"],
+                date_str=dt_fmt,
+                nutri="Román"
+            )
+        except Exception as e:
+            print(f"[AVISO EXCEL] resolve_pending_bono: {e}")
 
     return {"success": True, "message": f"Consulta de {appt['client_name']} regularizada y completada con éxito."}
 
@@ -1820,6 +1837,7 @@ def api_delete_bono(bono_id: int, delete_excel: bool = True):
 def complete_appointment(id: int):
     """
     Marca la cita como asistida y sincroniza de inmediato con Excel ('Bonos activos_claude.xlsx').
+    Blindado frente a PermissionError si Excel está abierto.
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -1830,34 +1848,45 @@ def complete_appointment(id: int):
         conn.close()
         return {"success": False, "message": "Cita no encontrada."}
 
-    # Actualizar estado de la cita
+    already_completed = (appt["status"] == "Completada")
     cursor.execute("UPDATE appointments SET status = 'Completada' WHERE id = ?", (id,))
 
-    # Actualizar bono
     bono_id = appt["bono_id"]
     cursor.execute("SELECT * FROM bonos WHERE id = ?", (bono_id,))
     bono = cursor.fetchone()
 
-    msg = ""
+    msg = "Consulta marcada como completada."
+    excel_ok = False
     if bono:
-        new_used = bono["used_sessions"] + 1
-        new_status = "Completado" if new_used >= bono["total_sessions"] else "Activo"
+        tot = bono["total_sessions"] or 3
+        curr_used = bono["used_sessions"] or 0
+        new_used = curr_used if already_completed else min(tot, curr_used + 1)
+        new_status = "Completado" if new_used >= tot else "Activo"
         cursor.execute("UPDATE bonos SET used_sessions = ?, status = ? WHERE id = ?", (new_used, new_status, bono_id))
-
-        # Registrar en el Excel real 'G:\Mi unidad\1.- ANyD\Bonos activos_claude.xlsx'
-        date_formatted = datetime.strptime(appt["appointment_date"], "%Y-%m-%d").strftime("%d/%m/%Y")
-        excel_res = excel_manager.record_consultation_in_excel(
-            n_pedido=bono["order_id"],
-            nombre=appt["client_name"],
-            date_str=date_formatted,
-            nutri="Román"
-        )
-        msg = f"Excel actualizado. Sesiones consumidas: {new_used}/{bono['total_sessions']}."
 
     conn.commit()
     conn.close()
 
-    return {"success": True, "message": msg}
+    if bono:
+        try:
+            date_formatted = datetime.strptime(str(appt["appointment_date"])[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            date_formatted = datetime.now().strftime("%d/%m/%Y")
+        try:
+            excel_ok, _ = excel_manager.record_consultation_in_excel(
+                n_pedido=bono["order_id"],
+                nombre=appt["client_name"],
+                date_str=date_formatted,
+                nutri="Román"
+            )
+        except Exception as e:
+            print(f"[AVISO EXCEL] complete_appointment: {e}")
+        if excel_ok:
+            msg = f"Excel actualizado. Sesiones consumidas: {new_used}/{bono['total_sessions']}."
+        else:
+            msg = f"Guardado en Base de Datos ({new_used}/{bono['total_sessions']}). Nota: Cierra Excel y pulsa Sincronizar si estaba abierto."
+
+    return {"success": True, "excel_synced": excel_ok, "message": msg}
  
 @app.post("/api/sync-excel")
 def api_sync_excel():
@@ -2382,7 +2411,8 @@ def api_consume_bono_session(bono_id: int, req: ConsumeBonoSessionRequest):
 def api_update_bono(bono_id: int, req: UpdateBonoRequest):
     """
     Permite editar o ajustar cualquier parámetro de un bono (sesiones consumidas,
-    sesiones totales, tipo de bono, nº pedido, precio, forma de pago, estado o centro).
+    sesiones totales, tipo de bono, nº pedido, precio, forma de pago, estado o centro)
+    sincronizando también el archivo Excel y las citas autogeneradas.
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -2392,6 +2422,7 @@ def api_update_bono(bono_id: int, req: UpdateBonoRequest):
         conn.close()
         return {"success": False, "message": "Bono no encontrado."}
 
+    old_order_id = bono["order_id"]
     order_id = (req.order_id if req.order_id is not None else bono["order_id"]).strip()
     client_name = (req.client_name if req.client_name is not None else bono["client_name"]).strip()
     tipo_bono = (req.tipo_bono if req.tipo_bono is not None else bono["tipo_bono"]).strip()
@@ -2403,7 +2434,7 @@ def api_update_bono(bono_id: int, req: UpdateBonoRequest):
     centro = (req.centro if req.centro is not None else (bono["centro"] or "ANYD")).strip()
     p_date = (req.purchase_date if req.purchase_date is not None else (bono["purchase_date"] or "")).strip()
 
-    if req.status is not None:
+    if req.status is not None and used < tot:
         status = req.status
     else:
         status = "Completado" if used >= tot else "Activo"
@@ -2416,12 +2447,50 @@ def api_update_bono(bono_id: int, req: UpdateBonoRequest):
         WHERE id = ?
     """, (order_id, client_name, tipo_bono, tot, used, price, forma_pago, centro, p_date, status, bono_id))
 
+    # Si se redujo used_sessions manualmente, desvincular citas sobrantes vinculadas a este bono
+    cursor.execute("SELECT id FROM appointments WHERE bono_id = ? ORDER BY appointment_date ASC, id ASC", (bono_id,))
+    linked_appts = cursor.fetchall()
+    if len(linked_appts) > used:
+        excess_ids = [r["id"] for r in linked_appts[used:]]
+        for ex_id in excess_ids:
+            cursor.execute("DELETE FROM appointments WHERE id = ? AND notes LIKE '%firmada desde Control de Bonos%'", (ex_id,))
+            cursor.execute("UPDATE appointments SET bono_id = NULL WHERE id = ?", (ex_id,))
+
     conn.commit()
     conn.close()
+
+    excel_synced = False
+    try:
+        excel_synced = excel_manager.update_bono_in_excel(
+            old_order_id=old_order_id,
+            new_order_id=order_id,
+            client_name=client_name,
+            tipo_bono=tipo_bono,
+            price=price,
+            forma_pago=forma_pago,
+            centro=centro,
+            used_sessions=used,
+            total_sessions=tot,
+            nutri=bono["nutri"] or "Román"
+        )
+    except Exception as e:
+        print(f"[AVISO EXCEL] api_update_bono: {e}")
 
     return {
         "success": True,
         "bono_id": bono_id,
+        "order_id": order_id,
+        "client_name": client_name,
+        "tipo_bono": tipo_bono,
+        "used_sessions": used,
+        "total_sessions": tot,
+        "remaining": max(0, tot - used),
+        "price": price,
+        "forma_pago": forma_pago,
+        "centro": centro,
+        "purchase_date": p_date,
+        "status": status,
+        "excel_synced": excel_synced,
         "message": f"Bono #{order_id} de {client_name} actualizado ({used}/{tot} sesiones · {status})."
     }
 
